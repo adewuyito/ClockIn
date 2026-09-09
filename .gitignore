@@ -1,0 +1,43 @@
+# Rust / Solana / Anchor
+target/
+.anchor/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+app/build/
+app/.dart_tool/
+
+# Android
+**/android/.gradle/
+**/android/local.properties
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+
+# iOS
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+.build/
+DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# OS / Editor
+.DS_Store
+*.swp
+*.iml
+.idea/
+
+# Secrets — never committed, ever
+*.pem
+*.key
+*secret*
+.env
+id.json
+keypair.json
