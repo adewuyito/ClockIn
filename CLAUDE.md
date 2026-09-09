@@ -1,93 +1,78 @@
-# StellarRep — Project Context for Claude Code
+# ClockIn — Project Context for Claude Code
 
-> Working name: **StellarRep**. Rename freely — if you do, update this header and the Xcode/SPM product name together so they don't drift apart.
-
-## This is the umbrella repo
-
-StellarRep is split across four repos under the [`StellarRep`](https://github.com/StellarRep) GitHub org:
-
-| Repo | Holds |
-|---|---|
-| [`StellarRep/StellarRep`](https://github.com/StellarRep/StellarRep) | This repo — `CLAUDE.md` (you are here) and top-level project context. No code. |
-| [`StellarRep/contracts`](https://github.com/StellarRep/contracts) | The Soroban `reputation` contract (Rust). |
-| [`StellarRep/app`](https://github.com/StellarRep/app) | The native iOS app (Swift/SwiftUI, SPM-first). |
-| [`StellarRep/docs`](https://github.com/StellarRep/docs) | `ROADMAP.md`, `ARCHITECTURE.md`, `CONTRACT_SPEC.md`, `APP_SPEC.md`. |
-
-This was a **monorepo through Phase 5** (contract + app + docs in one checkout — see the Phase 0 status entry below, and every path mentioned in the phase log through Phase 5 is relative to that single checkout, not to this umbrella repo). It was split after Phase 5 via `git subtree split`, so `contracts/`, `app/`, and `docs/` each carry their own filtered slice of the original commit history into their new repo, rather than starting fresh. If you're picking up work on the contract or the app, clone the relevant repo directly — this one has no source in it anymore.
+> Forked from [StellarRep](https://github.com/StellarRep/StellarRep) — same core idea (portable, on-chain reputation for gig/freelance workers), retargeted from Stellar/Soroban/Swift to **Solana Mobile**. The two projects are unrelated going forward; don't cross-reference StellarRep's repos as if they're still part of this one.
 
 ## What this is
 
-A native iOS app (Swift) backed by a Soroban smart contract (Rust) that gives gig and freelance workers a **portable, on-chain reputation record on Stellar** — job counts and ratings that live on-chain instead of being locked inside one marketplace's private database. It's being built as a repo submission to the **Stellar Wave Program** (Drips × Stellar Development Foundation): https://www.drips.network/wave/stellar
+A mobile-first Solana dApp that gives gig and freelance workers a **portable, on-chain reputation record** — job counts and ratings that live on-chain instead of being locked inside one marketplace's private database. Built for **[CLOCK IN](https://solanamobile.radiant.nexus/)**, a Solana Mobile hackathon run by RadiantsDAO (Sept 8 – Oct 8, $135K in prizes) — a mobile-first, Solana-native dApp is the whole point of the event, so this project's shape follows from that: Android target (Solana Mobile Stack requires it), Mobile Wallet Adapter for signing, an Anchor program for the on-chain state.
 
-## Why this project, why this category
+## Why this concept carries over
 
-The Wave Program approves repos across a handful of recurring categories: escrow, payments/payroll, RWA/DeFi, crowdfunding, freelance marketplaces. At the time this project was scoped, escrow and payments were heavily saturated (5+ approved repos each — Trustless-Work, SafeTrust front+back, Sub-Rosa, Stellar-Rent, kindfi in escrow alone), while **on-chain identity/reputation had no dedicated entry** in the approved-repo list. OFFER-HUB (an already-approved freelance marketplace) is evidence the underlying use case — freelance/gig work on Stellar — is one the program already funds; this project builds the reputation layer nobody had claimed yet.
+StellarRep's actual insight — reputation portability is worth more than any one marketplace's walled-garden rating system — doesn't depend on which chain it's built on. What changes moving to Solana Mobile:
+- **Native iOS/SwiftUI → Flutter.** Solana Mobile Stack (Seeker/Saga, the dApp Store, Mobile Wallet Adapter) is Android-first; Swift can't target Android at all. Flutter gets Android (required) with iOS as a side effect (not the point here).
+- **Soroban/Rust contract → Anchor/Rust program.** Same language, different runtime and account model — Solana's account-based storage means the contract design isn't a drop-in port, it needed rethinking; see `docs/PROGRAM_SPEC.md` (renamed from `CONTRACT_SPEC.md`, rewritten for Anchor's account model — notably, no on-chain review-index list, since `getProgramAccounts`+`memcmp` replaces what Soroban needed a `ReviewIds` vector for).
+- **stellar-ios-mac-sdk → `solana` (Dart) + `solana_mobile_client`.** The latter is specifically Mobile Wallet Adapter — the actual mechanism by which this app gets a signature without ever holding a private key itself, which is the point of building for Solana *Mobile* specifically rather than just Solana.
+- **One thing added that StellarRep didn't have: `drift` local persistence.** An offline-first cache of on-chain state (`WorkerProfiles`, `Reviews`, `DraftReviews` — see `app/lib/core/database/app_database.dart`) so the app is usable with a flaky connection, with pending review drafts that sync once back online. Worth deciding early (Phase 1) how aggressively this cache is trusted vs. always re-verified against the chain.
 
-Every repo on the approved list at scoping time was TypeScript/web-first with Rust contracts underneath. A genuinely native Swift app is a differentiator on its own, independent of category.
+## Why single-repo, unlike StellarRep
+
+StellarRep split into 4 repos (app/contracts/docs/umbrella) for the Stellar Wave Program's longer-horizon review process. This is a 1-month hackathon with a solo-ish pace — one repo judges can clone and run, less overhead to maintain. Don't split it.
 
 ## Current status
 
-**Phase 0 — done.** Git repo initialized (branch `main`); docs moved under `docs/`; Rust 1.97.1 + `wasm32v1-none` target confirmed; `stellar-cli` 27.1.0 installed via Homebrew; `contracts/` scaffolded as a Cargo workspace with the `reputation` contract (`contracts/reputation`), empty build passes (`stellar contract build`, 583-byte wasm); funded testnet dev identity created (alias `stellarrep-dev`, see `contracts/reputation/DEPLOYED.md`); `app/` scaffolded as an SPM-first package (`app/Package.swift`) with `stellar-ios-mac-sdk` 3.10.0 as a dependency — `import stellarsdk` confirmed building both on the macOS host (`swift build`) and for iOS Simulator (`xcodebuild -scheme StellarRep -destination 'generic/platform=iOS Simulator'`). Monorepo confirmed (contract + app in one repo, as this doc set assumes — no split).
+**Phase 0 — in progress.** What actually exists right now:
+- `app/` — a fresh Flutter project (not the old Swift one). `pubspec.yaml` already has `solana`, `solana_mobile_client`, `drift`/`drift_flutter` as dependencies.
+- `app/lib/core/database/app_database.dart` — a Drift schema (`WorkerProfiles`, `Reviews`, `DraftReviews`) mirroring StellarRep's on-chain data model as a local cache. Has unit tests (`app/test/`) already, per the "Configure Drift local storage and add database unit tests" commit.
+- **No Solana/Anchor program yet.** This is the biggest missing piece — nothing on-chain exists for the app to actually talk to.
+- `CLAUDE.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, and `docs/PROGRAM_SPEC.md` (renamed from `CONTRACT_SPEC.md`) rewritten for ClockIn/Solana Mobile. `docs/APP_SPEC.md` is still StellarRep's Swift spec — next doc to fix.
+- Solana CLI 4.2.2 installed and confirmed working (`solana --version`). Anchor CLI (via `avm`) installing as of this writing — confirm `anchor --version` actually works before assuming the toolchain is ready; note the canonical Anchor repo is `otter-sec/anchor`, not `coral-xyz/anchor` or `solana-foundation/anchor` (both of which showed up as stale/wrong in search results while setting this up — verify current before trusting any cached memory of this).
 
-**Phase 1 — done.** `WorkerProfile`, `Review`, and `DataKey` defined as `#[contracttype]`s in `contracts/reputation/src/lib.rs` per `docs/CONTRACT_SPEC.md`; `register_worker` implemented (persistent storage, `require_auth` on the worker, emits `WorkerRegistered`). Only the `AlreadyRegistered` error variant is defined so far — the rest of the spec's error set arrives in Phase 2 with the functions that can trigger them. Decision: a second `register_worker` call for the same address returns `AlreadyRegistered` rather than a silent no-op, since a worker's history should only ever move forward via `submit_review`. Two API corrections found against the spec file while implementing (both now reflected in the code, not just here): `#[contracterror]` needs `#[repr(u32)]` plus `Debug, Eq, PartialEq` derives on current `soroban-sdk` (27.0.6), and `#[contractevent]` structs need a `#[topic]`-marked field and an explicit `.publish(&env)` call rather than a bare struct literal. `cargo test` passes (3 tests: first-call success, `AlreadyRegistered` on re-registration, auth actually enforced). `stellar contract build` succeeds — 3378-byte wasm exporting exactly `register_worker`.
-
-**Phase 2 — done.** `submit_review` implemented (`require_auth` on the reviewer, not the worker; rejects self-review, out-of-range ratings, and duplicate `(worker, job_id)`; updates `total_jobs`/`rating_sum`); `get_reputation` and paginated `get_reviews` implemented; remaining `Error` variants (`NotRegistered`, `InvalidRating`, `DuplicateReview`, `SelfReview`) and the `ReviewSubmitted` event added. `get_reviews` on an unregistered worker or one with no reviews returns an empty list rather than an error — pagination over nothing isn't a fault. TTL decision: a private `bump_ttl` helper extends any touched persistent entry (`Worker`, `Review`, `ReviewIds`) to `env.storage().max_ttl()` once its remaining TTL drops below half that max — read live from the network each call rather than hardcoded, since the allowed maximum is a network parameter. `cargo test` passes: 15 tests, one per error variant in the spec (including two explicit auth-enforcement tests using `testutils`, one seeding storage directly to isolate `submit_review`'s auth from `register_worker`'s) plus 4 pagination boundary cases. `stellar contract build` succeeds — 6190-byte wasm exporting all 4 functions.
-
-**Phase 3 — done.** Deployed to testnet: contract ID `CASDNMYRVVFRTCS23GK2M77VP3W2YCB6NXKT33KL5ZIX6VW4W4TYEPOM` (full detail, tx hashes, and identities in `contracts/reputation/DEPLOYED.md`). All four functions manually invoked against the live instance and confirmed correct: `register_worker` and `submit_review` each produced a real tx hash and the expected event; `get_reputation` and `get_reviews` (simulate-only by design, no tx) read back exactly the state the writes produced. Second funded identity `stellarrep-reviewer` created since `submit_review` requires `worker != reviewer`. The optional Swift-bindings generation (`stellar-contract-bindings` 0.5.0b0 via `pipx`) initially failed against this contract's spec; traced to two real upstream bugs (an XDR parser that chokes on any multi-entry spec, and multi-line doc comments breaking the generated Swift) rather than worked around. Both are already fixed on the tool's `main` branch, unreleased — filed [lightsail-network/stellar-contract-bindings#38](https://github.com/lightsail-network/stellar-contract-bindings/issues/38) asking for a release. Generated the bindings by installing from `main` directly; committed at `app/Sources/StellarRep/Generated/ReputationContract.swift`, confirmed compiling via `swift build`. Full detail in `contracts/reputation/DEPLOYED.md`. Repo pushed to GitHub, then transferred to a dedicated org: https://github.com/StellarRep/StellarRep.
-
-**Phase 4 — done.** `KeychainWalletManager` implemented (generate/import/load/delete a wallet keypair; secret seed stored only in Keychain via `kSecClassGenericPassword`, `kSecAttrAccessibleAfterFirstUnlock`, never synced to iCloud) and marked `Sendable` (no mutable state, safe to share across actor boundaries). Onboarding flow built: `OnboardingViewModel` (`@MainActor`, drives create-new vs. import-existing, Friendbot funding, and balance loading) and `OnboardingView` (SwiftUI). App entry point (`StellarRepApp`) split into its own SPM target rather than living inside the `StellarRep` library target — SwiftPM links a library's `@main` type into every target that depends on it, including tests, so `@main` inside `StellarRep` broke `swift test` with a duplicate `_main` symbol; `Package.swift` now declares `StellarRep` (library, no `@main`) and `StellarRepApp` (depends on `StellarRep`, holds only the entry point) as separate products, and `OnboardingView` is `public` so the app target can see it across the module boundary. Friendbot funding gated behind `NetworkConfig.isTestnet` (currently a hardcoded `true`, checked at the one call site that matters). 9 tests pass: 8 fast/offline `KeychainWalletManagerTests` plus one deliberately real, unmocked `OnboardingIntegrationTests` test that generates a keypair, funds it via live Friendbot, and confirms a genuine 10,000 XLM balance from Horizon (~19s) — this is what actually proves the Phase 4 "done when" bar rather than a mocked stand-in. Verified building on macOS host (`swift build`, `swift test`) and iOS Simulator for both schemes (`StellarRep` and `StellarRepApp`).
-
-**Phase 5 — done.** `ReputationService` wraps the Phase 3 generated `ReputationContract` client behind `ReputationServiceProtocol` (`registerWorker`, `submitReview`, `getReputation`, `getReviews`) using app-facing `WorkerProfile`/`Review` models, never exposing generated or `stellarsdk` types to ViewModels. Contract-vs-network error distinction confirmed empirically, not assumed: calling `register_worker` twice throws `AssembledTransactionError.simulationFailed` with message text containing `Error(Contract, #1)` — `ReputationService.run(_:)` regex-extracts that code and maps it to a typed `ReputationServiceError.contract(ReputationContractErrorError)`, distinct from `.network(String)`. `ContractCallState<Success>` (`.idle`/`.pending`/`.succeeded`/`.failed`) is the reusable pending/failed pattern every future contract-calling ViewModel should use; `RegistrationViewModel` is the first real consumer (registers a wallet as a worker — no View yet, that's Phase 6). Found and fixed a real bug in the mocked tests along the way: a `Task.yield()`-based synchronization guess between the test and a controllable mock was an actual race (silently no-op'd the resume, hanging `await task.value` forever) — replaced with a deterministic `AsyncStream`-buffered signal. 14 tests pass total: the existing 9 from Phase 4, 3 fast/offline `RegistrationViewModelTests` proving the pending/contract-error/network-error states individually, and 2 real, unmocked `ReputationServiceIntegrationTests` — one full register → submit_review → get_reputation → get_reviews loop against live testnet through `ReputationService` itself (not the raw generated client), and one confirming a duplicate registration surfaces as the typed `.contract(.AlreadyRegistered)` case end-to-end. Verified on macOS host and iOS Simulator for both schemes.
-
-**Post-Phase-5: split into the multi-repo org layout** described above. `git subtree split --prefix=<dir> -b split-<dir>` on the monorepo, pushed each resulting branch to `main` on the new repo — full history preserved, not squashed. This umbrella repo had `contracts/`, `app/`, `docs/` removed after the split. Next: **Phase 6 — Core UI Flows**, per `docs/ROADMAP.md` (now in the `StellarRep/docs` repo). Update this section as phases complete so anyone (human or Claude) picking this repo back up knows where to resume without re-reading everything.
+A fresh 8-phase plan now exists in `docs/ROADMAP.md`, adapted for Anchor/Flutter and the hackathon's Oct 8 deadline (Mobile Wallet Adapter pulled forward to Phase 4, ahead of full program integration, since it's the hackathon's actual differentiator). Update this section as those phases actually complete.
 
 ## Tech stack
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Smart contract | Rust + `soroban-sdk`, built/deployed via `stellar-cli` | The runtime is still called "Soroban" in tooling and docs even though it's no longer marketed as a separate brand — see `docs/CONTRACT_SPEC.md`. |
-| iOS app | Swift, SwiftUI | Native only. No Flutter/RN in this repo — that was the original plan for the underlying concept but this repo is Swift-only. |
-| Stellar connectivity | [`stellar-ios-mac-sdk`](https://github.com/Soneso/stellar-ios-mac-sdk) (`import stellarsdk`) | Community-maintained (Soneso), actively developed. Has full Horizon **and** full Soroban RPC coverage as of research time — don't hand-roll a raw JSON-RPC client, this SDK already covers contract simulate/sign/send/poll. |
-| Network target (MVP) | Stellar **Testnet** only | No mainnet keys, no mainnet contract ID, no real funds anywhere in this repo until a deliberate later decision. |
+| On-chain program | Rust + Anchor | Not yet scaffolded. Confirm current Anchor version via `avm list`/the [Anchor docs](https://www.anchor-lang.com/docs/installation) rather than trusting a hardcoded number here — this ecosystem moves fast and the canonical repo has moved before (currently `otter-sec/anchor`, not `coral-xyz/anchor` or `solana-foundation/anchor` — verify before reinstalling). |
+| App | Flutter (Dart) | Targets Android primarily (Solana Mobile Stack requirement); other platforms Flutter scaffolds by default (iOS/macOS/Linux/Windows/web) are incidental, not the goal. |
+| Solana connectivity | [`solana`](https://pub.dev/packages/solana) (Dart RPC/tx SDK) | |
+| Wallet / signing | [`solana_mobile_client`](https://pub.dev/packages/solana_mobile_client) | Mobile Wallet Adapter — the app never holds a private key; it asks an installed wallet app (e.g. Phantom, Solflare) to sign via MWA's intent-based protocol. This is the actual "mobile-native" part of the submission, not incidental. |
+| Local persistence | [`drift`](https://pub.dev/packages/drift) / `drift_flutter` | Offline-first cache of on-chain state; see the note above on trust/re-verification. |
+| Network target (MVP) | Solana **Devnet** only | No mainnet keys, no mainnet program ID, no real funds anywhere in this repo until a deliberate later decision — same discipline as StellarRep's testnet-only rule. |
 
 ## Ground rules
 
-1. **Testnet only until told otherwise.** Never wire in a mainnet secret key or prompt the user for one.
-2. **Don't trust hardcoded versions in these docs.** Soroban's SDK major version tracks the network protocol version and moves fast; a version that was current when this doc set was written may not be current when you're actually building. Resolve current versions from crates.io / the SDK repos / SPM at build time. Every place this matters is flagged inline in `CONTRACT_SPEC.md` and `APP_SPEC.md`.
-3. **Small, real, and working beats large and mocked.** Wave Program review looks for genuine functionality, not UI mockups. A 3-function contract that actually deploys and passes tests beats a 10-function contract that doesn't compile.
-4. **Seed issues as you go.** Getting a repo approved into the Program depends partly on having well-scoped open issues for other contributors to pick up. Phase 7 in the roadmap covers this explicitly, but if a genuine v2 item surfaces earlier (see "Non-goals" in `docs/ARCHITECTURE.md`), open the issue then rather than batching everything at the end.
-5. **This doc set is a starting frame, not gospel.** Where reality — an SDK quirk, a testnet outage, a cleaner pattern you find mid-build — contradicts what's written here, follow reality and update the doc to match. Stale docs are worse than no docs.
+1. **Devnet only until told otherwise.** Never wire in a mainnet keypair or prompt the user for one.
+2. **Don't trust hardcoded versions/URLs in these docs.** The Solana/Anchor ecosystem moves fast (Anchor's own canonical repo has moved between orgs already). Resolve current versions and repo locations at build time, not from what's written here.
+3. **Small, real, and working beats large and mocked.** Same as StellarRep — hackathon judges look for genuine functionality. A 2-instruction Anchor program that actually deploys and a wallet-signed transaction that actually lands on devnet beats a polished UI with no chain behind it.
+4. **Mobile-native is the point, not a checkbox.** This hackathon is specifically about Solana *Mobile* — Mobile Wallet Adapter actually working end-to-end (real signing via an installed wallet app, not a hardcoded keypair in the app) is probably worth more to judges than any other single feature.
+5. **This doc set is a starting frame, not gospel.** Where reality contradicts what's written here, follow reality and update the doc to match. Stale docs are worse than no docs — this file was itself stale until this rewrite; don't let it happen again.
 
 ## Where things live
 
 ```
-StellarRep/StellarRep (this repo)
-└── CLAUDE.md                  ← you are here; no source code in this repo
-
-StellarRep/docs
-├── ROADMAP.md                 ← phased build plan — start here for "what do I do first"
-├── ARCHITECTURE.md            ← system design, data flow, security posture, non-goals
-├── CONTRACT_SPEC.md           ← Soroban contract: storage, functions, errors, events
-└── APP_SPEC.md                ← Swift app: structure, screens, SDK usage
-
-StellarRep/contracts
-├── Cargo.toml                 ← workspace root
-└── reputation/                ← the reputation contract crate
-    ├── src/lib.rs
-    └── DEPLOYED.md             ← testnet contract ID, tx hashes, manual verification
-
-StellarRep/app
-├── Package.swift               ← SPM-first, two targets: StellarRep (library) + StellarRepApp (@main)
-├── Sources/StellarRep/         ← Core/, Features/, Models/, Generated/
-├── Sources/StellarRepApp/      ← just the @main entry point
-└── Tests/StellarRepTests/
+ClockIn/                        (single repo — no split)
+├── CLAUDE.md                   ← you are here
+├── docs/
+│   ├── ROADMAP.md                ← rewritten — fresh 8-phase plan for Anchor + Flutter + the hackathon deadline
+│   ├── ARCHITECTURE.md           ← rewritten — Anchor/Flutter/MWA architecture, data flows, non-goals
+│   ├── PROGRAM_SPEC.md           ← rewritten — Anchor program spec (renamed from CONTRACT_SPEC.md)
+│   └── APP_SPEC.md               ← rewritten — Flutter app spec (several real decisions, e.g. state management and the review-handoff mechanism, deliberately left open for the phase that reaches them, not pre-decided)
+├── app/                         ← Flutter project (see Tech stack above)
+│   ├── pubspec.yaml
+│   ├── lib/
+│   │   └── core/database/app_database.dart   ← Drift schema, already started
+│   ├── android/                 ← the platform that actually matters for this hackathon
+│   └── test/
+└── program/                     ← not yet created — the Anchor program
 ```
 
 ## Useful external references
 
-- Stellar Wave Program, approved-repos board: https://www.drips.network/wave/stellar/repos
-- Wave Program docs (lifecycle, rules, rewards): https://docs.drips.network/wave/
-- Soroban smart contract overview: https://developers.stellar.org/docs/build/smart-contracts/overview
-- Official agent-oriented Soroban skill — written specifically for coding agents, worth reading directly rather than relying on this doc set alone: https://github.com/stellar/stellar-dev-skill/blob/main/skills/smart-contracts/SKILL.md
-- Stellar iOS/Mac SDK (Soneso): https://github.com/Soneso/stellar-ios-mac-sdk
-- Swift contract-binding generator (optional — generates a typed Swift client from a deployed contract, can reduce hand-written glue code): https://github.com/lightsail-network/stellar-contract-bindings
+- Hackathon: https://solanamobile.radiant.nexus/
+- Solana Mobile Stack docs: https://docs.solanamobile.com/
+- Mobile Wallet Adapter spec: https://docs.solanamobile.com/mobile-wallet-adapter/overview
+- Anchor docs (installation, current version): https://www.anchor-lang.com/docs/installation
+- `solana` Dart package: https://pub.dev/packages/solana
+- `solana_mobile_client` Dart package: https://pub.dev/packages/solana_mobile_client
+- `drift` (Flutter/Dart persistence): https://drift.simonbinder.eu/

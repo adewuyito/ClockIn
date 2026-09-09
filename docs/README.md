@@ -8,5 +8,5 @@ Part of a multi-repo project: see [`StellarRep/StellarRep`](https://github.com/S
 
 - [`ROADMAP.md`](ROADMAP.md) — the phased build plan; "what do I do first."
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — system design, data flow, security posture, non-goals.
-- [`CONTRACT_SPEC.md`](CONTRACT_SPEC.md) — the Soroban contract: storage, functions, errors, events.
+- [`PROGRAM_SPEC.md`](PROGRAM_SPEC.md) — the Anchor program: accounts, instructions, errors.
 - [`APP_SPEC.md`](APP_SPEC.md) — the Swift app: structure, screens, SDK usage.

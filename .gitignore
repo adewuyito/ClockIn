@@ -1,6 +1,7 @@
 # Rust / Solana / Anchor
 target/
 .anchor/
+test-ledger/
 
 # Flutter / Dart
 .dart_tool/
