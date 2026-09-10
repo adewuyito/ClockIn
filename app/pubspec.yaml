@@ -38,6 +38,8 @@ dependencies:
   drift_flutter: ^0.3.1
   solana: ^0.31.2+1
   solana_mobile_client: ^0.1.2
+  flutter_riverpod: ^2.6.1
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:

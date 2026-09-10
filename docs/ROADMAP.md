@@ -14,7 +14,7 @@ Eight phases, paced for a ~1-month hackathon (CLOCK IN: Sept 8 – Oct 8) rather
 - [ ] Create a funded devnet keypair for deploying/testing (`solana-keygen new`, `solana airdrop`, confirm on a devnet explorer).
 - [x] Anchor program scaffolded by hand under `program/` (plain Cargo workspace, `anchor-lang` dep, no `anchor init`). `register_worker` + `submit_review` written per `docs/PROGRAM_SPEC.md`; program keypair generated, `declare_id!` set.
 - [x] Program builds — `cargo build-sbf` produces a real `target/deploy/reputation.so`. (Note: `anchor build` itself needs an `Anchor.toml`, still to be added — see below.)
-- [ ] Add an `Anchor.toml` so `anchor build`/`anchor test`/`anchor deploy` have a workspace. This is also the prerequisite for the TS test harness.
+- [x] Add an `Anchor.toml` so `anchor build`/`anchor test`/`anchor deploy` have a workspace. This is also the prerequisite for the TS test harness.
 - [ ] Confirm Android build tooling: `flutter doctor` clean (or at least Android-relevant checks passing), an Android emulator or physical device available for later MWA testing (**MWA requires a real device or an emulator with a compatible wallet app installed — the iOS Simulator equivalent doesn't exist for MWA flows**, this is a real constraint to plan around).
 - [x] `docs/PROGRAM_SPEC.md` and `docs/APP_SPEC.md` rewritten for Anchor/Flutter (PROGRAM_SPEC renamed from `CONTRACT_SPEC.md`).
 - [x] Repo hygiene: `.gitignore` covers Flutter/Dart build artifacts, Anchor's `target/`, `.anchor/`, `test-ledger/`, and keypair files; `CLAUDE.md` + `docs/` rewritten and committed.

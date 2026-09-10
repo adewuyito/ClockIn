@@ -1,30 +1,36 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:clockin/core/database/app_database.dart';
+import 'package:clockin/core/providers/app_providers.dart';
 import 'package:clockin/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('ClockInApp initializes and renders shell smoke test', (WidgetTester tester) async {
+    final testDb = AppDatabase(NativeDatabase.memory());
+    addTearDown(() async {
+      await testDb.close();
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(testDb),
+        ],
+        child: const ClockInApp(),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Verify brand title and navigation destinations
+    expect(find.text('ClockIn'), findsOneWidget);
+    expect(find.text('Connect'), findsOneWidget);
+    expect(find.text('Look Up'), findsOneWidget);
+    expect(find.text('Review'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Cleanly unmount and drain Drift StreamQueryStore cancellation timer
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
   });
 }
