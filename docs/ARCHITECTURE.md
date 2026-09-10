@@ -35,7 +35,7 @@ flowchart LR
 4. On success, the local Drift cache is updated from the confirmed on-chain account state (not just optimistically from the request).
 
 ### 2. Review submission (two-party)
-1. Worker completes a job outside the app and shares a job reference with the counterparty — MVP handoff mechanism to be decided (see `docs/APP_SPEC.md` once rewritten; StellarRep settled on manual paste for its own MVP, worth revisiting here since Mobile Wallet Adapter and Android make deep links more natural than they were on iOS).
+1. Worker completes a job outside the app and shares a job reference with the counterparty — MVP handoff mechanism still to be decided (see `docs/APP_SPEC.md`'s Screens section; StellarRep settled on manual paste for its own MVP, worth revisiting here since Mobile Wallet Adapter and Android make deep links more natural than they were on iOS).
 2. Reviewer opens the app, enters the worker's address + job reference, picks a rating.
 3. The reviewer's *own* wallet signs the `submit_review` instruction via MWA — this is the sybil-resistance anchor for MVP: the program requires the *reviewer's* signature, not the worker's, so a worker can't self-review, and a given job reference can only be used once per worker (program-enforced — see `docs/PROGRAM_SPEC.md`).
 4. Both parties' local caches refresh from the confirmed on-chain state.
@@ -47,7 +47,7 @@ flowchart LR
 
 ## Local persistence: trust model
 
-Drift caches on-chain state (`WorkerProfiles`, `Reviews`) plus `DraftReviews` for offline-composed reviews awaiting a connection. Decide early (Phase 1 of whatever the real roadmap becomes) how this cache is treated:
+Drift caches on-chain state (`WorkerProfiles`, `Reviews`) plus `DraftReviews` for offline-composed reviews awaiting a connection. Decide early (by the time `ReputationService` is wired up — Phase 5 in `docs/ROADMAP.md`) how this cache is treated:
 - **Read-through, always re-verify before showing a number that matters** (e.g. right before a reviewer submits, or the first time a profile is opened) — safer, more RPC calls.
 - **Trust the cache for casual browsing, only re-verify on explicit refresh or before a write** — faster/more offline-friendly, small window where a stale number is shown.
 
@@ -58,6 +58,24 @@ Whichever is chosen, be explicit about it in the UI (a "last synced" timestamp, 
 - **Sybil resistance is signature-based for MVP, not stake-based.** A review only counts if it's signed by an address distinct from the worker's, tied to a unique job reference. This blocks the most trivial attack (self-review) but does **not** block collusion between two real accounts fabricating a fake job — that's a genuinely harder problem, explicitly out of scope for MVP (see Non-goals). Be direct about this limitation in the README rather than implying the MVP fully solves review fraud.
 - **Key custody is Mobile Wallet Adapter's job, not this app's.** Unlike StellarRep (which stored a Keychain-held key directly), this app never generates, imports, or stores a private key at all — every signature is an MWA round-trip to a separate wallet app the user already trusts. This is a meaningfully stronger security posture, and worth stating clearly in the README as a differentiator, not just an implementation detail.
 - **Network posture is devnet-only for the entire MVP build.** No mainnet program ID, no mainnet keys, anywhere in this repo, until a deliberate, separate later decision — see `CLAUDE.md`'s ground rules.
+
+## Build & test toolchain
+
+The versions below are what's actually installed and in use as of this writing — treat them as a snapshot, not a pin. Ground rule 2 in `CLAUDE.md` still applies: re-resolve current versions at build time rather than trusting these numbers.
+
+| Tool | Version | Role |
+|---|---|---|
+| Solana CLI (Agave) | 4.2.2 | `solana` keypair/airdrop/RPC config; `solana program deploy` for devnet |
+| `cargo-build-sbf` + platform-tools | 4.1.0 / v1.54 | compiles the Rust program to the deployable `reputation.so` (SBF bytecode). Downloaded ~1.3 GB into `~/.cache/solana` on first use. |
+| `anchor-lang` (crate) | 1.2.0 | the program's only real dependency; pinned in `program/programs/reputation/Cargo.toml` |
+| Anchor CLI | 1.2.0 (via `avm`) | intended for `anchor build` / `anchor test` / `anchor deploy` — **but see the Anchor.toml caveat below** |
+| Node / npm | 26 / bundled | for `anchor test`'s TypeScript client (no yarn/pnpm present) |
+
+**The program was scaffolded by hand, not `anchor init`** — a plain Cargo workspace under `program/` with `anchor-lang` as a dependency, built directly with `cargo build-sbf`. This works and produces a real deployable artifact, but it means there is **no `Anchor.toml` yet**, so `anchor build`/`anchor test`/`anchor deploy` don't have a workspace to operate on. Adding an `Anchor.toml` (pointing at the existing `programs/reputation`, with the program ID and cluster config) is the bridge to using the Anchor CLI's convenience commands.
+
+**Testing approach: `anchor test` (TypeScript), not a Rust-native harness.** `litesvm` and `solana-program-test` were both tried first and both hit unresolvable dependency conflicts against the Solana 4.x split crates that `anchor-lang` 1.2 pulls (`solana-inflation`, `solana-short-vec` version mismatches). Rather than fight crate-version resolution, tests run through `anchor test` — a local validator plus a TS client via `@coral-xyz/anchor` — which keeps no Solana test framework in the program's own dependency tree at all. Confirm against the current Anchor docs whether `anchor test` still wants a local validator or can target devnet directly.
+
+**AVM proxy quirk.** `anchor` on `PATH` is an `avm` proxy that resolves the version from project context; it hangs when run outside an Anchor project (or with flaky network — it does update checks). Run it from inside `program/`, or call `~/.avm/bin/anchor-1.2.0` directly.
 
 ## Non-goals for MVP
 

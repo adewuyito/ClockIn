@@ -42,3 +42,4 @@ DerivedData/
 .env
 id.json
 keypair.json
+*-keypair.json

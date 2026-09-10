@@ -10,33 +10,34 @@ Eight phases, paced for a ~1-month hackathon (CLOCK IN: Sept 8 – Oct 8) rather
 
 - [x] Fork StellarRep into this repo, `app/` reset to a fresh Flutter project with `solana`, `solana_mobile_client`, `drift`/`drift_flutter` dependencies already added.
 - [x] Drift schema started (`WorkerProfiles`, `Reviews`, `DraftReviews`) with unit tests.
-- [ ] Confirm Rust toolchain, then install Solana CLI (`solana --version`) and Anchor via AVM (`avm install latest && avm use latest`, then `anchor --version`) — verify current install commands against https://www.anchor-lang.com/docs/installation rather than trusting a hardcoded command; the canonical Anchor repo has moved between GitHub orgs before.
+- [x] Toolchain installed and verified: Solana CLI 4.2.2, `cargo-build-sbf` 4.1.0 / platform-tools v1.54, Anchor CLI 1.2.0 (via `avm`), `anchor-lang` 1.2.0. Quirks (AVM proxy hang, `anchor test` vs Rust-native) documented in `docs/ARCHITECTURE.md`.
 - [ ] Create a funded devnet keypair for deploying/testing (`solana-keygen new`, `solana airdrop`, confirm on a devnet explorer).
-- [ ] Scaffold the Anchor program workspace under `program/` (`anchor init` or manual `Cargo.toml` workspace — check `anchor init --help` first, similar caution to how `stellar contract init` needed checking in StellarRep).
-- [ ] Build the empty scaffolded program (`anchor build`) before writing any real logic.
+- [x] Anchor program scaffolded by hand under `program/` (plain Cargo workspace, `anchor-lang` dep, no `anchor init`). `register_worker` + `submit_review` written per `docs/PROGRAM_SPEC.md`; program keypair generated, `declare_id!` set.
+- [x] Program builds — `cargo build-sbf` produces a real `target/deploy/reputation.so`. (Note: `anchor build` itself needs an `Anchor.toml`, still to be added — see below.)
+- [ ] Add an `Anchor.toml` so `anchor build`/`anchor test`/`anchor deploy` have a workspace. This is also the prerequisite for the TS test harness.
 - [ ] Confirm Android build tooling: `flutter doctor` clean (or at least Android-relevant checks passing), an Android emulator or physical device available for later MWA testing (**MWA requires a real device or an emulator with a compatible wallet app installed — the iOS Simulator equivalent doesn't exist for MWA flows**, this is a real constraint to plan around).
-- [x] `docs/PROGRAM_SPEC.md` rewritten for Anchor's account model (renamed from `CONTRACT_SPEC.md`). `docs/APP_SPEC.md` still needs a Flutter rewrite — still StellarRep's Swift spec as of this roadmap update.
-- [ ] Repo hygiene: `.gitignore` covers Flutter/Dart build artifacts, Anchor's `target/`, `.anchor/`, test-ledger dirs; confirm `CLAUDE.md` + `docs/` are committed and accurate.
+- [x] `docs/PROGRAM_SPEC.md` and `docs/APP_SPEC.md` rewritten for Anchor/Flutter (PROGRAM_SPEC renamed from `CONTRACT_SPEC.md`).
+- [x] Repo hygiene: `.gitignore` covers Flutter/Dart build artifacts, Anchor's `target/`, `.anchor/`, `test-ledger/`, and keypair files; `CLAUDE.md` + `docs/` rewritten and committed.
 
-**Definition of done:** `anchor build` succeeds on an empty scaffolded program, `flutter build apk --debug` (or equivalent) succeeds on the existing Flutter skeleton, and there's a funded devnet keypair with a confirmable balance.
+**Definition of done:** program builds to a deployable `.so` (done, via `cargo build-sbf`), `flutter build apk --debug` (or equivalent) succeeds on the existing Flutter skeleton, and there's a funded devnet keypair with a confirmable balance. Remaining: `Anchor.toml`, the Flutter build check, and the funded devnet keypair.
 
 ---
 
 ## Phase 1 — Program: Data Model & `register_worker`
 
-- Define the account structures — a worker's reputation account, at minimum. Anchor's account model differs from Soroban's key-value storage: decide the PDA (program-derived address) seed scheme now (e.g. seed off the worker's wallet pubkey) since it shapes every instruction after this.
-- Implement `register_worker`, creating the account via Anchor's `init` constraint.
-- Unit/integration tests (Anchor's `anchor test` running against a local validator, or `solana-program-test`): registering once succeeds; registering twice fails (Anchor's `init` constraint should already reject a re-init at the same PDA — confirm this is the actual behavior, don't assume).
-- `anchor build` succeeds; tests pass.
+The design and the code for this phase are **done** — `docs/PROGRAM_SPEC.md` has the account model (PDA seeds decided, no on-chain review-index list), and `program/programs/reputation/src/lib.rs` implements `register_worker` creating the `WorkerProfile` PDA via `init`. What's left:
+
+- Tests via `anchor test` (TS client + local validator — see `docs/ARCHITECTURE.md` on why not a Rust-native harness): registering once succeeds and the account reads back correctly-initialized; registering twice fails. Confirm the *actual* error Anchor's `init` surfaces on a re-init (likely account-already-in-use, not a custom `AlreadyRegistered`) rather than assuming.
+- `Anchor.toml` in place so `anchor test` has a workspace (Phase 0 leftover).
 
 **Done when:** a fresh test run registers a worker and reads back a correctly-initialized account, with no manual steps.
 
 ## Phase 2 — Program: Reviews & Reputation Read Path
 
-- Implement `submit_review` — signed by the reviewer (not the worker), rating bounds checked, self-review blocked (`reviewer.key() != worker`), duplicate job reference blocked (decide the account/PDA scheme for this — e.g. a PDA seeded off worker + job reference, whose existence itself blocks duplicates, similar in spirit to Soroban's `DataKey::Review(worker, job_id)`).
-- Reputation is readable directly from the worker's account (Anchor accounts are queryable via RPC without a dedicated "read" instruction) — confirm the client-side fetch pattern works before assuming.
-- Reviews: decide whether to store a full on-chain list (costs rent, grows unbounded) or emit events/logs the client indexes off-chain into Drift (cheaper, but means the "source of truth" for review *history* becomes client-reconstructed rather than always chain-queryable) — this is a real design decision the Soroban version didn't have to make the same way (its `ReviewIds` vec approach doesn't map cleanly to Solana's rent model at scale). Document the choice and why once made.
-- Tests for every failure path — self-review, duplicate, invalid rating, not-registered.
+Also **implemented** — `submit_review` is in `lib.rs` (reviewer-signed, rating bounds, self-review blocked, duplicate blocked structurally via the `review` PDA's `init`). The review-history question is **decided**: no on-chain list; the client uses `getProgramAccounts` + a `memcmp` filter on the `worker` field (see `docs/PROGRAM_SPEC.md`). What's left:
+
+- Tests for every failure path — self-review, duplicate `(worker, job_id)`, invalid rating (0 and 6), not-registered, unsigned reviewer.
+- Confirm the client-side read pattern actually works (fetch `WorkerProfile` by PDA; `getProgramAccounts`+`memcmp` for reviews) — verify the `memcmp` offset against the compiled IDL, don't hand-count.
 
 **Done when:** every failure path has a test that actually triggers it, and a full register → review → read-reputation loop passes locally.
 

@@ -80,7 +80,7 @@ Unlike Soroban's `#[contracterror]` (a plain numeric-discriminant enum the clien
 ```rust
 use anchor_lang::prelude::*;
 
-declare_id!("REPLACE_WITH_DEPLOYED_PROGRAM_ID"); // set for real after Phase 3's `anchor deploy`
+declare_id!("FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9"); // program keypair at program/reputation-keypair.json (gitignored, devnet only). This ID is claimed at first deploy; regenerate the keypair + update this if it's ever lost.
 
 #[program]
 pub mod reputation {
@@ -181,4 +181,4 @@ Every failure path needs a test that actually triggers it:
 - `submit_review` fails (structurally, via the `review` PDA's `init` constraint) for a repeated `(worker, job_id)`
 - `submit_review` fails if not actually signed by the claimed reviewer (Anchor's `Signer<'info>` type should make an unsigned reviewer impossible to construct a valid transaction with — confirm this holds via a test that tries anyway, not just by trusting the type system, mirroring how StellarRep explicitly tested `require_auth` rather than assuming it worked because it compiled)
 
-Run with `anchor test` (spins up a local validator, runs against it) during Phase 1–2. Deploy the actual devnet artifact separately in Phase 3 with `anchor deploy` — confirm the current recommended local-vs-devnet test workflow against the Anchor docs, since `anchor test` can be configured to run against either.
+**Test harness: `anchor test` (TypeScript), decided.** The Rust-native options were tried first — `litesvm` and `solana-program-test` both hit unresolvable dependency conflicts against the Solana 4.x split crates `anchor-lang` 1.2 pulls (`solana-inflation` 3.1.1 vs 3.2.0, `solana-short-vec`). Rather than fight crate resolution, tests go through `anchor test`: a local validator plus a `@coral-xyz/anchor` TS client, keeping no Solana test framework in the program's own `Cargo.toml`. See `docs/ARCHITECTURE.md`'s "Build & test toolchain" section for the full context and the `Anchor.toml` prerequisite (the program was hand-scaffolded, so one has to be added before `anchor test` has a workspace to run in). Deploy the devnet artifact separately in Phase 3 with `anchor deploy` (or `solana program deploy target/deploy/reputation.so` if the Anchor CLI is still Anchor.toml-blocked at that point).

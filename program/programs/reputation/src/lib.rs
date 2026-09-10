@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("11111111111111111111111111111111111111111"); // placeholder — replaced with the real deployed program ID in Phase 3
+declare_id!("FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9"); // program keypair at program/reputation-keypair.json (gitignored — devnet only, regenerate + update here if lost)
 
 /// job_id is bounded since it's a PDA seed component — Solana caps total
 /// seed bytes per PDA. See docs/PROGRAM_SPEC.md for the full reasoning.

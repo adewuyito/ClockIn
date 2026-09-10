@@ -20,20 +20,21 @@ StellarRep split into 4 repos (app/contracts/docs/umbrella) for the Stellar Wave
 
 ## Current status
 
-**Phase 0 — in progress.** What actually exists right now:
+**Phase 0 — mostly done; Phase 1 in progress.** What actually exists right now:
 - `app/` — a fresh Flutter project (not the old Swift one). `pubspec.yaml` already has `solana`, `solana_mobile_client`, `drift`/`drift_flutter` as dependencies.
 - `app/lib/core/database/app_database.dart` — a Drift schema (`WorkerProfiles`, `Reviews`, `DraftReviews`) mirroring StellarRep's on-chain data model as a local cache. Has unit tests (`app/test/`) already, per the "Configure Drift local storage and add database unit tests" commit.
-- **No Solana/Anchor program yet.** This is the biggest missing piece — nothing on-chain exists for the app to actually talk to.
-- `CLAUDE.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, and `docs/PROGRAM_SPEC.md` (renamed from `CONTRACT_SPEC.md`) rewritten for ClockIn/Solana Mobile. `docs/APP_SPEC.md` is still StellarRep's Swift spec — next doc to fix.
-- Solana CLI 4.2.2 installed and confirmed working (`solana --version`). Anchor CLI (via `avm`) installing as of this writing — confirm `anchor --version` actually works before assuming the toolchain is ready; note the canonical Anchor repo is `otter-sec/anchor`, not `coral-xyz/anchor` or `solana-foundation/anchor` (both of which showed up as stale/wrong in search results while setting this up — verify current before trusting any cached memory of this).
+- `program/` — the Anchor program **exists and builds**. `program/programs/reputation/src/lib.rs` implements `register_worker` and `submit_review` per `docs/PROGRAM_SPEC.md` (PDA-based `WorkerProfile`/`Review` accounts, no on-chain review-index list). Compiles to a real deployable `reputation.so` via `cargo build-sbf`. Program keypair generated (ID `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9`, `declare_id!` set to it; the keypair file `program/reputation-keypair.json` is gitignored — devnet only, regenerate + update `declare_id!` if lost).
+- **Not yet:** program tests, `Anchor.toml`, devnet deploy, funded devnet keypair. The program was scaffolded by hand (no `anchor init`), so `anchor build`/`test`/`deploy` need an `Anchor.toml` added first — see `docs/ARCHITECTURE.md`'s "Build & test toolchain" section.
+- All docs (`CLAUDE.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, `docs/PROGRAM_SPEC.md`, `docs/APP_SPEC.md`) rewritten for ClockIn/Solana Mobile.
+- Toolchain installed and verified: Solana CLI 4.2.2, `cargo-build-sbf` 4.1.0 / platform-tools v1.54, Anchor CLI 1.2.0 (via `avm`), `anchor-lang` 1.2.0. See `docs/ARCHITECTURE.md` for the AVM proxy quirk and the `anchor test` (TS) vs. Rust-native testing decision.
 
-A fresh 8-phase plan now exists in `docs/ROADMAP.md`, adapted for Anchor/Flutter and the hackathon's Oct 8 deadline (Mobile Wallet Adapter pulled forward to Phase 4, ahead of full program integration, since it's the hackathon's actual differentiator). Update this section as those phases actually complete.
+The 8-phase plan is in `docs/ROADMAP.md` (Mobile Wallet Adapter pulled forward to Phase 4, ahead of full program integration, since it's the hackathon's actual differentiator). Update this section as those phases actually complete.
 
 ## Tech stack
 
 | Layer | Choice | Notes |
 |---|---|---|
-| On-chain program | Rust + Anchor | Not yet scaffolded. Confirm current Anchor version via `avm list`/the [Anchor docs](https://www.anchor-lang.com/docs/installation) rather than trusting a hardcoded number here — this ecosystem moves fast and the canonical repo has moved before (currently `otter-sec/anchor`, not `coral-xyz/anchor` or `solana-foundation/anchor` — verify before reinstalling). |
+| On-chain program | Rust + `anchor-lang` 1.2.0 | Scaffolded by hand (no `anchor init`), built with `cargo-build-sbf` 4.1.0. Anchor CLI 1.2.0 installed via `avm` but unused until an `Anchor.toml` is added. Versions are a snapshot — re-resolve at build time; if reinstalling Anchor, note its canonical repo has moved orgs before (`otter-sec/anchor` as of last check, not `coral-xyz`/`solana-foundation`). Full toolchain detail + quirks in `docs/ARCHITECTURE.md`. |
 | App | Flutter (Dart) | Targets Android primarily (Solana Mobile Stack requirement); other platforms Flutter scaffolds by default (iOS/macOS/Linux/Windows/web) are incidental, not the goal. |
 | Solana connectivity | [`solana`](https://pub.dev/packages/solana) (Dart RPC/tx SDK) | |
 | Wallet / signing | [`solana_mobile_client`](https://pub.dev/packages/solana_mobile_client) | Mobile Wallet Adapter — the app never holds a private key; it asks an installed wallet app (e.g. Phantom, Solflare) to sign via MWA's intent-based protocol. This is the actual "mobile-native" part of the submission, not incidental. |
@@ -64,7 +65,12 @@ ClockIn/                        (single repo — no split)
 │   │   └── core/database/app_database.dart   ← Drift schema, already started
 │   ├── android/                 ← the platform that actually matters for this hackathon
 │   └── test/
-└── program/                     ← not yet created — the Anchor program
+└── program/                     ← the Anchor program (hand-scaffolded Cargo workspace, no Anchor.toml yet)
+    ├── Cargo.toml               ← workspace root
+    ├── reputation-keypair.json  ← gitignored — program keypair, devnet only
+    └── programs/reputation/
+        ├── Cargo.toml
+        └── src/lib.rs           ← register_worker + submit_review
 ```
 
 ## Useful external references
