@@ -46,7 +46,7 @@ class WalletAdapter {
 
   /// Identity metadata sent to wallet apps during authorization.
   final Uri identityUri = Uri.parse('https://clockin.app');
-  final Uri iconUri = Uri.parse('https://clockin.app/icon.png');
+  final Uri iconUri = Uri.parse('favicon.ico');
   final String identityName = 'ClockIn';
 
   /// Checks if any MWA-compatible wallet app is installed on the Android device.
@@ -77,11 +77,19 @@ class WalletAdapter {
       scenario.startActivityForResult(null).ignore();
       final client = await scenario.start();
 
-      final authResult = await client.authorize(
+      // Attempt authorization with devnet cluster first, falling back to default cluster
+      // in case the wallet (e.g. Phantom) is in generic testnet mode.
+      var authResult = await client.authorize(
         identityUri: identityUri,
         iconUri: iconUri,
         identityName: identityName,
         cluster: NetworkConfig.clusterName,
+      );
+
+      authResult ??= await client.authorize(
+        identityUri: identityUri,
+        iconUri: iconUri,
+        identityName: identityName,
       );
 
       if (authResult == null) {
