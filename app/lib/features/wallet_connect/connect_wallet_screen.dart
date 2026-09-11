@@ -118,7 +118,7 @@ class ConnectWalletScreen extends ConsumerWidget {
                 icon: Icons.cloud_off_rounded,
                 title: 'Offline resilience',
                 description:
-                    'Draft reviews with the local cache and submit automatically once you\'re back online.',
+                    'Save a review as a local draft if you lose signal mid-form — nothing typed is lost.',
               ),
               const SizedBox(height: 20),
 
