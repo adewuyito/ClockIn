@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/models/review.dart';
 import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/solana/reputation_errors.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_header.dart';
@@ -31,6 +32,21 @@ class MyProfileScreen extends ConsumerStatefulWidget {
 class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   bool _isRegistering = false;
   String? _txError;
+  ReputationErrorKind? _txErrorKind;
+
+  static IconData _txErrorIcon(ReputationErrorKind? kind) {
+    switch (kind) {
+      case ReputationErrorKind.network:
+        return Icons.wifi_off_rounded;
+      case ReputationErrorKind.walletRejected:
+        return Icons.account_balance_wallet_outlined;
+      case ReputationErrorKind.programRejected:
+        return Icons.block_rounded;
+      case ReputationErrorKind.unknown:
+      case null:
+        return Icons.error_outline_rounded;
+    }
+  }
 
   Future<void> _handleRegister() async {
     final wallet = ref.read(walletStateProvider);
@@ -39,6 +55,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     setState(() {
       _isRegistering = true;
       _txError = null;
+      _txErrorKind = null;
     });
 
     try {
@@ -59,9 +76,11 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         );
       }
     } catch (e) {
+      final err = ReputationException.from(e);
       if (mounted) {
         setState(() {
-          _txError = 'Registration failed: $e';
+          _txError = err.message;
+          _txErrorKind = err.kind;
         });
       }
     } finally {
@@ -187,6 +206,16 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         ),
       ),
     );
+  }
+
+  static String _relativeTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays >= 30) return '${(diff.inDays / 30).floor()}mo ago';
+    if (diff.inDays >= 7) return '${(diff.inDays / 7).floor()}w ago';
+    if (diff.inDays >= 1) return '${diff.inDays}d ago';
+    if (diff.inHours >= 1) return '${diff.inHours}h ago';
+    if (diff.inMinutes >= 1) return '${diff.inMinutes}m ago';
+    return 'just now';
   }
 
   static String _shorten(String address) =>
@@ -376,6 +405,20 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               ],
             ),
           ),
+          if (profile.syncedAt != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.sync_rounded, size: 12, color: AppColors.outline),
+                const SizedBox(width: 4),
+                Text(
+                  'Synced ${_relativeTime(profile.syncedAt!)} · pull to refresh',
+                  style: AppTypography.labelSm.copyWith(color: AppColors.outline),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -558,9 +601,23 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               const SizedBox(height: 20),
 
               if (_txError != null) ...[
-                Text(_txError!,
-                    textAlign: TextAlign.center,
-                    style: AppTypography.bodySm.copyWith(color: AppColors.error)),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorContainer.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(_txErrorIcon(_txErrorKind), size: 16, color: AppColors.error),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(_txError!, style: AppTypography.bodySm.copyWith(color: AppColors.error)),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 12),
               ],
 

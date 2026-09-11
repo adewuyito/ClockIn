@@ -60,11 +60,11 @@ The program has been live and callable on devnet at `FKicZKbepmiwj2rTnPrHNRBPAja
 
 ## Phase 5 — App: Program Integration
 
-- Wrap the program calls behind a `ReputationService` (same shape as StellarRep's, adapted): `registerWorker`, `submitReview`, `getReputation`, `getReviews`.
-- Handle pending/simulating and failed (network vs. program-rejected) states distinctly — same principle as StellarRep's `ContractCallState`, worth porting the pattern even though the underlying SDK differs.
-- One real integration test/script: register → submit_review → read reputation, end-to-end against devnet, through this service (not a bypassed raw call).
+- [x] Wrap the program calls behind a `ReputationService` (same shape as StellarRep's, adapted): `registerWorker`, `submitReview`, `getReputation`, `getReviews`.
+- [x] Handle pending/simulating and failed (network vs. program-rejected) states distinctly — `core/solana/reputation_errors.dart`'s `ReputationException`/`ReputationErrorKind` (network / walletRejected / programRejected / unknown), with `ProgramErrorCode` mapping every one of `ReputationError`'s 7 Anchor custom error codes (6000–6006) to a friendly message. `registerWorker`/`submitReview` in `ReputationService` always throw this typed exception, never a raw one; the two call sites (`MyProfileScreen._handleRegister`, `SubmitReviewScreen._handleSubmit`) show a kind-specific icon alongside the message rather than dumping `e.toString()`.
+- [ ] One real integration test/script: register → submit_review → read reputation, end-to-end against devnet, through this service (not a bypassed raw call).
 
-**Done when:** that end-to-end test passes against live devnet, unattended.
+**Done when:** that end-to-end test passes against live devnet, unattended. Still open — the error-typing half above is done, the scripted end-to-end devnet test is not.
 
 ## Phase 6 — Core UI Flows
 

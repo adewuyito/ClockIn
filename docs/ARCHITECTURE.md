@@ -63,6 +63,8 @@ Drift caches on-chain state (`WorkerProfiles`, `Reviews`) plus `DraftReviews` fo
 
 Whichever is chosen, be explicit about it in the UI (a "last synced" timestamp, minimum) — the whole point of on-chain reputation is that it's trustworthy; a UI that silently shows stale cached data as if it were live undermines that.
 
+**Decided: trust the cache, refresh in the background** (`ReputationRepository.getWorkerProfile`/`getWorkerReviews` serve the cached row immediately, then trigger `refreshWorkerProfile`/`refreshWorkerReviews` unawaited). The required transparency piece is now in the UI: both `MyProfileScreen` and `WorkerProfileScreen`'s hero cards show "Synced Xm ago" under the trust-meta row, reading `WorkerProfile.syncedAt` — My Profile's via its existing pull-to-refresh, Worker Profile's as a tap-to-refresh row (that screen had no pull-to-refresh). Reviews and the Look Up screen's recent-lookups list still don't surface a synced timestamp; revisit if this is worth extending there too.
+
 ## Security / trust model
 
 - **Sybil resistance is signature-based for MVP, not stake-based.** A review only counts if it's signed by an address distinct from the worker's, tied to a unique job reference. This blocks the most trivial attack (self-review) but does **not** block collusion between two real accounts fabricating a fake job — that's a genuinely harder problem, explicitly out of scope for MVP (see Non-goals). Be direct about this limitation in the README rather than implying the MVP fully solves review fraud.

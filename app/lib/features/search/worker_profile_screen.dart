@@ -336,6 +336,31 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
               ],
             ),
           ),
+          if (profile.syncedAt != null) ...[
+            const SizedBox(height: 10),
+            InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () {
+                final repo = ref.read(reputationRepositoryProvider);
+                repo.refreshWorkerProfile(widget.address);
+                repo.refreshWorkerReviews(widget.address);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.sync_rounded, size: 12, color: AppColors.outline),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Synced ${_relativeTime(profile.syncedAt!)} · tap to refresh',
+                      style: AppTypography.labelSm.copyWith(color: AppColors.outline),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

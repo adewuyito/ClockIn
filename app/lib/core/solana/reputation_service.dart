@@ -7,6 +7,7 @@ import '../models/worker_profile.dart';
 import 'account_decoders.dart';
 import 'network_config.dart';
 import 'program_instructions.dart';
+import 'reputation_errors.dart';
 import 'wallet_adapter.dart';
 
 /// Service interfacing with the ClockIn Anchor program on Solana Devnet.
@@ -81,26 +82,34 @@ class ReputationService {
     return reviews;
   }
 
-  /// Builds a `register_worker` transaction, signs via MWA, and waits for confirmation.
+  /// Builds a `register_worker` transaction, signs via MWA, and waits for
+  /// confirmation. Throws a [ReputationException] on any failure — network,
+  /// wallet, or on-chain program rejection — never a raw/untyped exception.
   Future<String> registerWorker({
     required Ed25519HDPublicKey worker,
     required WalletAdapter walletAdapter,
   }) async {
-    final signature = await _signAndSendWithRetry(
-      feePayer: worker,
-      walletAdapter: walletAdapter,
-      buildInstruction: () => ProgramInstructions.registerWorker(worker: worker),
-    );
+    try {
+      final signature = await _signAndSendWithRetry(
+        feePayer: worker,
+        walletAdapter: walletAdapter,
+        buildInstruction: () => ProgramInstructions.registerWorker(worker: worker),
+      );
 
-    await solanaClient.waitForSignatureStatus(
-      signature,
-      status: Commitment.confirmed,
-    );
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
 
-    return signature;
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
   }
 
-  /// Builds a `submit_review` transaction, signs via MWA, and waits for confirmation.
+  /// Builds a `submit_review` transaction, signs via MWA, and waits for
+  /// confirmation. Throws a [ReputationException] on any failure — network,
+  /// wallet, or on-chain program rejection — never a raw/untyped exception.
   Future<String> submitReview({
     required Ed25519HDPublicKey worker,
     required Ed25519HDPublicKey reviewer,
@@ -108,23 +117,27 @@ class ReputationService {
     required int rating,
     required WalletAdapter walletAdapter,
   }) async {
-    final signature = await _signAndSendWithRetry(
-      feePayer: reviewer,
-      walletAdapter: walletAdapter,
-      buildInstruction: () => ProgramInstructions.submitReview(
-        worker: worker,
-        reviewer: reviewer,
-        jobId: jobId,
-        rating: rating,
-      ),
-    );
+    try {
+      final signature = await _signAndSendWithRetry(
+        feePayer: reviewer,
+        walletAdapter: walletAdapter,
+        buildInstruction: () => ProgramInstructions.submitReview(
+          worker: worker,
+          reviewer: reviewer,
+          jobId: jobId,
+          rating: rating,
+        ),
+      );
 
-    await solanaClient.waitForSignatureStatus(
-      signature,
-      status: Commitment.confirmed,
-    );
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
 
-    return signature;
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
   }
 
   /// Compiles, signs (via MWA), and sends a single-instruction transaction,

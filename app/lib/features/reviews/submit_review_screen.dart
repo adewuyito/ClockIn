@@ -6,6 +6,7 @@ import 'package:solana/solana.dart';
 import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/network_config.dart';
+import '../../core/solana/reputation_errors.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_header.dart';
@@ -61,6 +62,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
   int _rating = 5;
   bool _isSubmitting = false;
   String? _txError;
+  ReputationErrorKind? _txErrorKind;
 
   // Captured at the moment of a successful submit, since the input fields
   // get cleared once the user taps "Done" on the success screen.
@@ -95,6 +97,20 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
     _jobIdController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  static IconData _txErrorIcon(ReputationErrorKind? kind) {
+    switch (kind) {
+      case ReputationErrorKind.network:
+        return Icons.wifi_off_rounded;
+      case ReputationErrorKind.walletRejected:
+        return Icons.account_balance_wallet_outlined;
+      case ReputationErrorKind.programRejected:
+        return Icons.block_rounded;
+      case ReputationErrorKind.unknown:
+      case null:
+        return Icons.error_outline_rounded;
+    }
   }
 
   static String? _parseAddress(String raw) {
@@ -134,29 +150,45 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
     final jobId = _jobIdController.text.trim();
 
     if (_parseAddress(workerAddress) == null) {
-      setState(() => _txError = 'Enter a valid worker Solana address.');
+      setState(() {
+        _txError = 'Enter a valid worker Solana address.';
+        _txErrorKind = null;
+      });
       return;
     }
     if (jobId.isEmpty) {
-      setState(() => _txError = 'Job reference is required.');
+      setState(() {
+        _txError = 'Job reference is required.';
+        _txErrorKind = null;
+      });
       return;
     }
     if (jobId.length > 32) {
-      setState(() => _txError = 'Job reference must be 32 characters or fewer.');
+      setState(() {
+        _txError = 'Job reference must be 32 characters or fewer.';
+        _txErrorKind = null;
+      });
       return;
     }
     if (_notesController.text.trim().isEmpty) {
-      setState(() => _txError = 'Add a note about this job before submitting.');
+      setState(() {
+        _txError = 'Add a note about this job before submitting.';
+        _txErrorKind = null;
+      });
       return;
     }
     if (targetProfile == null) {
-      setState(() => _txError = 'This worker hasn\'t registered on-chain yet.');
+      setState(() {
+        _txError = 'This worker hasn\'t registered on-chain yet.';
+        _txErrorKind = null;
+      });
       return;
     }
 
     setState(() {
       _isSubmitting = true;
       _txError = null;
+      _txErrorKind = null;
     });
 
     try {
@@ -179,8 +211,10 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
         _successRating = _rating;
       });
     } catch (e) {
+      final err = ReputationException.from(e);
       setState(() {
-        _txError = 'Review submission failed: $e';
+        _txError = err.message;
+        _txErrorKind = err.kind;
       });
     } finally {
       if (mounted) {
@@ -459,7 +493,23 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
             const SizedBox(height: 16),
 
             if (_txError != null) ...[
-              Text(_txError!, style: const TextStyle(fontSize: 13, color: AppColors.error)),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.errorContainer.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(_txErrorIcon(_txErrorKind), size: 16, color: AppColors.error),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_txError!, style: AppTypography.bodySm.copyWith(color: AppColors.error)),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 12),
             ],
 
