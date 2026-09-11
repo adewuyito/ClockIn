@@ -212,7 +212,7 @@ class _LookupWorkerScreenState extends ConsumerState<LookupWorkerScreen> {
                   Container(
                     decoration: BoxDecoration(
                       color: AppColors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
@@ -225,8 +225,19 @@ class _LookupWorkerScreenState extends ConsumerState<LookupWorkerScreen> {
                             decoration: InputDecoration(
                               hintText: 'Solana address (base58)',
                               hintStyle: AppTypography.labelMd.copyWith(color: AppColors.outline),
+                              // The app-wide InputDecorationTheme defines its own
+                              // enabledBorder/focusedBorder, which take priority
+                              // over the generic `border` below — override every
+                              // state explicitly, or the themed outline border
+                              // shows up nested inside this Container.
                               border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
                               filled: false,
+                              isDense: true,
                               contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                             ),
                             onSubmitted: (_) => _performSearch(),
