@@ -161,3 +161,9 @@ final draftReviewsProvider = StreamProvider<List<DraftReview>>((ref) {
   final repository = ref.watch(reputationRepositoryProvider);
   return repository.watchDraftReviews();
 });
+
+/// Watches the Look Up screen's recent-lookups history (most recent first).
+final recentLookupsProvider = StreamProvider<List<WorkerProfile>>((ref) {
+  final repository = ref.watch(reputationRepositoryProvider);
+  return repository.watchRecentLookups();
+});

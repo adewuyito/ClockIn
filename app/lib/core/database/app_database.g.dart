@@ -1267,12 +1267,234 @@ class DraftReviewsCompanion extends UpdateCompanion<DraftReview> {
   }
 }
 
+class $RecentLookupsTable extends RecentLookups
+    with TableInfo<$RecentLookupsTable, RecentLookup> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecentLookupsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _addressMeta = const VerificationMeta(
+    'address',
+  );
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+    'address',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastViewedAtMeta = const VerificationMeta(
+    'lastViewedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastViewedAt = GeneratedColumn<DateTime>(
+    'last_viewed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [address, lastViewedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recent_lookups';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RecentLookup> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('address')) {
+      context.handle(
+        _addressMeta,
+        address.isAcceptableOrUnknown(data['address']!, _addressMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_addressMeta);
+    }
+    if (data.containsKey('last_viewed_at')) {
+      context.handle(
+        _lastViewedAtMeta,
+        lastViewedAt.isAcceptableOrUnknown(
+          data['last_viewed_at']!,
+          _lastViewedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {address};
+  @override
+  RecentLookup map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecentLookup(
+      address: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}address'],
+      )!,
+      lastViewedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_viewed_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RecentLookupsTable createAlias(String alias) {
+    return $RecentLookupsTable(attachedDatabase, alias);
+  }
+}
+
+class RecentLookup extends DataClass implements Insertable<RecentLookup> {
+  final String address;
+  final DateTime lastViewedAt;
+  const RecentLookup({required this.address, required this.lastViewedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['address'] = Variable<String>(address);
+    map['last_viewed_at'] = Variable<DateTime>(lastViewedAt);
+    return map;
+  }
+
+  RecentLookupsCompanion toCompanion(bool nullToAbsent) {
+    return RecentLookupsCompanion(
+      address: Value(address),
+      lastViewedAt: Value(lastViewedAt),
+    );
+  }
+
+  factory RecentLookup.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecentLookup(
+      address: serializer.fromJson<String>(json['address']),
+      lastViewedAt: serializer.fromJson<DateTime>(json['lastViewedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'address': serializer.toJson<String>(address),
+      'lastViewedAt': serializer.toJson<DateTime>(lastViewedAt),
+    };
+  }
+
+  RecentLookup copyWith({String? address, DateTime? lastViewedAt}) =>
+      RecentLookup(
+        address: address ?? this.address,
+        lastViewedAt: lastViewedAt ?? this.lastViewedAt,
+      );
+  RecentLookup copyWithCompanion(RecentLookupsCompanion data) {
+    return RecentLookup(
+      address: data.address.present ? data.address.value : this.address,
+      lastViewedAt: data.lastViewedAt.present
+          ? data.lastViewedAt.value
+          : this.lastViewedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecentLookup(')
+          ..write('address: $address, ')
+          ..write('lastViewedAt: $lastViewedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(address, lastViewedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecentLookup &&
+          other.address == this.address &&
+          other.lastViewedAt == this.lastViewedAt);
+}
+
+class RecentLookupsCompanion extends UpdateCompanion<RecentLookup> {
+  final Value<String> address;
+  final Value<DateTime> lastViewedAt;
+  final Value<int> rowid;
+  const RecentLookupsCompanion({
+    this.address = const Value.absent(),
+    this.lastViewedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RecentLookupsCompanion.insert({
+    required String address,
+    this.lastViewedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : address = Value(address);
+  static Insertable<RecentLookup> custom({
+    Expression<String>? address,
+    Expression<DateTime>? lastViewedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (address != null) 'address': address,
+      if (lastViewedAt != null) 'last_viewed_at': lastViewedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RecentLookupsCompanion copyWith({
+    Value<String>? address,
+    Value<DateTime>? lastViewedAt,
+    Value<int>? rowid,
+  }) {
+    return RecentLookupsCompanion(
+      address: address ?? this.address,
+      lastViewedAt: lastViewedAt ?? this.lastViewedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
+    if (lastViewedAt.present) {
+      map['last_viewed_at'] = Variable<DateTime>(lastViewedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecentLookupsCompanion(')
+          ..write('address: $address, ')
+          ..write('lastViewedAt: $lastViewedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $WorkerProfilesTable workerProfiles = $WorkerProfilesTable(this);
   late final $ReviewsTable reviews = $ReviewsTable(this);
   late final $DraftReviewsTable draftReviews = $DraftReviewsTable(this);
+  late final $RecentLookupsTable recentLookups = $RecentLookupsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1281,6 +1503,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     workerProfiles,
     reviews,
     draftReviews,
+    recentLookups,
   ];
 }
 
@@ -1977,6 +2200,160 @@ typedef $$DraftReviewsTableProcessedTableManager =
       DraftReview,
       PrefetchHooks Function()
     >;
+typedef $$RecentLookupsTableCreateCompanionBuilder =
+    RecentLookupsCompanion Function({
+      required String address,
+      Value<DateTime> lastViewedAt,
+      Value<int> rowid,
+    });
+typedef $$RecentLookupsTableUpdateCompanionBuilder =
+    RecentLookupsCompanion Function({
+      Value<String> address,
+      Value<DateTime> lastViewedAt,
+      Value<int> rowid,
+    });
+
+class $$RecentLookupsTableFilterComposer
+    extends Composer<_$AppDatabase, $RecentLookupsTable> {
+  $$RecentLookupsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastViewedAt => $composableBuilder(
+    column: $table.lastViewedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RecentLookupsTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecentLookupsTable> {
+  $$RecentLookupsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastViewedAt => $composableBuilder(
+    column: $table.lastViewedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RecentLookupsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecentLookupsTable> {
+  $$RecentLookupsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastViewedAt => $composableBuilder(
+    column: $table.lastViewedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$RecentLookupsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RecentLookupsTable,
+          RecentLookup,
+          $$RecentLookupsTableFilterComposer,
+          $$RecentLookupsTableOrderingComposer,
+          $$RecentLookupsTableAnnotationComposer,
+          $$RecentLookupsTableCreateCompanionBuilder,
+          $$RecentLookupsTableUpdateCompanionBuilder,
+          (
+            RecentLookup,
+            BaseReferences<_$AppDatabase, $RecentLookupsTable, RecentLookup>,
+          ),
+          RecentLookup,
+          PrefetchHooks Function()
+        > {
+  $$RecentLookupsTableTableManager(_$AppDatabase db, $RecentLookupsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecentLookupsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RecentLookupsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RecentLookupsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> address = const Value.absent(),
+                Value<DateTime> lastViewedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RecentLookupsCompanion(
+                address: address,
+                lastViewedAt: lastViewedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String address,
+                Value<DateTime> lastViewedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RecentLookupsCompanion.insert(
+                address: address,
+                lastViewedAt: lastViewedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RecentLookupsTable, RecentLookup>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $RecentLookupsTable,
+                    RecentLookup
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RecentLookupsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RecentLookupsTable,
+      RecentLookup,
+      $$RecentLookupsTableFilterComposer,
+      $$RecentLookupsTableOrderingComposer,
+      $$RecentLookupsTableAnnotationComposer,
+      $$RecentLookupsTableCreateCompanionBuilder,
+      $$RecentLookupsTableUpdateCompanionBuilder,
+      (
+        RecentLookup,
+        BaseReferences<_$AppDatabase, $RecentLookupsTable, RecentLookup>,
+      ),
+      RecentLookup,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1987,4 +2364,6 @@ class $AppDatabaseManager {
       $$ReviewsTableTableManager(_db, _db.reviews);
   $$DraftReviewsTableTableManager get draftReviews =>
       $$DraftReviewsTableTableManager(_db, _db.draftReviews);
+  $$RecentLookupsTableTableManager get recentLookups =>
+      $$RecentLookupsTableTableManager(_db, _db.recentLookups);
 }

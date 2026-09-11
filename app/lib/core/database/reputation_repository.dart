@@ -182,6 +182,58 @@ class ReputationRepository {
     return onChainReviews;
   }
 
+  // ==================== RECENT LOOKUPS (Look Up screen history) ====================
+
+  /// Records a successful worker lookup for the "Recent lookups" list.
+  /// Only call this once a profile is confirmed to exist — an entry with
+  /// no backing on-chain data isn't useful history.
+  Future<void> recordLookup(String address) async {
+    await db.into(db.recentLookups).insertOnConflictUpdate(
+          RecentLookupsCompanion.insert(
+            address: address,
+            lastViewedAt: Value(DateTime.now()),
+          ),
+        );
+  }
+
+  /// Watches recent lookups (most recent first), joined with whatever
+  /// cached profile data is available for each address.
+  Stream<List<domain.WorkerProfile>> watchRecentLookups({int limit = 3}) {
+    final query = db.select(db.recentLookups)
+      ..orderBy([
+        (tbl) => OrderingTerm(expression: tbl.lastViewedAt, mode: OrderingMode.desc)
+      ])
+      ..limit(limit);
+
+    return query.watch().asyncMap((rows) async {
+      final profiles = <domain.WorkerProfile>[];
+      for (final row in rows) {
+        final cached = await (db.select(db.workerProfiles)
+              ..where((tbl) => tbl.address.equals(row.address)))
+            .getSingleOrNull();
+        if (cached != null) {
+          profiles.add(domain.WorkerProfile(
+            address: cached.address,
+            totalJobs: cached.totalJobs,
+            ratingSum: cached.ratingSum,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(
+              cached.createdAt.toInt() * 1000,
+              isUtc: true,
+            ),
+            syncedAt: cached.syncedAt,
+          ));
+        }
+      }
+      return profiles;
+    });
+  }
+
+  /// Clears lookup history only — never touches the cached profile data
+  /// itself, since that also serves the offline-first trust model.
+  Future<void> clearRecentLookups() async {
+    await db.delete(db.recentLookups).go();
+  }
+
   // ==================== OFFLINE DRAFT REVIEWS ====================
 
   /// Saves or updates a draft review locally in Drift.

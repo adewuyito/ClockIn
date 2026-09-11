@@ -37,11 +37,35 @@ class DraftReviews extends Table {
   TextColumn get status => text().withDefault(const Constant('draft'))();
 }
 
-@DriftDatabase(tables: [WorkerProfiles, Reviews, DraftReviews])
+/// A worker address the user has successfully looked up before, for the
+/// Look Up screen's "Recent lookups" list. Deliberately a separate table
+/// from [WorkerProfiles] rather than reusing its `syncedAt` ordering: that
+/// table is the offline-first *data* cache (see ARCHITECTURE.md's trust
+/// model), and "Clear" on this list must never delete cached on-chain data,
+/// only the recency pointer.
+class RecentLookups extends Table {
+  TextColumn get address => text()();
+  DateTimeColumn get lastViewedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {address};
+}
+
+@DriftDatabase(tables: [WorkerProfiles, Reviews, DraftReviews, RecentLookups])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(recentLookups);
+          }
+        },
+      );
 }

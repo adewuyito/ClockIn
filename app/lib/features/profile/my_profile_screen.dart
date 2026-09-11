@@ -7,6 +7,7 @@ import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/app_header.dart';
 
 /// Screen 2: My Profile (Loaded, Not Registered, Loading Skeleton, Empty Reviews).
 ///
@@ -90,13 +91,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
     final address = wallet.address!;
     final reviewsAsync = ref.watch(workerReviewsProvider(address));
-    final isRegistered = profileAsync.valueOrNull != null;
 
     return Scaffold(
-      appBar: _ProfileHeader(
+      appBar: AppHeader(
         address: address,
         onCopyAddress: () => _copyAddress(_shorten(address), feedback: 'Copied'),
-        onDisconnect: () => ref.read(walletStateProvider.notifier).disconnect(),
+        onAvatarTap: () => ref.read(walletStateProvider.notifier).disconnect(),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -109,66 +109,80 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Identity pill
-              _buildIdentityPill(address, isRegistered, profileAsync.valueOrNull),
-              const SizedBox(height: 20),
+          child: profileAsync.when(
+            loading: () => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildIdentityPill(address, false, null),
+                const SizedBox(height: 20),
+                _buildSkeletonCard(),
+              ],
+            ),
+            error: (err, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildIdentityPill(address, false, null),
+                const SizedBox(height: 20),
+                _buildErrorCard(err.toString()),
+              ],
+            ),
+            data: (profile) {
+              // Not registered: matches Stitch's "2b. My Profile (Not
+              // Registered)" screen, which is a self-contained onboarding
+              // card — no identity pill, no reviews section, no pro tip.
+              // Those only make sense once a WorkerProfile actually exists;
+              // showing "share your address for reviews" before there's
+              // even a profile to attach them to would be confusing.
+              if (profile == null) {
+                return _buildNotRegisteredCard(address);
+              }
 
-              // Profile state handling
-              profileAsync.when(
-                loading: () => _buildSkeletonCard(),
-                error: (err, _) => _buildErrorCard(err.toString()),
-                data: (profile) {
-                  if (profile == null) {
-                    return _buildNotRegisteredCard();
-                  }
-                  return _buildHeroCard(profile);
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // Reviews section
-              reviewsAsync.when(
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildIdentityPill(address, true, profile),
+                  const SizedBox(height: 20),
+                  _buildHeroCard(profile),
+                  const SizedBox(height: 20),
+                  reviewsAsync.when(
+                    loading: () => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                    error: (err, _) => Text(
+                      'Failed to load reviews: $err',
+                      style: AppTypography.bodyMd.copyWith(color: AppColors.error),
+                    ),
+                    data: (reviews) {
+                      if (reviews.isEmpty) {
+                        return _buildEmptyReviewsCard(address);
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Work History & Reviews',
+                            style: AppTypography.titleMd.copyWith(color: AppColors.onSurface),
+                          ),
+                          const SizedBox(height: 12),
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: reviews.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) => _buildReviewCard(reviews[index]),
+                          ),
+                        ],
+                      );
+                    },
                   ),
-                ),
-                error: (err, _) => Text(
-                  'Failed to load reviews: $err',
-                  style: AppTypography.bodyMd.copyWith(color: AppColors.error),
-                ),
-                data: (reviews) {
-                  if (reviews.isEmpty) {
-                    return _buildEmptyReviewsCard(address);
-                  }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Work History & Reviews',
-                        style: AppTypography.titleMd.copyWith(color: AppColors.onSurface),
-                      ),
-                      const SizedBox(height: 12),
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: reviews.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) => _buildReviewCard(reviews[index]),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // Pro tip card
-              _buildProTipCard(),
-            ],
+                  const SizedBox(height: 20),
+                  _buildProTipCard(),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -399,59 +413,340 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     );
   }
 
-  Widget _buildNotRegisteredCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceContainerHigh),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.warningContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(10),
+  /// Matches Stitch's "2b. My Profile (Not Registered)" screen. Two pieces
+  /// of that design's copy were changed rather than copied verbatim:
+  /// "Zero gas required" is false — every Solana transaction, including
+  /// this one, has a real fee and needs rent for the new account (the
+  /// exact thing that blocked registration earlier in this project until
+  /// the test wallet was funded); and "Deliver work or shift shifts" (a
+  /// typo in the source design) leaned on shift/time-tracking language
+  /// that doesn't match this program's actual model — reviews tied to a
+  /// job, not shifts.
+  Widget _buildNotRegisteredCard(String address) {
+    final short = _shorten(address);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Onboarding indicator row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                 ),
-                child: const Icon(Icons.info_outline, color: AppColors.warning),
+                const SizedBox(width: 6),
+                Text(
+                  'SET UP YOUR REPUTATION RECORD',
+                  style: AppTypography.labelSm.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Takes a few seconds',
+                    style: AppTypography.labelSm.copyWith(color: AppColors.outline)),
+                const SizedBox(width: 2),
+                const Icon(Icons.bolt_rounded, size: 14, color: AppColors.outline),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Hero onboarding card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.surfaceContainerHigh),
+          ),
+          child: Column(
+            children: [
+              // Icon cluster
+              SizedBox(
+                width: 80,
+                height: 80,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: const BoxDecoration(
+                          color: AppColors.surfaceContainerLow,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.badge_rounded, size: 38, color: AppColors.primary),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                        child: const Icon(Icons.verified_user_rounded, size: 18, color: Colors.white),
+                      ),
+                    ),
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.secondaryContainer,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.schedule_rounded, size: 15, color: AppColors.onSecondaryContainer),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Not Registered as a Worker',
-                  style: AppTypography.titleMd.copyWith(color: AppColors.onSurface),
+              const SizedBox(height: 16),
+              Text(
+                "You haven't started your reputation record yet",
+                textAlign: TextAlign.center,
+                style: AppTypography.headlineSm.copyWith(color: AppColors.onSurface),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This is a one-time step so people can leave you verified reviews after jobs.',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant, height: 1.4),
+              ),
+              const SizedBox(height: 20),
+
+              // Benefit tickers
+              Row(
+                children: [
+                  Expanded(
+                    child: _benefitTicker(
+                      Icons.fingerprint_rounded,
+                      AppColors.primary,
+                      'Decentralized',
+                      'Stored on Solana',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _benefitTicker(
+                      Icons.verified_rounded,
+                      AppColors.tertiary,
+                      'Tamper Proof',
+                      'On-chain, signature-gated',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              if (_txError != null) ...[
+                Text(_txError!,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodySm.copyWith(color: AppColors.error)),
+                const SizedBox(height: 12),
+              ],
+
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isRegistering ? null : _handleRegister,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryContainer,
+                  ),
+                  child: _isRegistering
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ),
+                            const SizedBox(width: 10),
+                            Text('Opening wallet…', style: AppTypography.titleMd.copyWith(color: Colors.white)),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Create my record', style: AppTypography.titleMd.copyWith(color: Colors.white)),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.arrow_forward_rounded, size: 20, color: Colors.white),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.account_balance_wallet_outlined, size: 16, color: AppColors.outline),
+                  const SizedBox(width: 6),
+                  Text("You'll approve this in your wallet app.",
+                      style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // "Why create a record?" mini-card
+        Text('Why create a record?', style: AppTypography.titleMd.copyWith(color: AppColors.onSurface)),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.surfaceContainerHigh),
+          ),
+          child: Column(
+            children: [
+              _whyRow(Icons.handshake_rounded, AppColors.primary, 'Deliver work for clients or DAOs',
+                  'Complete a job the same way you always have'),
+              const SizedBox(height: 14),
+              _whyRow(Icons.rate_review_rounded, AppColors.secondary, 'Receive verifiable feedback',
+                  "Reviews are cryptographically anchored to your key"),
+              const SizedBox(height: 14),
+              _whyRow(Icons.card_membership_rounded, AppColors.tertiary, 'Carry your pass anywhere',
+                  'Portable reputation, readable by anyone on Solana'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Signing wallet summary
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                      color: AppColors.surfaceContainerHighest,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.key_rounded, size: 18, color: AppColors.onSurfaceVariant),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('SIGNING WALLET',
+                          style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant, letterSpacing: 0.6)),
+                      Text(short,
+                          style: AppTypography.labelMd.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.lock_outline_rounded, size: 13, color: AppColors.outline),
+                    const SizedBox(width: 4),
+                    Text('Ready to bind', style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Register your Solana address to start collecting portable ratings and verifiable proofs of work on-chain.',
-            style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, height: 1.4),
-          ),
-          if (_txError != null) ...[
-            const SizedBox(height: 12),
-            Text(_txError!, style: AppTypography.bodySm.copyWith(color: AppColors.error)),
-          ],
-          const SizedBox(height: 18),
-          ElevatedButton(
-            onPressed: _isRegistering ? null : _handleRegister,
-            child: _isRegistering
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Text('Register On-Chain'),
+        ),
+      ],
+    );
+  }
+
+  Widget _benefitTicker(IconData icon, Color color, String title, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.bodySm.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+                Text(subtitle,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _whyRow(IconData icon, Color color, String title, String subtitle) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainer,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 20, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: AppTypography.bodyMd.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+              Text(subtitle,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -713,133 +1008,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Sticky header matching the Stitch design: wordmark + tagline, a pulsing
-/// "DEVNET" chip, a tappable short-address pill, and an avatar action that
-/// disconnects the wallet.
-class _ProfileHeader extends StatelessWidget implements PreferredSizeWidget {
-  const _ProfileHeader({
-    required this.address,
-    required this.onCopyAddress,
-    required this.onDisconnect,
-  });
-
-  final String address;
-  final VoidCallback onCopyAddress;
-  final VoidCallback onDisconnect;
-
-  @override
-  Size get preferredSize => const Size.fromHeight(64);
-
-  @override
-  Widget build(BuildContext context) {
-    final short = '${address.substring(0, 4)}…${address.substring(address.length - 4)}';
-
-    return AppBar(
-      automaticallyImplyLeading: false,
-      titleSpacing: 16,
-      title: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.verified_rounded, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'ClockIn',
-                style: AppTypography.headlineSm.copyWith(
-                  color: AppColors.primary,
-                  height: 1,
-                ),
-              ),
-              Text(
-                'SOLANA PASS',
-                style: AppTypography.labelSm.copyWith(
-                  color: AppColors.outline,
-                  letterSpacing: 1,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          height: 24,
-          decoration: BoxDecoration(
-            color: AppColors.warning.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(color: AppColors.warning, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'DEVNET',
-                style: AppTypography.labelSm.copyWith(
-                  color: AppColors.warning,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.6,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        InkWell(
-          borderRadius: BorderRadius.circular(999),
-          onTap: onCopyAddress,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            height: 28,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainer,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            alignment: Alignment.center,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.account_balance_wallet_outlined, size: 14, color: AppColors.outline),
-                const SizedBox(width: 4),
-                Text(short, style: AppTypography.labelSm.copyWith(color: AppColors.onSurface)),
-                const SizedBox(width: 4),
-                const Icon(Icons.copy_rounded, size: 14, color: AppColors.onSurfaceVariant),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: Container(
-            width: 32,
-            height: 32,
-            decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-            child: const Icon(Icons.person, color: Colors.white, size: 18),
-          ),
-          tooltip: 'Disconnect wallet',
-          onPressed: onDisconnect,
-        ),
-      ],
     );
   }
 }
