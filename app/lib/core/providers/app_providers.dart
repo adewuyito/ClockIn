@@ -50,12 +50,14 @@ class WalletState {
   final String? address;
   final Ed25519HDPublicKey? publicKey;
   final String? errorMessage;
+  final String? accountLabel;
 
   const WalletState({
     this.status = WalletStatus.disconnected,
     this.address,
     this.publicKey,
     this.errorMessage,
+    this.accountLabel,
   });
 
   bool get isConnected => status == WalletStatus.connected && address != null;
@@ -65,12 +67,14 @@ class WalletState {
     String? address,
     Ed25519HDPublicKey? publicKey,
     String? errorMessage,
+    String? accountLabel,
   }) {
     return WalletState(
       status: status ?? this.status,
       address: address ?? this.address,
       publicKey: publicKey ?? this.publicKey,
       errorMessage: errorMessage,
+      accountLabel: accountLabel ?? this.accountLabel,
     );
   }
 }
@@ -91,6 +95,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
         status: WalletStatus.connected,
         address: session.publicKey.toBase58(),
         publicKey: session.publicKey,
+        accountLabel: session.accountLabel,
       );
       return true;
     } else {
@@ -166,4 +171,65 @@ final draftReviewsProvider = StreamProvider<List<DraftReview>>((ref) {
 final recentLookupsProvider = StreamProvider<List<WorkerProfile>>((ref) {
   final repository = ref.watch(reputationRepositoryProvider);
   return repository.watchRecentLookups();
+});
+
+// ==================== SETTINGS SCREEN: REAL NETWORK DATA ====================
+//
+// The Settings screen's Stitch source design invents several numbers that
+// look plausible but aren't real: RPC latency, network epoch, slot
+// commitment. All three are cheap, real RPC calls — fetch them for real
+// instead of hardcoding fake ones.
+
+/// The connected wallet's real devnet SOL balance, in lamports.
+final walletBalanceProvider = FutureProvider<int?>((ref) async {
+  final wallet = ref.watch(walletStateProvider);
+  if (!wallet.isConnected || wallet.address == null) return null;
+
+  final client = ref.watch(solanaClientProvider);
+  final result = await client.rpcClient.getBalance(
+    wallet.address!,
+    commitment: Commitment.confirmed,
+  );
+  return result.value;
+});
+
+/// A snapshot of real network facts for the Settings screen's diagnostics
+/// panel — measured, not invented.
+class NetworkDiagnostics {
+  final int latencyMs;
+  final int epoch;
+  final int slotIndex;
+  final int slotsInEpoch;
+  final int finalizedSlot;
+
+  const NetworkDiagnostics({
+    required this.latencyMs,
+    required this.epoch,
+    required this.slotIndex,
+    required this.slotsInEpoch,
+    required this.finalizedSlot,
+  });
+
+  double get epochProgress => slotsInEpoch == 0 ? 0 : slotIndex / slotsInEpoch;
+}
+
+/// Fetches real, current network diagnostics: a round-trip latency
+/// measurement against the RPC endpoint, the current epoch and how far
+/// through it the network is, and the latest finalized slot.
+final networkDiagnosticsProvider = FutureProvider<NetworkDiagnostics>((ref) async {
+  final client = ref.watch(solanaClientProvider);
+
+  final stopwatch = Stopwatch()..start();
+  final epochInfo = await client.rpcClient.getEpochInfo(commitment: Commitment.confirmed);
+  stopwatch.stop();
+
+  final finalizedSlot = await client.rpcClient.getSlot(commitment: Commitment.finalized);
+
+  return NetworkDiagnostics(
+    latencyMs: stopwatch.elapsedMilliseconds,
+    epoch: epochInfo.epoch,
+    slotIndex: epochInfo.slotIndex,
+    slotsInEpoch: epochInfo.slotsInEpoch,
+    finalizedSlot: finalizedSlot,
+  );
 });
