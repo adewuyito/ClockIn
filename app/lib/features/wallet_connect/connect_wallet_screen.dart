@@ -1,12 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/wallet_adapter.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/widgets/devnet_badge.dart';
 
 /// Screen 1 & 1b: Connect Wallet (Mobile Wallet Adapter).
 /// The zero-custody entry point of ClockIn.
+///
+/// Fidelity notes vs. the Stitch design ("Connect Wallet (MWA)" / "No Wallet
+/// Found"): the design's "Visual Worker Snapshot" mock card (a fake avatar,
+/// a fake "sol:8x2…k9F4" address, "38 shifts logged", "Merkle Root Synced")
+/// was dropped entirely rather than adapted — there is no real data to show
+/// before a wallet is even connected, and the program has no Merkle tree.
+/// The third value-proposition row ("Anchor smart contracts generate
+/// deterministic shift hashes...") was replaced with a real, already-built
+/// feature (offline draft reviews via the local Drift cache). The "How does
+/// this work?" explainer sheet keeps the design's structure but rewrites the
+/// "Clock In & Out" / "attestation memos" / shift-hash steps to describe the
+/// actual register → review flow. The design's two-stage fake loading
+/// animation ("Requesting Wallet Session…" → "Awaiting Signature…", driven
+/// by a JS timer unrelated to any real call) was replaced with a single
+/// honest "Connecting…" state, since `WalletAdapter.connect()` is one opaque
+/// await with no intermediate stages to report truthfully.
 class ConnectWalletScreen extends ConsumerWidget {
   const ConnectWalletScreen({super.key});
 
@@ -15,6 +33,10 @@ class ConnectWalletScreen extends ConsumerWidget {
     final walletState = ref.watch(walletStateProvider);
     final walletNotifier = ref.read(walletStateProvider.notifier);
 
+    if (walletState.status == WalletStatus.noWalletFound) {
+      return _NoWalletFoundView(onCheckAgain: () => walletNotifier.connect());
+    }
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -22,12 +44,11 @@ class ConnectWalletScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Devnet status bar
               const Align(
                 alignment: Alignment.centerLeft,
                 child: DevnetBadge(),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
 
               // Brand Icon
               Container(
@@ -70,121 +91,15 @@ class ConnectWalletScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 18),
 
-              // Title and Subtitle
-              const Text(
-                'ClockIn',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.onSurface,
-                  letterSpacing: -0.5,
-                ),
-              ),
+              Text('ClockIn', style: AppTypography.headlineLg.copyWith(color: AppColors.onSurface)),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Decentralized work reputation that follows you between gigs.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.onSurfaceVariant,
-                  height: 1.4,
-                ),
+                style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant, height: 1.4),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
-              // Mock Preview Card (Stitch Snapshot Card)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: AppColors.secondaryContainer,
-                            child: const Icon(
-                              Icons.person_rounded,
-                              color: AppColors.onSecondaryContainer,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Verified Contributor',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.onSurface,
-                                  ),
-                                ),
-                                Text(
-                                  'sol:8x2…k9F4',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontFamily: 'monospace',
-                                    color: AppColors.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.success.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.star, size: 14, color: AppColors.success),
-                                SizedBox(width: 3),
-                                Text(
-                                  '5.0',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.success,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '38 shifts logged',
-                            style: TextStyle(fontSize: 11, color: AppColors.outline),
-                          ),
-                          Text(
-                            'On-Chain Attested',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Value Proposition Items
               _buildValueItem(
                 icon: Icons.shield_outlined,
                 title: 'Zero key custody',
@@ -196,43 +111,26 @@ class ConnectWalletScreen extends ConsumerWidget {
                 icon: Icons.sync_alt_rounded,
                 title: 'Port across platforms',
                 description:
-                    'Export tamper-proof proof of work records between DAOs, gig platforms, and clients.',
+                    'Carry one on-chain reputation record between DAOs, gig platforms, and clients — it lives on Solana, not inside any single app.',
               ),
               const SizedBox(height: 12),
               _buildValueItem(
                 icon: Icons.cloud_off_rounded,
                 title: 'Offline resilience',
                 description:
-                    'Draft reviews with Drift local cache and synchronize automatically when connected.',
+                    'Draft reviews with the local cache and submit automatically once you\'re back online.',
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
 
-              // State Variant: No Wallet Found Error Alert (Screen 1b)
-              if (walletState.status == WalletStatus.noWalletFound)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.warningContainer.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.warning, width: 1),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded, color: AppColors.warning),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'No compatible Solana wallet found. Please install Phantom or Solflare on your Android device to connect.',
-                          style: TextStyle(fontSize: 13, height: 1.3),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              TextButton.icon(
+                onPressed: () => _showExplainerSheet(context),
+                icon: const Icon(Icons.help_outline_rounded, size: 18),
+                label: const Text('How does this work?'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+              ),
+              const SizedBox(height: 12),
 
-              if (walletState.errorMessage != null &&
-                  walletState.status != WalletStatus.noWalletFound)
+              if (walletState.errorMessage != null)
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.all(14),
@@ -248,37 +146,126 @@ class ConnectWalletScreen extends ConsumerWidget {
                 ),
 
               // Connect Button
-              ElevatedButton(
-                onPressed: walletState.status == WalletStatus.connecting
-                    ? null
-                    : () => walletNotifier.connect(),
-                child: walletState.status == WalletStatus.connecting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: walletState.status == WalletStatus.connecting
+                      ? null
+                      : () => walletNotifier.connect(),
+                  child: walletState.status == WalletStatus.connecting
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ),
+                            SizedBox(width: 10),
+                            Text('Connecting…'),
+                          ],
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.account_balance_wallet_outlined, size: 20),
+                            SizedBox(width: 8),
+                            Text('Connect via Mobile Wallet'),
+                          ],
                         ),
-                      )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.account_balance_wallet_outlined, size: 20),
-                          SizedBox(width: 8),
-                          Text('Connect Wallet (MWA)'),
-                        ],
-                      ),
+                ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Requires Phantom, Solflare, or SMS-compatible wallet',
-                style: TextStyle(fontSize: 11, color: AppColors.outline),
+              Text(
+                'Authorizes via installed MWA wallet (Phantom, Solflare, etc.)',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySm.copyWith(color: AppColors.outline),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  void _showExplainerSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: AppColors.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              Text('How ClockIn works', style: AppTypography.headlineSm),
+              const SizedBox(height: 20),
+              _buildExplainerStep(
+                number: '01',
+                title: 'One-tap MWA connect',
+                description:
+                    'Your phone opens a session with your installed wallet app and negotiates authorization — your private key never leaves that wallet.',
+              ),
+              const SizedBox(height: 16),
+              _buildExplainerStep(
+                number: '02',
+                title: 'Register & get reviewed',
+                description:
+                    'Create your on-chain worker record once, then clients or collaborators submit a signed review tied to a rating and job ID.',
+              ),
+              const SizedBox(height: 16),
+              _buildExplainerStep(
+                number: '03',
+                title: 'Portable, permanent reputation',
+                description:
+                    'Your review history lives in a Solana program account — nobody can quietly edit or delete it, and it\'s yours to carry anywhere that reads the same program.',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExplainerStep({
+    required String number,
+    required String title,
+    required String description,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          number,
+          style: AppTypography.labelLg.copyWith(color: AppColors.primaryFixedDim, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: AppTypography.titleMd),
+              const SizedBox(height: 2),
+              Text(description, style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, height: 1.4)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -307,26 +294,273 @@ class ConnectWalletScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
+                  Text(title, style: AppTypography.titleMd),
                   const SizedBox(height: 2),
                   Text(
                     description,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.onSurfaceVariant,
-                      height: 1.35,
-                    ),
+                    style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, height: 1.35),
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Screen 1b: No Wallet Found — shown when [WalletAdapter.isWalletAvailable]
+/// finds no MWA-compatible wallet app installed on the device.
+///
+/// Fidelity notes: the design's curated wallet list (Phantom, Solflare,
+/// Backpack) is real — these are genuine, installable Android apps that
+/// support MWA. The design links directly to each Play Store listing; since
+/// launching an external browser/Play Store intent needs a new native
+/// plugin (`url_launcher`, plus Android 11+ package-visibility `<queries>`
+/// entries) that isn't in this app for anything else yet, tapping a wallet
+/// or "Install a wallet" copies its Play Store link to the clipboard instead
+/// of opening it directly — same clipboard-fallback pattern used elsewhere
+/// in the app rather than adding a plugin for one screen. The "Already
+/// installed? Check again" action re-runs the real `connect()` flow (which
+/// re-checks wallet availability) instead of the design's `window.location.reload()`,
+/// since this is a native app, not a web page.
+class _NoWalletFoundView extends StatelessWidget {
+  const _NoWalletFoundView({required this.onCheckAgain});
+
+  final VoidCallback onCheckAgain;
+
+  static const _wallets = [
+    (
+      name: 'Phantom',
+      subtitle: 'Most popular Solana wallet · Play Store',
+      packageId: 'app.phantom',
+      icon: Icons.token_rounded,
+      color: Color(0xFF553C9A),
+      badge: 'Popular',
+    ),
+    (
+      name: 'Solflare',
+      subtitle: 'Mobile & browser support',
+      packageId: 'com.solflare.mobile',
+      icon: Icons.shield_rounded,
+      color: Color(0xFFC2410C),
+      badge: null,
+    ),
+    (
+      name: 'Backpack',
+      subtitle: 'xNFT & Solana dApp ready',
+      packageId: 'app.backpack.mobile',
+      icon: Icons.backpack_rounded,
+      color: Color(0xFFBE123C),
+      badge: null,
+    ),
+  ];
+
+  Future<void> _copyPlayStoreLink(BuildContext context, String url) async {
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Play Store link copied — open it in your browser.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.access_time_filled_rounded, color: Colors.white, size: 18),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('ClockIn', style: AppTypography.headlineSm),
+                    ],
+                  ),
+                  const DevnetBadge(showProtocol: false),
+                ],
+              ),
+              const SizedBox(height: 28),
+
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(color: AppColors.secondaryContainer.withValues(alpha: 0.4), shape: BoxShape.circle),
+                  ),
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: const BoxDecoration(color: AppColors.surfaceContainerLow, shape: BoxShape.circle),
+                    child: const Icon(Icons.account_balance_wallet_outlined, size: 32, color: AppColors.primaryContainer),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 8,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                      child: const Icon(Icons.verified_rounded, size: 16, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              Text(
+                'You\'ll need a wallet app first',
+                textAlign: TextAlign.center,
+                style: AppTypography.headlineMd,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'ClockIn uses your wallet as your ID. Install one of these, then come back.',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
+              ),
+              const SizedBox(height: 24),
+
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
+                ),
+                child: Column(
+                  children: [
+                    for (var i = 0; i < _wallets.length; i++) ...[
+                      if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
+                      _walletTile(context, _wallets[i]),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'ClockIn never accesses your private keys or funds. Your wallet acts strictly as an unforgeable digital ID.',
+                        style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _copyPlayStoreLink(
+                    context,
+                    'https://play.google.com/store/search?q=solana%20wallet&c=apps',
+                  ),
+                  icon: const Icon(Icons.content_copy_rounded, size: 18),
+                  label: const Text('Install a wallet'),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Copies the Play Store link — paste it in your browser.',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+              ),
+              const SizedBox(height: 4),
+              TextButton.icon(
+                onPressed: onCheckAgain,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Already installed? Check again'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _walletTile(BuildContext context, ({String name, String subtitle, String packageId, IconData icon, Color color, String? badge}) wallet) {
+    return InkWell(
+      onTap: () => _copyPlayStoreLink(
+        context,
+        'https://play.google.com/store/apps/details?id=${wallet.packageId}',
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(color: AppColors.surfaceContainerLow, borderRadius: BorderRadius.circular(10)),
+              child: Center(
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(color: wallet.color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Icon(wallet.icon, size: 16, color: wallet.color),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(wallet.name, style: AppTypography.titleMd),
+                      if (wallet.badge != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(color: AppColors.secondaryContainer, borderRadius: BorderRadius.circular(999)),
+                          child: Text(
+                            wallet.badge!,
+                            style: AppTypography.labelSm.copyWith(color: AppColors.onSecondaryContainer),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  Text(
+                    wallet.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.outline),
           ],
         ),
       ),
