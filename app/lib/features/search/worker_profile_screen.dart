@@ -90,45 +90,59 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(16, 12, 16, isRegistered ? 100 : 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildIdentityBanner(),
-                    const SizedBox(height: 16),
-                    profileAsync.when(
-                      loading: () => const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                      error: (err, _) => _buildErrorCard(err.toString()),
-                      data: (profile) {
-                        if (profile == null) return _buildNotRegisteredCard();
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildHeroCard(profile),
-                            const SizedBox(height: 20),
-                            reviewsAsync.when(
-                              loading: () => const Padding(
-                                padding: EdgeInsets.all(24),
-                                child: Center(child: CircularProgressIndicator()),
-                              ),
-                              error: (err, _) => Text('Failed to load reviews: $err',
-                                  style: AppTypography.bodyMd.copyWith(color: AppColors.error)),
-                              data: (reviews) => _buildReviewsSection(profile, reviews),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
+                child: profileAsync.when(
+                  loading: () => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildIdentityBanner(),
+                      const SizedBox(height: 32),
+                      const Center(child: CircularProgressIndicator()),
+                    ],
+                  ),
+                  error: (err, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildIdentityBanner(),
+                      const SizedBox(height: 16),
+                      _buildErrorCard(err.toString()),
+                    ],
+                  ),
+                  data: (profile) {
+                    // Not registered gets Stitch's "4b" treatment: no
+                    // identity banner (there's no worker identity to
+                    // frame yet), a dedicated empty-state card instead.
+                    if (profile == null) return _buildNotRegisteredCard();
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildIdentityBanner(),
+                        const SizedBox(height: 16),
+                        _buildHeroCard(profile),
+                        const SizedBox(height: 20),
+                        reviewsAsync.when(
+                          loading: () => const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                          error: (err, _) => Text('Failed to load reviews: $err',
+                              style: AppTypography.bodyMd.copyWith(color: AppColors.error)),
+                          data: (reviews) => _buildReviewsSection(profile, reviews),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: isRegistered ? _buildLeaveReviewBar(context) : null,
+      bottomNavigationBar: profileAsync.when(
+        loading: () => null,
+        error: (_, _) => null,
+        data: (profile) => profile != null ? _buildLeaveReviewBar(context) : _buildDisabledReviewBar(),
+      ),
     );
   }
 
@@ -327,31 +341,180 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
     );
   }
 
+  /// Matches Stitch's "4b. Worker Profile (Not Registered)" screen. One
+  /// copy fix, same recurring issue as elsewhere: "Every ClockIn milestone,
+  /// shift timestamp, and peer review..." leaned on shift/milestone
+  /// language this program doesn't have (it tracks job reviews, not
+  /// shifts) — rewritten to describe what a Review PDA actually is.
+  /// "Cluster Account: Unallocated · 0 Lamports" is kept as literal fact,
+  /// not flavor text: this is exactly what `profile == null` means here —
+  /// the WorkerProfile PDA genuinely doesn't exist on-chain yet.
   Widget _buildNotRegisteredCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 10, offset: Offset(0, 2))],
+          ),
+          child: Column(
+            children: [
+              SizedBox(
+                width: 80,
+                height: 80,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: const BoxDecoration(color: AppColors.surfaceContainerLow, shape: BoxShape.circle),
+                        child: Icon(Icons.person_off_outlined, size: 36, color: AppColors.onSurfaceVariant.withValues(alpha: 0.7)),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(color: AppColors.surfaceContainerHighest, shape: BoxShape.circle),
+                        child: const Icon(Icons.schedule_rounded, size: 18, color: AppColors.outline),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text("This address hasn't started a reputation record yet",
+                  textAlign: TextAlign.center, style: AppTypography.headlineSm.copyWith(color: AppColors.onSurface)),
+              const SizedBox(height: 8),
+              Text(
+                "This worker hasn't registered their on-chain profile yet. Ask them to create a record in ClockIn before hiring so you can leave them a review.",
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(
+                    text: "Join ClockIn and register your Solana worker profile: ${widget.address}",
+                  ));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Invite message copied to clipboard'), duration: Duration(seconds: 2)),
+                  );
+                },
+                icon: const Icon(Icons.ios_share_rounded, size: 16),
+                label: const Text('Share invite link'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  backgroundColor: AppColors.surfaceContainer,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: AppColors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.verified_user_rounded, size: 20, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text('Cryptographic Proof-of-Work', style: AppTypography.titleMd.copyWith(color: AppColors.onSurface)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Every ClockIn review is permanently bound to a Solana PDA tied to the worker and job ID. Once this address registers, its history becomes queryable on-chain in real time.',
+                style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.surfaceContainerHigh),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(color: AppColors.surfaceContainer, borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.dns_rounded, size: 18, color: AppColors.outline),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Account State', style: AppTypography.labelMd.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+                    Text('Cluster Account: Unallocated', style: AppTypography.labelSm.copyWith(color: AppColors.outline)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: AppColors.surfaceContainer, borderRadius: BorderRadius.circular(6)),
+                child: Text('0 Lamports', style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDisabledReviewBar() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: const BoxDecoration(
         color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.surfaceContainerHigh),
+        boxShadow: [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, -2))],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(color: AppColors.surfaceContainerLow, shape: BoxShape.circle),
-            child: const Icon(Icons.person_off_outlined, size: 28, color: AppColors.outline),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.rate_review_rounded, size: 20),
+              label: const Text('Leave a review'),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                disabledBackgroundColor: AppColors.surfaceContainerHighest,
+                disabledForegroundColor: AppColors.outline,
+              ),
+            ),
           ),
-          const SizedBox(height: 12),
-          Text('This address hasn\'t registered yet',
-              textAlign: TextAlign.center, style: AppTypography.titleMd.copyWith(color: AppColors.onSurface)),
           const SizedBox(height: 6),
-          Text(
-            'There\'s no ClockIn reputation record for this address on ${_shorten(widget.address)} — nothing has been registered on-chain.',
-            textAlign: TextAlign.center,
-            style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, height: 1.4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.info_outline_rounded, size: 14, color: AppColors.outline),
+              const SizedBox(width: 6),
+              Text('They need a record first.', style: AppTypography.bodySm.copyWith(color: AppColors.outline)),
+            ],
           ),
         ],
       ),
