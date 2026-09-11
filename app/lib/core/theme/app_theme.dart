@@ -1,6 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
+
+/// Type scale straight from the Stitch design system (Project
+/// 2859884629275757623): Plus Jakarta Sans for interface narrative,
+/// JetBrains Mono for cryptographic/tabular data (addresses, hashes,
+/// balances).
+class AppTypography {
+  AppTypography._();
+
+  static TextStyle get headlineLg => GoogleFonts.plusJakartaSans(
+        fontSize: 30,
+        height: 38 / 30,
+        fontWeight: FontWeight.w700,
+      );
+  static TextStyle get headlineMd => GoogleFonts.plusJakartaSans(
+        fontSize: 24,
+        height: 32 / 24,
+        fontWeight: FontWeight.w600,
+      );
+  static TextStyle get headlineSm => GoogleFonts.plusJakartaSans(
+        fontSize: 20,
+        height: 26 / 20,
+        fontWeight: FontWeight.w600,
+      );
+  static TextStyle get titleMd => GoogleFonts.plusJakartaSans(
+        fontSize: 16,
+        height: 24 / 16,
+        fontWeight: FontWeight.w600,
+      );
+  static TextStyle get bodyLg => GoogleFonts.plusJakartaSans(
+        fontSize: 16,
+        height: 24 / 16,
+        fontWeight: FontWeight.w400,
+      );
+  static TextStyle get bodyMd => GoogleFonts.plusJakartaSans(
+        fontSize: 14,
+        height: 20 / 14,
+        fontWeight: FontWeight.w400,
+      );
+  static TextStyle get bodySm => GoogleFonts.plusJakartaSans(
+        fontSize: 12,
+        height: 16 / 12,
+        fontWeight: FontWeight.w400,
+      );
+  static TextStyle get labelLg => GoogleFonts.jetBrainsMono(
+        fontSize: 14,
+        height: 20 / 14,
+        fontWeight: FontWeight.w500,
+      );
+  static TextStyle get labelMd => GoogleFonts.jetBrainsMono(
+        fontSize: 12,
+        height: 16 / 12,
+        fontWeight: FontWeight.w500,
+      );
+  static TextStyle get labelSm => GoogleFonts.jetBrainsMono(
+        fontSize: 10,
+        height: 14 / 10,
+        fontWeight: FontWeight.w500,
+      );
+}
 
 /// ClockIn AppTheme providing Light Fintech style from Stitch design specs.
 class AppTheme {
@@ -11,6 +71,18 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.background,
+      textTheme: TextTheme(
+        headlineLarge: AppTypography.headlineLg.copyWith(color: AppColors.onSurface),
+        headlineMedium: AppTypography.headlineMd.copyWith(color: AppColors.onSurface),
+        headlineSmall: AppTypography.headlineSm.copyWith(color: AppColors.onSurface),
+        titleMedium: AppTypography.titleMd.copyWith(color: AppColors.onSurface),
+        bodyLarge: AppTypography.bodyLg.copyWith(color: AppColors.onSurface),
+        bodyMedium: AppTypography.bodyMd.copyWith(color: AppColors.onSurface),
+        bodySmall: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+        labelLarge: AppTypography.labelLg.copyWith(color: AppColors.onSurface),
+        labelMedium: AppTypography.labelMd.copyWith(color: AppColors.onSurface),
+        labelSmall: AppTypography.labelSm.copyWith(color: AppColors.outline),
+      ),
       colorScheme: const ColorScheme(
         brightness: Brightness.light,
         primary: AppColors.primary,
@@ -33,20 +105,16 @@ class AppTheme {
         outline: AppColors.outline,
         outlineVariant: AppColors.outlineVariant,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.onSurface,
         elevation: 0,
         centerTitle: false,
-        systemOverlayStyle: SystemUiOverlayStyle(
+        systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
         ),
-        titleTextStyle: TextStyle(
-          color: AppColors.onSurface,
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-        ),
+        titleTextStyle: AppTypography.headlineSm.copyWith(color: AppColors.onSurface),
       ),
       cardTheme: CardThemeData(
         color: AppColors.surfaceContainerLowest,
@@ -66,10 +134,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: AppTypography.titleMd,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -80,10 +145,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: AppTypography.titleMd,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
