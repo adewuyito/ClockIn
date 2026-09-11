@@ -142,31 +142,37 @@ class _LookupWorkerScreenState extends ConsumerState<LookupWorkerScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Quick handoff action tiles
-            Row(
-              children: [
-                Expanded(
-                  child: _actionTile(
-                    icon: Icons.qr_code_scanner_rounded,
-                    iconColor: AppColors.onSecondaryContainer,
-                    iconBg: AppColors.secondaryContainer,
-                    title: 'Scan QR',
-                    subtitle: 'Not available yet',
-                    onTap: () => _showSnack("QR scanning isn't built yet — paste the address instead."),
+            // Quick handoff action tiles — IntrinsicHeight so both stay the
+            // same height even if one title wraps ("Paste Address" is
+            // borderline at some text-scale settings; the design has both
+            // as a single line, so overflow also falls back to ellipsis).
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _actionTile(
+                      icon: Icons.qr_code_scanner_rounded,
+                      iconColor: AppColors.onSecondaryContainer,
+                      iconBg: AppColors.secondaryContainer,
+                      title: 'Scan QR',
+                      subtitle: 'Not available yet',
+                      onTap: () => _showSnack("QR scanning isn't built yet — paste the address instead."),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _actionTile(
-                    icon: Icons.content_paste_go_rounded,
-                    iconColor: AppColors.primary,
-                    iconBg: AppColors.primaryFixedDim.withValues(alpha: 0.3),
-                    title: 'Paste Address',
-                    subtitle: 'From clipboard',
-                    onTap: _pasteFromClipboard,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _actionTile(
+                      icon: Icons.content_paste_go_rounded,
+                      iconColor: AppColors.primary,
+                      iconBg: AppColors.primaryFixedDim.withValues(alpha: 0.3),
+                      title: 'Paste Address',
+                      subtitle: 'From clipboard',
+                      onTap: _pasteFromClipboard,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -273,6 +279,12 @@ class _LookupWorkerScreenState extends ConsumerState<LookupWorkerScreen> {
                       onPressed: () => _performSearch(),
                       icon: const Icon(Icons.person_search_rounded, size: 20),
                       label: const Text('Search Worker Profile'),
+                      // The design uses rounded-lg (8px) for this specific
+                      // button, distinct from the app-wide 16px default the
+                      // theme applies to CTAs elsewhere (e.g. Register).
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
                     ),
                   ),
                 ],
@@ -352,8 +364,12 @@ class _LookupWorkerScreenState extends ConsumerState<LookupWorkerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTypography.titleMd.copyWith(color: AppColors.onSurface)),
+                  Text(title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.titleMd.copyWith(color: AppColors.onSurface)),
                   Text(subtitle,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
                 ],
