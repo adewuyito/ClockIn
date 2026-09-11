@@ -478,12 +478,19 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.onSurfaceVariant),
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.onSurfaceVariant),
+                ),
                 const SizedBox(width: 6),
-                Text(
-                  'Requires MWA signing. Reviews are permanent once submitted.',
-                  style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                Flexible(
+                  child: Text(
+                    'Requires MWA signing. Reviews are permanent once submitted.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                  ),
                 ),
               ],
             ),
