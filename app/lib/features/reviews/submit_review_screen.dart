@@ -145,6 +145,10 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
       setState(() => _txError = 'Job reference must be 32 characters or fewer.');
       return;
     }
+    if (_notesController.text.trim().isEmpty) {
+      setState(() => _txError = 'Add a note about this job before submitting.');
+      return;
+    }
     if (targetProfile == null) {
       setState(() => _txError = 'This worker hasn\'t registered on-chain yet.');
       return;
@@ -273,6 +277,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
         !_isSubmitting &&
         validAddress != null &&
         _jobIdController.text.trim().isNotEmpty &&
+        _notesController.text.trim().isNotEmpty &&
         targetProfile != null;
 
     return Scaffold(
@@ -377,11 +382,17 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Notes (local-only)
+            // Notes (local-only, required)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Note (optional)', style: AppTypography.titleMd),
+                Row(
+                  children: [
+                    Text('Note', style: AppTypography.titleMd),
+                    const SizedBox(width: 6),
+                    Text('Required', style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+                  ],
+                ),
                 Text('${_notesController.text.length} / 280', style: AppTypography.labelSm.copyWith(color: AppColors.outline)),
               ],
             ),
@@ -392,7 +403,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
               maxLength: 280,
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
-                hintText: 'Any specific feedback for your own records…',
+                hintText: 'What happened on this job? e.g. Reliable and did a clean job.',
                 counterText: '',
               ),
             ),
