@@ -74,7 +74,7 @@ class WalletAdapter {
     LocalAssociationScenario? scenario;
     try {
       scenario = await LocalAssociationScenario.create();
-      await scenario.startActivityForResult(null);
+      scenario.startActivityForResult(null).ignore();
       final client = await scenario.start();
 
       final authResult = await client.authorize(
@@ -139,7 +139,7 @@ class WalletAdapter {
     LocalAssociationScenario? scenario;
     try {
       scenario = await LocalAssociationScenario.create();
-      await scenario.startActivityForResult(null);
+      scenario.startActivityForResult(null).ignore();
       final client = await scenario.start();
 
       // Reauthorize session
