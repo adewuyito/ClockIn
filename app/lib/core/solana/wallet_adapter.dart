@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:solana/base58.dart';
 import 'package:solana/solana.dart';
 import 'package:solana_mobile_client/solana_mobile_client.dart';
@@ -86,11 +86,17 @@ class WalletAdapter {
         cluster: NetworkConfig.clusterName,
       );
 
-      authResult ??= await client.authorize(
-        identityUri: identityUri,
-        iconUri: iconUri,
-        identityName: identityName,
-      );
+      if (authResult != null) {
+        debugPrint('[MWA] connect(): devnet-scoped authorize succeeded.');
+      } else {
+        debugPrint('[MWA] connect(): devnet-scoped authorize returned null, falling back to no-cluster authorize...');
+        authResult = await client.authorize(
+          identityUri: identityUri,
+          iconUri: iconUri,
+          identityName: identityName,
+        );
+        debugPrint('[MWA] connect(): no-cluster authorize ${authResult != null ? "succeeded" : "also returned null"}.');
+      }
 
       if (authResult == null) {
         _status = WalletStatus.error;
@@ -151,7 +157,7 @@ class WalletAdapter {
       final client = await scenario.start();
 
       // Reauthorize session
-      final reauth = await client.reauthorize(
+      var reauth = await client.reauthorize(
         identityUri: identityUri,
         iconUri: iconUri,
         identityName: identityName,
@@ -165,18 +171,54 @@ class WalletAdapter {
           accountLabel: reauth.accountLabel,
           walletUriBase: reauth.walletUriBase,
         );
+      } else {
+        debugPrint('[MWA] Reauthorization returned null, falling back to authorize...');
+        var auth = await client.authorize(
+          identityUri: identityUri,
+          iconUri: iconUri,
+          identityName: identityName,
+          cluster: NetworkConfig.clusterName,
+        );
+        if (auth != null) {
+          debugPrint('[MWA] sign(): devnet-scoped authorize succeeded.');
+        } else {
+          debugPrint('[MWA] sign(): devnet-scoped authorize returned null, falling back to no-cluster authorize...');
+          auth = await client.authorize(
+            identityUri: identityUri,
+            iconUri: iconUri,
+            identityName: identityName,
+          );
+          debugPrint('[MWA] sign(): no-cluster authorize ${auth != null ? "succeeded" : "also returned null"}.');
+        }
+        if (auth == null) {
+          throw Exception('Wallet authorization was declined.');
+        }
+        _session = WalletSession(
+          authToken: auth.authToken,
+          publicKey: Ed25519HDPublicKey(auth.publicKey),
+          accountLabel: auth.accountLabel,
+          walletUriBase: auth.walletUriBase,
+        );
       }
 
+      debugPrint('[MWA] session walletUriBase=${_session!.walletUriBase}');
+      debugPrint('[MWA] Requesting wallet to sign and send transaction...');
       final result = await client.signAndSendTransactions(
         transactions: [compiledTransaction],
       );
+      debugPrint('[MWA] signAndSendTransactions returned ${result.signatures.length} signatures');
 
       if (result.signatures.isEmpty) {
         throw Exception('Transaction was rejected by wallet.');
       }
 
       final signatureBytes = result.signatures.first;
-      return base58encode(signatureBytes);
+      final sigStr = base58encode(signatureBytes);
+      debugPrint('[MWA] Transaction signed & submitted: $sigStr');
+      return sigStr;
+    } catch (e, st) {
+      debugPrint('[MWA] Error in signAndSendTransaction: $e\n$st');
+      rethrow;
     } finally {
       await scenario?.close();
     }

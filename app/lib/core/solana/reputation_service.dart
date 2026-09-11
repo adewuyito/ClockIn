@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import 'package:solana/dto.dart';
+import 'package:solana/dto.dart' hide Instruction;
 import 'package:solana/encoder.dart';
 import 'package:solana/solana.dart';
 import '../models/review.dart';
@@ -86,23 +86,11 @@ class ReputationService {
     required Ed25519HDPublicKey worker,
     required WalletAdapter walletAdapter,
   }) async {
-    final instruction = await ProgramInstructions.registerWorker(worker: worker);
-
-    final latestBlockhash =
-        await solanaClient.rpcClient.getLatestBlockhash(
-          commitment: Commitment.confirmed,
-        );
-
-    final compiledMessage = Message.only(instruction).compile(
-      recentBlockhash: latestBlockhash.value.blockhash,
+    final signature = await _signAndSendWithRetry(
       feePayer: worker,
+      walletAdapter: walletAdapter,
+      buildInstruction: () => ProgramInstructions.registerWorker(worker: worker),
     );
-
-    final txBytes = Uint8List.fromList(
-      SignedTx(compiledMessage: compiledMessage).toByteArray().toList(),
-    );
-
-    final signature = await walletAdapter.signAndSendTransaction(txBytes);
 
     await solanaClient.waitForSignatureStatus(
       signature,
@@ -120,28 +108,16 @@ class ReputationService {
     required int rating,
     required WalletAdapter walletAdapter,
   }) async {
-    final instruction = await ProgramInstructions.submitReview(
-      worker: worker,
-      reviewer: reviewer,
-      jobId: jobId,
-      rating: rating,
-    );
-
-    final latestBlockhash =
-        await solanaClient.rpcClient.getLatestBlockhash(
-          commitment: Commitment.confirmed,
-        );
-
-    final compiledMessage = Message.only(instruction).compile(
-      recentBlockhash: latestBlockhash.value.blockhash,
+    final signature = await _signAndSendWithRetry(
       feePayer: reviewer,
+      walletAdapter: walletAdapter,
+      buildInstruction: () => ProgramInstructions.submitReview(
+        worker: worker,
+        reviewer: reviewer,
+        jobId: jobId,
+        rating: rating,
+      ),
     );
-
-    final txBytes = Uint8List.fromList(
-      SignedTx(compiledMessage: compiledMessage).toByteArray().toList(),
-    );
-
-    final signature = await walletAdapter.signAndSendTransaction(txBytes);
 
     await solanaClient.waitForSignatureStatus(
       signature,
@@ -149,5 +125,59 @@ class ReputationService {
     );
 
     return signature;
+  }
+
+  /// Compiles, signs (via MWA), and sends a single-instruction transaction,
+  /// retrying once with a freshly-fetched blockhash if the wallet rejects it.
+  ///
+  /// The blockhash is fetched as late as possible (right before compiling),
+  /// but MWA's wallet-approval round trip — app switch, wallet cold start,
+  /// the user actually reviewing the request — can still comfortably exceed
+  /// a blockhash's ~60-90s validity window, especially on the first attempt
+  /// against a cold wallet app. Observed directly against devnet: Solflare
+  /// surfaces this as "Blockhash expired ... please try signing again",
+  /// and a same-instant retry (wallet now warm, session already
+  /// established) is materially faster and much more likely to land inside
+  /// the window. This does not fix the underlying race — only Solana
+  /// durable nonces (a transaction type that isn't tied to a recent
+  /// blockhash) remove it entirely — but it recovers the common case
+  /// without making the user manually redo the whole connect+approve flow.
+  Future<String> _signAndSendWithRetry({
+    required Ed25519HDPublicKey feePayer,
+    required WalletAdapter walletAdapter,
+    required Future<Instruction> Function() buildInstruction,
+    int maxAttempts = 2,
+  }) async {
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final instruction = await buildInstruction();
+
+        final latestBlockhash = await solanaClient.rpcClient.getLatestBlockhash(
+          commitment: Commitment.confirmed,
+        );
+
+        final compiledMessage = Message.only(instruction).compile(
+          recentBlockhash: latestBlockhash.value.blockhash,
+          feePayer: feePayer,
+        );
+
+        final placeholderSignature = Signature(List.filled(64, 0), publicKey: feePayer);
+        final txBytes = Uint8List.fromList(
+          SignedTx(
+            compiledMessage: compiledMessage,
+            signatures: [placeholderSignature],
+          ).toByteArray().toList(),
+        );
+
+        return await walletAdapter.signAndSendTransaction(txBytes);
+      } catch (e) {
+        if (attempt >= maxAttempts) {
+          rethrow;
+        }
+      }
+    }
+    // Unreachable: the loop above always either returns or rethrows on the
+    // final attempt.
+    throw StateError('_signAndSendWithRetry exhausted attempts without returning or throwing.');
   }
 }

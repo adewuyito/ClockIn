@@ -39,20 +39,24 @@ Getting these tests to actually pass (as opposed to appearing to pass) took real
 
 ## Phase 3 — Devnet Deployment & Manual Verification
 
-- `anchor deploy` to devnet. Record the resulting program ID somewhere durable and non-secret (e.g. `program/DEPLOYED.md`) — never commit a mainnet ID or any secret key.
-- Manually invoke register/submit/read against the deployed instance via `anchor run`/a script/`solana program show`; confirm on-chain state actually changes, not just that a CLI command returned success.
+The program has been live and callable on devnet at `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` throughout Phase 4's testing below — confirmed via a real `register_worker` call succeeding on-chain, not just simulation. What's formally left:
 
-**Done when:** a real devnet program ID and a transaction signature for each instruction having been called successfully.
+- [ ] Run `anchor deploy` explicitly and record the result in `program/DEPLOYED.md` (program ID, deploy tx signature) — a durable, non-secret record for the submission, separate from the fact that it already works.
+- [x] Manually invoke register against the deployed instance and confirm on-chain state actually changes: done, via the real Phase 4 test below (tx `fs5NeaMUwi4CdmwzskffKFH7TzPNX7TkUjCknjccY8SCNdGjXq8JdjonG8vuZ6YJTfAJzhGiq6JtxHrqq8g4hAS`, `WorkerProfile` PDA confirmed to exist by reading it back from devnet RPC directly).
+- [ ] Same manual verification for `submit_review` specifically (only `register_worker` has been exercised on a real device so far).
+
+**Done when:** a real devnet program ID and a transaction signature for each instruction having been called successfully. Mostly done — `register_worker` proven; `submit_review` and the formal `DEPLOYED.md` record remain.
 
 ## Phase 4 — App: Mobile Wallet Adapter Integration
 
-**Pulled forward deliberately — see the note at the top of this file.**
+**Pulled forward deliberately — see the note at the top of this file. Done — verified against a real physical Android device.**
 
-- Wire `solana_mobile_client` to request a wallet connection (`authorize`) and confirm it actually round-trips to an installed wallet app on a real device or compatible emulator.
-- Request a signature for a trivial transaction (even a no-op/memo instruction) and confirm it lands on devnet — this proves the entire MWA path works before building real feature UI on top of an assumption.
-- Handle the realistic failure modes distinctly: no wallet app installed, user rejects the connection, user rejects a specific signature request — these need different UI, not one generic "failed" state.
+- [x] `solana_mobile_client` wired to request a wallet connection (`authorize`); confirmed it round-trips to Phantom and to Solflare on a physical device (SM A515F, Android 13).
+- [x] Requested a real signature (`register_worker`, not a no-op — a stronger proof than the roadmap's original bar) and confirmed it landed on devnet: tx `fs5NeaMUwi4CdmwzskffKFH7TzPNX7TkUjCknjccY8SCNdGjXq8JdjonG8vuZ6YJTfAJzhGiq6JtxHrqq8g4hAS`, confirmed by reading both the transaction and the resulting on-chain account directly from devnet RPC.
+- [x] Real failure modes hit and understood along the way (see `docs/ARCHITECTURE.md`'s "MWA on-device findings"): wallets not reliably returning focus to the app after an MWA flow (wallet-side behavior, not fixable from here), and transactions being declined because a freshly-installed wallet defaults to Mainnet rather than Devnet (fixed by switching the wallet's own network setting — this needs to become an explicit in-app instruction, not just a debugging footnote, before submission). `ReputationService._signAndSendWithRetry` also added for the separate, real blockhash-expiry case (retries once with a fresh blockhash on rejection).
+- [ ] Distinct UI for these failure modes (no wallet installed, user rejects connection/signature, wrong-network wallet) — currently they mostly surface as the same generic error state; worth revisiting for Phase 6/7 polish now that the real failure modes are known concretely rather than hypothetically.
 
-**Done when:** a real signature, requested via MWA and approved in an actual wallet app, lands as a confirmed transaction on devnet — screenshotted or recorded, since this is worth having proof of for the submission.
+**Done when:** a real signature, requested via MWA and approved in an actual wallet app, lands as a confirmed transaction on devnet. ✅ Screenshot/recording for the submission still needed.
 
 ## Phase 5 — App: Program Integration
 
