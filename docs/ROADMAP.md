@@ -10,36 +10,32 @@ Eight phases, paced for a ~1-month hackathon (CLOCK IN: Sept 8 – Oct 8) rather
 
 - [x] Fork StellarRep into this repo, `app/` reset to a fresh Flutter project with `solana`, `solana_mobile_client`, `drift`/`drift_flutter` dependencies already added.
 - [x] Drift schema started (`WorkerProfiles`, `Reviews`, `DraftReviews`) with unit tests.
-- [x] Toolchain installed and verified: Solana CLI 4.2.2, `cargo-build-sbf` 4.1.0 / platform-tools v1.54, Anchor CLI 1.2.0 (via `avm`), `anchor-lang` 1.2.0. Quirks (AVM proxy hang, `anchor test` vs Rust-native) documented in `docs/ARCHITECTURE.md`.
+- [x] Toolchain installed and verified: Solana CLI, `cargo-build-sbf`/platform-tools, Anchor CLI 1.2.0 (via `avm`), `anchor-lang` 1.2.0 — multiple Solana/Agave releases coexist on this machine and which one is active can drift between sessions, so don't trust a hardcoded version number here; re-check with `solana --version`. Quirks (AVM proxy hang, `anchor test` vs Rust-native, the `--arch` build requirement) documented in `docs/ARCHITECTURE.md`.
 - [ ] Create a funded devnet keypair for deploying/testing (`solana-keygen new`, `solana airdrop`, confirm on a devnet explorer).
 - [x] Anchor program scaffolded by hand under `program/` (plain Cargo workspace, `anchor-lang` dep, no `anchor init`). `register_worker` + `submit_review` written per `docs/PROGRAM_SPEC.md`; program keypair generated, `declare_id!` set.
-- [x] Program builds — `cargo build-sbf` produces a real `target/deploy/reputation.so`. (Note: `anchor build` itself needs an `Anchor.toml`, still to be added — see below.)
-- [x] Add an `Anchor.toml` so `anchor build`/`anchor test`/`anchor deploy` have a workspace. This is also the prerequisite for the TS test harness.
-- [ ] Confirm Android build tooling: `flutter doctor` clean (or at least Android-relevant checks passing), an Android emulator or physical device available for later MWA testing (**MWA requires a real device or an emulator with a compatible wallet app installed — the iOS Simulator equivalent doesn't exist for MWA flows**, this is a real constraint to plan around).
+- [x] Program builds — `cargo build-sbf --arch v1` produces a real, genuinely-executable `target/deploy/reputation.so` (plain `cargo build-sbf`/`anchor build` without the explicit `--arch` flag silently produces an unexecutable binary in this environment — see `docs/ARCHITECTURE.md`).
+- [x] `Anchor.toml` in place so `anchor build`/`anchor test`/`anchor deploy` have a workspace — this is also the prerequisite for the TS test harness, which now runs and passes (10/10, see Phase 1/2 below).
+- [x] Confirm Android build tooling: `flutter analyze` (0 issues) and `flutter build apk --debug` both succeed (`build/app/outputs/flutter-apk/app-debug.apk`), confirming the whole Gradle/Android SDK chain is wired up correctly. One harmless deprecation warning (the `solana_mobile_client` plugin still applies Kotlin Gradle Plugin directly rather than Flutter's built-in Kotlin support) — not a blocker, nothing to act on yet. Still open: an Android emulator or physical device available for later MWA testing (**MWA requires a real device or an emulator with a compatible wallet app installed — the iOS Simulator equivalent doesn't exist for MWA flows**, this is a real constraint to plan around for Phase 4).
 - [x] `docs/PROGRAM_SPEC.md` and `docs/APP_SPEC.md` rewritten for Anchor/Flutter (PROGRAM_SPEC renamed from `CONTRACT_SPEC.md`).
 - [x] Repo hygiene: `.gitignore` covers Flutter/Dart build artifacts, Anchor's `target/`, `.anchor/`, `test-ledger/`, and keypair files; `CLAUDE.md` + `docs/` rewritten and committed.
 
-**Definition of done:** program builds to a deployable `.so` (done, via `cargo build-sbf`), `flutter build apk --debug` (or equivalent) succeeds on the existing Flutter skeleton, and there's a funded devnet keypair with a confirmable balance. Remaining: `Anchor.toml`, the Flutter build check, and the funded devnet keypair.
+**Definition of done:** program builds to a deployable `.so` (done, via `cargo build-sbf --arch v1` — see `docs/ARCHITECTURE.md`'s "Known-bad default build" note), `flutter build apk --debug` succeeds (done) on the real Flutter app, and there's a funded devnet keypair with a confirmable balance. Only remaining item: the funded devnet keypair — public devnet faucet has been rate-limited on every attempt so far; retry later or use the web faucet at faucet.solana.com against `GBZqhLZXAjBtfeVkVWMYWFN8DGmxskwKna3UEXGvfh8P`. This doesn't block Phase 1/2 (already done, local-validator tests don't need devnet funds) — it blocks Phase 3 (devnet deploy).
 
 ---
 
 ## Phase 1 — Program: Data Model & `register_worker`
 
-The design and the code for this phase are **done** — `docs/PROGRAM_SPEC.md` has the account model (PDA seeds decided, no on-chain review-index list), and `program/programs/reputation/src/lib.rs` implements `register_worker` creating the `WorkerProfile` PDA via `init`. What's left:
+**Done.** `docs/PROGRAM_SPEC.md` has the account model (PDA seeds decided, no on-chain review-index list), `program/programs/reputation/src/lib.rs` implements `register_worker` creating the `WorkerProfile` PDA via `init`, and `program/tests/reputation.ts` covers it end-to-end via `anchor test` (TS client + local validator, `--validator legacy` — see `docs/ARCHITECTURE.md`). Both registration tests pass genuinely (not vacuously — verified by reading the actual assertion, not just the exit code): a fresh registration reads back a correctly-initialized account, and re-registration fails with Anchor's own account-already-in-use error (not a custom `AlreadyRegistered` — the spec's own error variant of that name is unused by `register_worker` for this reason, confirmed rather than assumed).
 
-- Tests via `anchor test` (TS client + local validator — see `docs/ARCHITECTURE.md` on why not a Rust-native harness): registering once succeeds and the account reads back correctly-initialized; registering twice fails. Confirm the *actual* error Anchor's `init` surfaces on a re-init (likely account-already-in-use, not a custom `AlreadyRegistered`) rather than assuming.
-- `Anchor.toml` in place so `anchor test` has a workspace (Phase 0 leftover).
+Getting these tests to actually pass (as opposed to appearing to pass) took real debugging — `docs/ARCHITECTURE.md`'s "Known-bad default build" note covers it: `anchor build`'s own implicit build step silently produces an unexecutable program binary in this environment, which reads as every instruction failing with a generic "Program is not deployed" error indistinguishable, at a glance, from a real program bug. The fix is a manual `cargo build-sbf --arch v1` pre-build step before `anchor test --skip-build`.
 
-**Done when:** a fresh test run registers a worker and reads back a correctly-initialized account, with no manual steps.
+**Done when:** a fresh test run registers a worker and reads back a correctly-initialized account, with no manual steps. ✅ (manual steps remain in the *build*, not the test itself — see the toolchain note above.)
 
 ## Phase 2 — Program: Reviews & Reputation Read Path
 
-Also **implemented** — `submit_review` is in `lib.rs` (reviewer-signed, rating bounds, self-review blocked, duplicate blocked structurally via the `review` PDA's `init`). The review-history question is **decided**: no on-chain list; the client uses `getProgramAccounts` + a `memcmp` filter on the `worker` field (see `docs/PROGRAM_SPEC.md`). What's left:
+**Done.** `submit_review` is in `lib.rs` (reviewer-signed, rating bounds, self-review blocked, duplicate blocked structurally via the `review` PDA's `init`). The review-history question is **decided**: no on-chain list; the client uses `getProgramAccounts` + a `memcmp` filter on the `worker` field (see `docs/PROGRAM_SPEC.md`). All 8 remaining test cases in `program/tests/reputation.ts` pass genuinely: valid review submission (twice, from different reviewers), self-review rejection, invalid rating (0 and 6), duplicate `(worker, job_id)` rejection, oversized `job_id` rejection, and reading reviews back via `getProgramAccounts`+`memcmp` (confirmed against the real offset, not hand-counted — offset 8, past the Anchor discriminator, matching `docs/PROGRAM_SPEC.md`).
 
-- Tests for every failure path — self-review, duplicate `(worker, job_id)`, invalid rating (0 and 6), not-registered, unsigned reviewer.
-- Confirm the client-side read pattern actually works (fetch `WorkerProfile` by PDA; `getProgramAccounts`+`memcmp` for reviews) — verify the `memcmp` offset against the compiled IDL, don't hand-count.
-
-**Done when:** every failure path has a test that actually triggers it, and a full register → review → read-reputation loop passes locally.
+**Done when:** every failure path has a test that actually triggers it, and a full register → review → read-reputation loop passes locally. ✅ 10/10 tests passing, `anchor test --skip-build --validator legacy` (after the manual `--arch v1` build step).
 
 ## Phase 3 — Devnet Deployment & Manual Verification
 
