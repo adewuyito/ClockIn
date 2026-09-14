@@ -54,4 +54,32 @@ Status key: 🔴 not started · 🟡 discussed, not yet acted on · 🟢 locked 
 
 ---
 
+## User Experience
+
+**Status: 🟡 discussed, not yet acted on**
+
+### What we found
+
+- **Real, verified strengths.** Every screen was matched against the Stitch design at a pixel level, including catching mismatches only visible on a live device (search field border, quick-action tile height, button corner radius — all confirmed via actual device screenshots, not just "close enough" in code). Shared componentry (`AppHeader`, `DevnetBadge`, `AppTypography`) is reused across screens rather than styled one-off, so the app doesn't drift visually screen to screen. Every major screen has real loading/error/empty states, not just a happy-path demo. Error messages are now typed and kind-specific (network / wallet-rejected / on-chain-rejected) instead of raw exception dumps. The zero-custody MWA flow is confirmed working end-to-end on physical hardware, not simulated. Pre-flight validation stops a doomed transaction before it's sent (checks a worker is actually registered before enabling Submit), and self-review gets its own dedicated screen instead of a generic error.
+- **The single worst moment in the app today: selecting a worker to review means manually typing or pasting a 32–44 character base58 address.** Screen 4 (QR scan / deep link) isn't built — only paste works (issue #1). For a criterion specifically about "enjoyable," this is the sharpest real friction point in the whole app.
+- **The single biggest risk to a live demo specifically: no in-app guidance to set the wallet's network to Devnet.** A freshly-installed wallet defaults to Mainnet, and every write then fails with a confusing, unexplained error (instant decline or "blockhash expired") — this was identified during on-device testing earlier in the build, written into the README, but never surfaced *in* the app itself. This is the most likely thing to visibly break in front of judges, independent of anything else on this list.
+- **A related rough edge from the same root cause:** wallets don't reliably return focus to ClockIn after approving in the wallet app (documented wallet-side behavior, not a ClockIn bug) — but the app gives no "switch back to ClockIn" guidance when this happens, so a user just sees nothing happen.
+- **A control that looks finished but silently dead-ends:** "Save as offline draft" on Submit Review genuinely writes to SQLite, but there's no way to ever see, resume, or delete a saved draft afterward (issue #2) — worse for perceived polish than not having the feature at all, since it looks like it worked.
+- **Zero micro-interaction or delight anywhere in the app — confirmed, not assumed:** no `HapticFeedback` calls anywhere in the codebase, no custom animations or transitions anywhere. Every state change is an instant swap. The Stitch design's own success-screen confetti burst was dropped during the Flutter rebuild (reasonably — porting a JS canvas particle effect wasn't worth it) but nothing replaced it. Unlike most of the fabrication issues found earlier in this build, this is a case where the fix is purely presentational — no trust/correctness risk, genuinely cheap.
+- **Refresh affordance is inconsistent:** My Profile and Settings have pull-to-refresh; Worker Profile only just got a tap-to-refresh row (this session); Look Up's recent-lookups list and Submit Review have none at all. Small, but the kind of inconsistency a judge poking around for five minutes notices.
+- **App icon is still Flutter's default logo** — already flagged once, restating because "polished" is exactly this criterion's territory.
+- **Onboarding is judge-appropriate, not target-user-appropriate.** The "How does this work?" sheet on Connect Wallet assumes baseline wallet/crypto literacy — fine for hackathon judges, a real gap against the physical-gig-worker target audience from the Novelty section, most of whom have likely never used a crypto wallet.
+
+### Plan to lock this in
+
+- [ ] **Fix the in-app Devnet-network-setting guidance before any live demo** — highest value, lowest effort, and the most likely thing to visibly break in front of judges.
+- [ ] Add a lightweight "switch back to ClockIn" hint after handing off to the wallet app, covering the documented focus-return issue.
+- [ ] Decide on the offline-draft dead-end (issue #2) explicitly before the deadline: either ship a minimal resume/view list, or hide/relabel the "Save as offline draft" button so it doesn't look like a finished feature that goes nowhere.
+- [ ] Add cheap, real polish: `HapticFeedback.lightImpact()` on star selection and successful actions, a small success animation on the Submit Review success screen (scale/fade at minimum; a lightweight confetti package if there's time) — genuine wins for this specific criterion, low cost, zero trust risk since they're purely presentational.
+- [ ] Normalize refresh affordance across screens — either extend pull-to-refresh to Look Up and Submit Review, or make a deliberate call that they don't need one and note why.
+- [ ] Replace the default Flutter launcher icon.
+- [ ] Reconsider pulling screen 4 forward, at least partially (QR scan alone, without Blinks/payment) — it's the single sharpest UX pain point in the app, and a smaller lift than the full evaluator-suggested version.
+
+---
+
 *(Further sections added below as each judging criterion is given and a plan is worked out for it.)*
