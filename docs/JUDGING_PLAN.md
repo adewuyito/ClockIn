@@ -31,4 +31,27 @@ Status key: 🔴 not started · 🟡 discussed, not yet acted on · 🟢 locked 
 
 ---
 
+## Stickiness & PMF
+
+**Status: 🟡 discussed, not yet acted on**
+
+### What we found
+
+- **Honest structural problem: the app's core actions are inherently low-frequency, not daily.** Register once (idempotent, done forever). Get reviewed occasionally — event-driven, tied to how often a real job wraps, which for most gig work is days or weeks apart, not daily. Look someone up before hiring them — a rare, one-off action per relationship. There is no feed, no content to scroll, no reason to reopen the app between actual job transactions. This isn't a polish gap, it's the product's own shape: a trustworthy portable credential is valuable *because* you don't have to think about it often — that's close to the opposite of a habit loop, and worth saying honestly rather than trying to paper over.
+- **No engagement mechanisms exist today.** No push notifications (nothing in `pubspec.yaml` for FCM/local notifications), no gamification (streaks/badges), no social graph or discovery feed. Nothing currently pulls a user back into the app on its own.
+- **"Resonate with the Seeker community" is really two separate questions, and both are currently weak.** (1) Generic stickiness, covered above. (2) Actual audience overlap: Seeker/Solana Mobile's current owner base skews crypto-native (traders, builders, dApp-Store early adopters), while ClockIn's target user — per the physical-workforce positioning from the Novelty section (event crew, baristas, warehouse workers) — is a different demographic that doesn't obviously overlap with who owns a Seeker *today*. That's a real product-market-fit timing gap, not just a marketing problem.
+- **Nothing here is Seeker-exclusive.** The app runs identically on any Android phone with an MWA-compatible wallet installed — no Seed Vault-specific integration, no Genesis Token gating, nothing that gives a Seeker owner specifically a reason to prefer this over any other Android device. Worth being honest that "why would a Seeker owner want this app *because* they own a Seeker" doesn't have a strong answer yet.
+- **The most credible honest framing: this product's natural shape is infrastructure, not a standalone daily-use consumer app.** Like a swap engine or an oracle, its value is being invisibly relied on by other, stickier apps built on top of it (marketplaces gating on-chain reputation) — not chased for its own DAU. Whether this framing satisfies this specific rubric is unknown, but it's a more honest answer than claiming daily-engagement mechanics that don't exist.
+- **A real architectural tension, not just a missing feature: adding push notifications ("you got a new review") would compromise the deliberate no-backend design.** `ARCHITECTURE.md`'s overview states plainly there's no backend server for reputation data — the program *is* the database. Real push requires something watching program logs and forwarding to FCM (a small server/indexer, even a minimal one) or is limited to foreground-only polling (not real push). This is a genuine trade-off to make consciously, not a quick add.
+
+### Plan to lock this in
+
+- [ ] **Decide the framing deliberately**: lean into "infrastructure/protocol, not a DAU-chasing app" as the honest pitch position, vs. commit to adding real engagement mechanics before the deadline. Don't leave this unaddressed in the pitch — a judge will ask.
+- [ ] If leaning into engagement: the cheapest *legitimate* lever (not gamification-for-its-own-sake) is surfacing new reviews you've received — build on the already-existing `RecentLookups`/Drift infrastructure as a lightweight "watchlist" rather than inventing a feed from scratch. Explicitly decide whether this is worth the no-backend trade-off above before starting.
+- [ ] Explicitly avoid bolt-on gamification (streaks/badges/leaderboards) — it would read as engagement-metric-chasing against the product's own honest "you shouldn't have to think about it often" value prop. Name this restraint deliberately in the pitch rather than leaving the absence unexplained.
+- [ ] Be upfront in the pitch about the current Seeker-owner-demographic gap as a timing story ("this compounds in value as Solana Mobile's user base broadens past early crypto-native adopters"), not a problem already solved.
+- [ ] If time allows, identify one genuinely Seeker-specific hook (dApp Store distribution readiness, at minimum) so there's *something* concrete to point to beyond "it's an Android app that happens to run on a Seeker."
+
+---
+
 *(Further sections added below as each judging criterion is given and a plan is worked out for it.)*
