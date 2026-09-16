@@ -57,7 +57,7 @@ describe("reputation", () => {
 
       await program.methods
         .registerWorker()
-        .accounts({
+        .accountsPartial({
           worker: worker.publicKey,
           workerProfile: workerProfilePda,
           systemProgram: SystemProgram.programId,
@@ -83,7 +83,7 @@ describe("reputation", () => {
       try {
         await program.methods
           .registerWorker()
-          .accounts({
+          .accountsPartial({
             worker: worker.publicKey,
             workerProfile: workerProfilePda,
             systemProgram: SystemProgram.programId,
@@ -108,7 +108,7 @@ describe("reputation", () => {
 
       await program.methods
         .submitReview(jobId1, 5)
-        .accounts({
+        .accountsPartial({
           reviewer: reviewer.publicKey,
           workerProfile: workerProfilePda,
           review: reviewPda,
@@ -136,7 +136,7 @@ describe("reputation", () => {
 
       await program.methods
         .submitReview(jobId2, 4)
-        .accounts({
+        .accountsPartial({
           reviewer: reviewer2.publicKey,
           workerProfile: workerProfilePda,
           review: reviewPda,
@@ -157,7 +157,7 @@ describe("reputation", () => {
       try {
         await program.methods
           .submitReview("self-review-attempt", 5)
-          .accounts({
+          .accountsPartial({
             reviewer: worker.publicKey, // Same as worker!
             workerProfile: workerProfilePda,
             review: reviewPda,
@@ -180,7 +180,7 @@ describe("reputation", () => {
       try {
         await program.methods
           .submitReview("job-zero-rating", 0)
-          .accounts({
+          .accountsPartial({
             reviewer: reviewer.publicKey,
             workerProfile: workerProfilePda,
             review: reviewPda,
@@ -203,7 +203,7 @@ describe("reputation", () => {
       try {
         await program.methods
           .submitReview("job-six-rating", 6)
-          .accounts({
+          .accountsPartial({
             reviewer: reviewer.publicKey,
             workerProfile: workerProfilePda,
             review: reviewPda,
@@ -226,7 +226,7 @@ describe("reputation", () => {
       try {
         await program.methods
           .submitReview(jobId1, 4)
-          .accounts({
+          .accountsPartial({
             reviewer: reviewer.publicKey,
             workerProfile: workerProfilePda,
             review: reviewPda,
@@ -248,7 +248,7 @@ describe("reputation", () => {
       try {
         await program.methods
           .submitReview(longJobId, 5)
-          .accounts({
+          .accountsPartial({
             reviewer: reviewer.publicKey,
             workerProfile: workerProfilePda,
             review: reviewPda,
