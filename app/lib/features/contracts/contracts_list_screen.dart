@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/models/escrow_contract.dart';
@@ -507,7 +508,10 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
     final isSelected = _filter == filter;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _filter = filter),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _filter = filter);
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(

@@ -395,7 +395,10 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
                           starValue <= _rating ? Icons.star_rounded : Icons.star_outline_rounded,
                           color: starValue <= _rating ? Colors.amber : AppColors.surfaceContainerHighest,
                         ),
-                        onPressed: () => setState(() => _rating = starValue),
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _rating = starValue);
+                        },
                       );
                     }),
                   ),

@@ -43,6 +43,7 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
   ];
 
   Future<void> _handleRelease() async {
+    HapticFeedback.lightImpact();
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
@@ -201,7 +202,10 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
             final starIndex = index + 1;
             final isFilled = starIndex <= _selectedRating;
             return GestureDetector(
-              onTap: () => setState(() => _selectedRating = starIndex),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _selectedRating = starIndex);
+              },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Icon(
