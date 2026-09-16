@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:solana/solana.dart';
+import '../../core/database/app_database.dart' hide WorkerProfile, Review, EscrowContract;
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/contract_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -34,14 +36,18 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
   int _selectedPresetDays = 7;
   bool _isSubmitting = false;
   String? _errorMessage;
+  int? _activeDraftId;
+
+  static String _generateContractId() {
+    final randomSuffix = (Random().nextInt(900000) + 100000).toString();
+    return 'ctr-$randomSuffix';
+  }
 
   @override
   void initState() {
     super.initState();
     _workerController = TextEditingController(text: widget.initialWorkerAddress ?? '');
-    // Generate a unique 8-character contract ID suffix
-    final randomSuffix = (Random().nextInt(900000) + 100000).toString();
-    _contractIdController = TextEditingController(text: 'ctr-$randomSuffix');
+    _contractIdController = TextEditingController(text: _generateContractId());
     _amountController = TextEditingController(text: '0.5');
     _termsController = TextEditingController();
     _selectedDeadline = DateTime.now().add(const Duration(days: 7));
@@ -103,6 +109,247 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
         );
       }
     }
+  }
+
+  Future<void> _handleSaveDraft() async {
+    final workerAddress = _workerController.text.trim();
+    final contractId = _contractIdController.text.trim();
+    final amountSol = double.tryParse(_amountController.text.trim()) ?? 0.0;
+    final termsText = _termsController.text.trim();
+    final deadlineUnix = _selectedDeadline != null
+        ? _selectedDeadline!.millisecondsSinceEpoch ~/ 1000
+        : 0;
+
+    if (contractId.isEmpty || workerAddress.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter worker address and contract ID to save draft.')),
+      );
+      return;
+    }
+
+    final repo = ref.read(contractRepositoryProvider);
+    final savedId = await repo.saveDraftContract(
+      id: _activeDraftId,
+      contractId: contractId,
+      workerAddress: workerAddress,
+      amountSol: amountSol,
+      termsText: termsText.isNotEmpty ? termsText : null,
+      deadline: BigInt.from(deadlineUnix),
+    );
+    setState(() {
+      _activeDraftId = savedId;
+    });
+
+    if (mounted) {
+      HapticFeedback.lightImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.primary,
+          content: Text('Contract draft saved locally in Drift SQLite.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _showDraftContractsSheet(BuildContext context, List<DraftContract> drafts) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.drafts_rounded, size: 20, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Saved Offline Drafts',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '${drafts.length} ${drafts.length == 1 ? 'draft' : 'drafts'}',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Stored locally in SQLite via Drift. Tap a draft to resume creating or delete drafts you no longer need.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: drafts.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final draft = drafts[index];
+                    final dateStr = DateFormat.yMMMd().add_jm().format(draft.createdAt);
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _activeDraftId == draft.id
+                              ? AppColors.primary
+                              : AppColors.surfaceContainerHighest,
+                        ),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        title: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryContainer.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                draft.contractId,
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${draft.amountSol} SOL',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              'Worker: ${draft.workerAddress.length > 12 ? "${draft.workerAddress.substring(0, 6)}…${draft.workerAddress.substring(draft.workerAddress.length - 6)}" : draft.workerAddress}',
+                              style: GoogleFonts.jetBrainsMono(fontSize: 11),
+                            ),
+                            if (draft.termsText != null && draft.termsText!.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                draft.termsText!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 2),
+                            Text(
+                              dateStr,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10,
+                                color: AppColors.outline,
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                          tooltip: 'Delete draft',
+                          onPressed: () async {
+                            final repo = ref.read(contractRepositoryProvider);
+                            await repo.deleteDraftContract(draft.id);
+                            if (_activeDraftId == draft.id) {
+                              setState(() {
+                                _activeDraftId = null;
+                              });
+                            }
+                            if (sheetContext.mounted) {
+                              Navigator.of(sheetContext).pop();
+                            }
+                          },
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _activeDraftId = draft.id;
+                            _contractIdController.text = draft.contractId;
+                            _workerController.text = draft.workerAddress;
+                            _amountController.text = draft.amountSol.toString();
+                            _termsController.text = draft.termsText ?? '';
+                            if (draft.deadline > BigInt.zero) {
+                              _selectedDeadline = DateTime.fromMillisecondsSinceEpoch(
+                                draft.deadline.toInt() * 1000,
+                                isUtc: true,
+                              );
+                            }
+                          });
+                          Navigator.of(sheetContext).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Loaded draft "${draft.contractId}" from Drift cache.'),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   String? _validateAddress(String? val, String? currentWallet) {
@@ -315,6 +562,10 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                                 walletAdapter: walletAdapter,
                               );
 
+                              if (_activeDraftId != null) {
+                                await contractRepo.deleteDraftContract(_activeDraftId!);
+                              }
+
                               if (modalContext.mounted) {
                                 Navigator.of(modalContext).pop();
                               }
@@ -409,6 +660,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
   Widget build(BuildContext context) {
     final wallet = ref.watch(walletStateProvider);
     final currentAddress = wallet.address;
+    final draftsAsync = ref.watch(draftContractsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -428,6 +680,30 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
           ),
         ),
         actions: [
+          draftsAsync.when(
+            data: (drafts) => drafts.isNotEmpty
+                ? Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Center(
+                      child: ActionChip(
+                        avatar: const Icon(Icons.drafts_outlined, size: 14, color: AppColors.primary),
+                        label: Text(
+                          'Drafts (${drafts.length})',
+                          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 11),
+                        ),
+                        backgroundColor: AppColors.surfaceContainerLow,
+                        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          _showDraftContractsSheet(context, drafts);
+                        },
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
@@ -481,6 +757,51 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                 ],
               ),
             ),
+            if (_activeDraftId != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.tertiaryContainer.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.tertiary.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.edit_note_rounded, size: 18, color: AppColors.tertiary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Editing loaded offline draft (ID #$_activeDraftId)',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: AppColors.onSurface,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _activeDraftId = null;
+                          _contractIdController.text = _generateContractId();
+                          _workerController.clear();
+                          _amountController.text = '0.5';
+                          _termsController.clear();
+                        });
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Clear', style: TextStyle(color: AppColors.error, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
 
             // Worker Address Field
@@ -659,6 +980,29 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                     const SizedBox(width: 8),
                     const Icon(Icons.arrow_forward_rounded, size: 18),
                   ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _handleSaveDraft,
+                icon: const Icon(Icons.save_outlined, size: 18),
+                label: Text(
+                  _activeDraftId != null ? 'Update Offline Draft' : 'Save as Offline Draft',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),

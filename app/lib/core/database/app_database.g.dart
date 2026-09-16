@@ -2299,6 +2299,466 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
   }
 }
 
+class $DraftContractsTable extends DraftContracts
+    with TableInfo<$DraftContractsTable, DraftContract> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DraftContractsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _contractIdMeta = const VerificationMeta(
+    'contractId',
+  );
+  @override
+  late final GeneratedColumn<String> contractId = GeneratedColumn<String>(
+    'contract_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _workerAddressMeta = const VerificationMeta(
+    'workerAddress',
+  );
+  @override
+  late final GeneratedColumn<String> workerAddress = GeneratedColumn<String>(
+    'worker_address',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountSolMeta = const VerificationMeta(
+    'amountSol',
+  );
+  @override
+  late final GeneratedColumn<double> amountSol = GeneratedColumn<double>(
+    'amount_sol',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _termsTextMeta = const VerificationMeta(
+    'termsText',
+  );
+  @override
+  late final GeneratedColumn<String> termsText = GeneratedColumn<String>(
+    'terms_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deadlineMeta = const VerificationMeta(
+    'deadline',
+  );
+  @override
+  late final GeneratedColumn<BigInt> deadline = GeneratedColumn<BigInt>(
+    'deadline',
+    aliasedName,
+    false,
+    type: DriftSqlType.bigInt,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    contractId,
+    workerAddress,
+    amountSol,
+    termsText,
+    deadline,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'draft_contracts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DraftContract> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('contract_id')) {
+      context.handle(
+        _contractIdMeta,
+        contractId.isAcceptableOrUnknown(data['contract_id']!, _contractIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contractIdMeta);
+    }
+    if (data.containsKey('worker_address')) {
+      context.handle(
+        _workerAddressMeta,
+        workerAddress.isAcceptableOrUnknown(
+          data['worker_address']!,
+          _workerAddressMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workerAddressMeta);
+    }
+    if (data.containsKey('amount_sol')) {
+      context.handle(
+        _amountSolMeta,
+        amountSol.isAcceptableOrUnknown(data['amount_sol']!, _amountSolMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountSolMeta);
+    }
+    if (data.containsKey('terms_text')) {
+      context.handle(
+        _termsTextMeta,
+        termsText.isAcceptableOrUnknown(data['terms_text']!, _termsTextMeta),
+      );
+    }
+    if (data.containsKey('deadline')) {
+      context.handle(
+        _deadlineMeta,
+        deadline.isAcceptableOrUnknown(data['deadline']!, _deadlineMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deadlineMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DraftContract map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DraftContract(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      contractId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}contract_id'],
+      )!,
+      workerAddress: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worker_address'],
+      )!,
+      amountSol: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount_sol'],
+      )!,
+      termsText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}terms_text'],
+      ),
+      deadline: attachedDatabase.typeMapping.read(
+        DriftSqlType.bigInt,
+        data['${effectivePrefix}deadline'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DraftContractsTable createAlias(String alias) {
+    return $DraftContractsTable(attachedDatabase, alias);
+  }
+}
+
+class DraftContract extends DataClass implements Insertable<DraftContract> {
+  final int id;
+  final String contractId;
+  final String workerAddress;
+  final double amountSol;
+  final String? termsText;
+  final BigInt deadline;
+  final DateTime createdAt;
+  const DraftContract({
+    required this.id,
+    required this.contractId,
+    required this.workerAddress,
+    required this.amountSol,
+    this.termsText,
+    required this.deadline,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['contract_id'] = Variable<String>(contractId);
+    map['worker_address'] = Variable<String>(workerAddress);
+    map['amount_sol'] = Variable<double>(amountSol);
+    if (!nullToAbsent || termsText != null) {
+      map['terms_text'] = Variable<String>(termsText);
+    }
+    map['deadline'] = Variable<BigInt>(deadline);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  DraftContractsCompanion toCompanion(bool nullToAbsent) {
+    return DraftContractsCompanion(
+      id: Value(id),
+      contractId: Value(contractId),
+      workerAddress: Value(workerAddress),
+      amountSol: Value(amountSol),
+      termsText: termsText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(termsText),
+      deadline: Value(deadline),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory DraftContract.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DraftContract(
+      id: serializer.fromJson<int>(json['id']),
+      contractId: serializer.fromJson<String>(json['contractId']),
+      workerAddress: serializer.fromJson<String>(json['workerAddress']),
+      amountSol: serializer.fromJson<double>(json['amountSol']),
+      termsText: serializer.fromJson<String?>(json['termsText']),
+      deadline: serializer.fromJson<BigInt>(json['deadline']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'contractId': serializer.toJson<String>(contractId),
+      'workerAddress': serializer.toJson<String>(workerAddress),
+      'amountSol': serializer.toJson<double>(amountSol),
+      'termsText': serializer.toJson<String?>(termsText),
+      'deadline': serializer.toJson<BigInt>(deadline),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  DraftContract copyWith({
+    int? id,
+    String? contractId,
+    String? workerAddress,
+    double? amountSol,
+    Value<String?> termsText = const Value.absent(),
+    BigInt? deadline,
+    DateTime? createdAt,
+  }) => DraftContract(
+    id: id ?? this.id,
+    contractId: contractId ?? this.contractId,
+    workerAddress: workerAddress ?? this.workerAddress,
+    amountSol: amountSol ?? this.amountSol,
+    termsText: termsText.present ? termsText.value : this.termsText,
+    deadline: deadline ?? this.deadline,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  DraftContract copyWithCompanion(DraftContractsCompanion data) {
+    return DraftContract(
+      id: data.id.present ? data.id.value : this.id,
+      contractId: data.contractId.present
+          ? data.contractId.value
+          : this.contractId,
+      workerAddress: data.workerAddress.present
+          ? data.workerAddress.value
+          : this.workerAddress,
+      amountSol: data.amountSol.present ? data.amountSol.value : this.amountSol,
+      termsText: data.termsText.present ? data.termsText.value : this.termsText,
+      deadline: data.deadline.present ? data.deadline.value : this.deadline,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DraftContract(')
+          ..write('id: $id, ')
+          ..write('contractId: $contractId, ')
+          ..write('workerAddress: $workerAddress, ')
+          ..write('amountSol: $amountSol, ')
+          ..write('termsText: $termsText, ')
+          ..write('deadline: $deadline, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    contractId,
+    workerAddress,
+    amountSol,
+    termsText,
+    deadline,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DraftContract &&
+          other.id == this.id &&
+          other.contractId == this.contractId &&
+          other.workerAddress == this.workerAddress &&
+          other.amountSol == this.amountSol &&
+          other.termsText == this.termsText &&
+          other.deadline == this.deadline &&
+          other.createdAt == this.createdAt);
+}
+
+class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
+  final Value<int> id;
+  final Value<String> contractId;
+  final Value<String> workerAddress;
+  final Value<double> amountSol;
+  final Value<String?> termsText;
+  final Value<BigInt> deadline;
+  final Value<DateTime> createdAt;
+  const DraftContractsCompanion({
+    this.id = const Value.absent(),
+    this.contractId = const Value.absent(),
+    this.workerAddress = const Value.absent(),
+    this.amountSol = const Value.absent(),
+    this.termsText = const Value.absent(),
+    this.deadline = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  DraftContractsCompanion.insert({
+    this.id = const Value.absent(),
+    required String contractId,
+    required String workerAddress,
+    required double amountSol,
+    this.termsText = const Value.absent(),
+    required BigInt deadline,
+    this.createdAt = const Value.absent(),
+  }) : contractId = Value(contractId),
+       workerAddress = Value(workerAddress),
+       amountSol = Value(amountSol),
+       deadline = Value(deadline);
+  static Insertable<DraftContract> custom({
+    Expression<int>? id,
+    Expression<String>? contractId,
+    Expression<String>? workerAddress,
+    Expression<double>? amountSol,
+    Expression<String>? termsText,
+    Expression<BigInt>? deadline,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (contractId != null) 'contract_id': contractId,
+      if (workerAddress != null) 'worker_address': workerAddress,
+      if (amountSol != null) 'amount_sol': amountSol,
+      if (termsText != null) 'terms_text': termsText,
+      if (deadline != null) 'deadline': deadline,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  DraftContractsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? contractId,
+    Value<String>? workerAddress,
+    Value<double>? amountSol,
+    Value<String?>? termsText,
+    Value<BigInt>? deadline,
+    Value<DateTime>? createdAt,
+  }) {
+    return DraftContractsCompanion(
+      id: id ?? this.id,
+      contractId: contractId ?? this.contractId,
+      workerAddress: workerAddress ?? this.workerAddress,
+      amountSol: amountSol ?? this.amountSol,
+      termsText: termsText ?? this.termsText,
+      deadline: deadline ?? this.deadline,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (contractId.present) {
+      map['contract_id'] = Variable<String>(contractId.value);
+    }
+    if (workerAddress.present) {
+      map['worker_address'] = Variable<String>(workerAddress.value);
+    }
+    if (amountSol.present) {
+      map['amount_sol'] = Variable<double>(amountSol.value);
+    }
+    if (termsText.present) {
+      map['terms_text'] = Variable<String>(termsText.value);
+    }
+    if (deadline.present) {
+      map['deadline'] = Variable<BigInt>(deadline.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DraftContractsCompanion(')
+          ..write('id: $id, ')
+          ..write('contractId: $contractId, ')
+          ..write('workerAddress: $workerAddress, ')
+          ..write('amountSol: $amountSol, ')
+          ..write('termsText: $termsText, ')
+          ..write('deadline: $deadline, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2309,6 +2769,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $EscrowContractsTable escrowContracts = $EscrowContractsTable(
     this,
   );
+  late final $DraftContractsTable draftContracts = $DraftContractsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2319,6 +2780,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     draftReviews,
     recentLookups,
     escrowContracts,
+    draftContracts,
   ];
 }
 
@@ -3561,6 +4023,253 @@ typedef $$EscrowContractsTableProcessedTableManager =
       EscrowContract,
       PrefetchHooks Function()
     >;
+typedef $$DraftContractsTableCreateCompanionBuilder =
+    DraftContractsCompanion Function({
+      Value<int> id,
+      required String contractId,
+      required String workerAddress,
+      required double amountSol,
+      Value<String?> termsText,
+      required BigInt deadline,
+      Value<DateTime> createdAt,
+    });
+typedef $$DraftContractsTableUpdateCompanionBuilder =
+    DraftContractsCompanion Function({
+      Value<int> id,
+      Value<String> contractId,
+      Value<String> workerAddress,
+      Value<double> amountSol,
+      Value<String?> termsText,
+      Value<BigInt> deadline,
+      Value<DateTime> createdAt,
+    });
+
+class $$DraftContractsTableFilterComposer
+    extends Composer<_$AppDatabase, $DraftContractsTable> {
+  $$DraftContractsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get workerAddress => $composableBuilder(
+    column: $table.workerAddress,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amountSol => $composableBuilder(
+    column: $table.amountSol,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get termsText => $composableBuilder(
+    column: $table.termsText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<BigInt> get deadline => $composableBuilder(
+    column: $table.deadline,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DraftContractsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DraftContractsTable> {
+  $$DraftContractsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get workerAddress => $composableBuilder(
+    column: $table.workerAddress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amountSol => $composableBuilder(
+    column: $table.amountSol,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get termsText => $composableBuilder(
+    column: $table.termsText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<BigInt> get deadline => $composableBuilder(
+    column: $table.deadline,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DraftContractsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DraftContractsTable> {
+  $$DraftContractsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get workerAddress => $composableBuilder(
+    column: $table.workerAddress,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get amountSol =>
+      $composableBuilder(column: $table.amountSol, builder: (column) => column);
+
+  GeneratedColumn<String> get termsText =>
+      $composableBuilder(column: $table.termsText, builder: (column) => column);
+
+  GeneratedColumn<BigInt> get deadline =>
+      $composableBuilder(column: $table.deadline, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$DraftContractsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DraftContractsTable,
+          DraftContract,
+          $$DraftContractsTableFilterComposer,
+          $$DraftContractsTableOrderingComposer,
+          $$DraftContractsTableAnnotationComposer,
+          $$DraftContractsTableCreateCompanionBuilder,
+          $$DraftContractsTableUpdateCompanionBuilder,
+          (
+            DraftContract,
+            BaseReferences<_$AppDatabase, $DraftContractsTable, DraftContract>,
+          ),
+          DraftContract,
+          PrefetchHooks Function()
+        > {
+  $$DraftContractsTableTableManager(
+    _$AppDatabase db,
+    $DraftContractsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DraftContractsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DraftContractsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DraftContractsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> contractId = const Value.absent(),
+                Value<String> workerAddress = const Value.absent(),
+                Value<double> amountSol = const Value.absent(),
+                Value<String?> termsText = const Value.absent(),
+                Value<BigInt> deadline = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => DraftContractsCompanion(
+                id: id,
+                contractId: contractId,
+                workerAddress: workerAddress,
+                amountSol: amountSol,
+                termsText: termsText,
+                deadline: deadline,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String contractId,
+                required String workerAddress,
+                required double amountSol,
+                Value<String?> termsText = const Value.absent(),
+                required BigInt deadline,
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => DraftContractsCompanion.insert(
+                id: id,
+                contractId: contractId,
+                workerAddress: workerAddress,
+                amountSol: amountSol,
+                termsText: termsText,
+                deadline: deadline,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DraftContractsTable, DraftContract>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DraftContractsTable,
+                    DraftContract
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DraftContractsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DraftContractsTable,
+      DraftContract,
+      $$DraftContractsTableFilterComposer,
+      $$DraftContractsTableOrderingComposer,
+      $$DraftContractsTableAnnotationComposer,
+      $$DraftContractsTableCreateCompanionBuilder,
+      $$DraftContractsTableUpdateCompanionBuilder,
+      (
+        DraftContract,
+        BaseReferences<_$AppDatabase, $DraftContractsTable, DraftContract>,
+      ),
+      DraftContract,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3575,4 +4284,6 @@ class $AppDatabaseManager {
       $$RecentLookupsTableTableManager(_db, _db.recentLookups);
   $$EscrowContractsTableTableManager get escrowContracts =>
       $$EscrowContractsTableTableManager(_db, _db.escrowContracts);
+  $$DraftContractsTableTableManager get draftContracts =>
+      $$DraftContractsTableTableManager(_db, _db.draftContracts);
 }

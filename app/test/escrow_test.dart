@@ -233,5 +233,49 @@ void main() {
       expect(workerContracts.length, equals(1));
       expect(workerContracts.first.contractId, equals(contractId));
     });
+
+    test('Saves, retrieves, updates, and deletes draft contracts in Drift', () async {
+      const contractId = 'ctr-draft-123';
+      const worker = 'FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9';
+
+      // 1. Save new draft
+      final draftId = await repository.saveDraftContract(
+        contractId: contractId,
+        workerAddress: worker,
+        amountSol: 1.25,
+        termsText: 'Build mobile UI',
+        deadline: BigInt.from(1750000000),
+      );
+      expect(draftId, isPositive);
+
+      // 2. Retrieve drafts
+      final drafts = await repository.getDraftContracts();
+      expect(drafts.length, equals(1));
+      expect(drafts.first.id, equals(draftId));
+      expect(drafts.first.contractId, equals(contractId));
+      expect(drafts.first.workerAddress, equals(worker));
+      expect(drafts.first.amountSol, equals(1.25));
+      expect(drafts.first.termsText, equals('Build mobile UI'));
+
+      // 3. Update existing draft
+      await repository.saveDraftContract(
+        id: draftId,
+        contractId: contractId,
+        workerAddress: worker,
+        amountSol: 2.5,
+        termsText: 'Build mobile UI + backend',
+        deadline: BigInt.from(1750000000),
+      );
+
+      final updatedDrafts = await repository.getDraftContracts();
+      expect(updatedDrafts.length, equals(1));
+      expect(updatedDrafts.first.amountSol, equals(2.5));
+      expect(updatedDrafts.first.termsText, equals('Build mobile UI + backend'));
+
+      // 4. Delete draft
+      await repository.deleteDraftContract(draftId);
+      final emptyDrafts = await repository.getDraftContracts();
+      expect(emptyDrafts, isEmpty);
+    });
   });
 }

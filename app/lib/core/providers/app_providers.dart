@@ -214,6 +214,12 @@ final contractProvider = StreamProvider.family<EscrowContract?, String>((ref, co
   return repository.watchContract(contractId);
 });
 
+/// Watches all offline draft contracts from local Drift database.
+final draftContractsProvider = StreamProvider<List<DraftContract>>((ref) {
+  final repository = ref.watch(contractRepositoryProvider);
+  return repository.watchDraftContracts();
+});
+
 // ==================== SETTINGS SCREEN: REAL NETWORK DATA ====================
 //
 // The Settings screen's Stitch source design invents several numbers that

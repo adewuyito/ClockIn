@@ -337,4 +337,64 @@ class ContractRepository {
       syncedAt: row.syncedAt,
     );
   }
+
+  // ==================== OFFLINE DRAFT CONTRACTS ====================
+
+  /// Saves or updates a draft contract locally in Drift.
+  Future<int> saveDraftContract({
+    int? id,
+    required String contractId,
+    required String workerAddress,
+    required double amountSol,
+    String? termsText,
+    required BigInt deadline,
+  }) async {
+    if (id != null) {
+      await (db.update(db.draftContracts)..where((tbl) => tbl.id.equals(id))).write(
+        DraftContractsCompanion(
+          contractId: Value(contractId),
+          workerAddress: Value(workerAddress),
+          amountSol: Value(amountSol),
+          termsText: Value(termsText),
+          deadline: Value(deadline),
+        ),
+      );
+      return id;
+    } else {
+      return await db.into(db.draftContracts).insert(
+            DraftContractsCompanion.insert(
+              contractId: contractId,
+              workerAddress: workerAddress,
+              amountSol: amountSol,
+              termsText: Value(termsText),
+              deadline: deadline,
+            ),
+          );
+    }
+  }
+
+  /// Gets all draft contracts saved in Drift.
+  Future<List<DraftContract>> getDraftContracts() async {
+    return await (db.select(db.draftContracts)
+          ..orderBy([
+            (tbl) =>
+                OrderingTerm(expression: tbl.createdAt, mode: OrderingMode.desc)
+          ]))
+        .get();
+  }
+
+  /// Watches all draft contracts saved in Drift.
+  Stream<List<DraftContract>> watchDraftContracts() {
+    final query = db.select(db.draftContracts)
+      ..orderBy([
+        (tbl) =>
+            OrderingTerm(expression: tbl.createdAt, mode: OrderingMode.desc)
+      ]);
+    return query.watch();
+  }
+
+  /// Deletes a draft contract by its local SQLite ID.
+  Future<void> deleteDraftContract(int id) async {
+    await (db.delete(db.draftContracts)..where((tbl) => tbl.id.equals(id))).go();
+  }
 }

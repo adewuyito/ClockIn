@@ -72,13 +72,24 @@ class EscrowContracts extends Table {
   Set<Column> get primaryKey => {contractId};
 }
 
-@DriftDatabase(tables: [WorkerProfiles, Reviews, DraftReviews, RecentLookups, EscrowContracts])
+/// Offline-first drafts for contracts created while disconnected.
+class DraftContracts extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get contractId => text()();
+  TextColumn get workerAddress => text()();
+  RealColumn get amountSol => real()();
+  TextColumn get termsText => text().nullable()();
+  Int64Column get deadline => int64()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+@DriftDatabase(tables: [WorkerProfiles, Reviews, DraftReviews, RecentLookups, EscrowContracts, DraftContracts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -89,6 +100,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 3) {
             await m.createTable(escrowContracts);
+          }
+          if (from < 4) {
+            await m.createTable(draftContracts);
           }
         },
       );
