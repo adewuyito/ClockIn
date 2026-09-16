@@ -7,6 +7,7 @@ import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_header.dart';
+import '../../core/widgets/devnet_setup_sheet.dart';
 
 /// Screen 6: Settings & Network. Matches Stitch's "6. Settings & Network
 /// (Devnet)" screen, with real data used wherever the source design
@@ -77,7 +78,7 @@ class SettingsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           children: [
-            _buildProtocolEnvironmentCard(diagnosticsAsync),
+            _buildProtocolEnvironmentCard(context, diagnosticsAsync),
             const SizedBox(height: 20),
             if (wallet.isConnected) ...[
               _buildConnectedWalletSection(context, ref, wallet, balanceAsync),
@@ -94,7 +95,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProtocolEnvironmentCard(AsyncValue<NetworkDiagnostics> diagnosticsAsync) {
+  Widget _buildProtocolEnvironmentCard(BuildContext context, AsyncValue<NetworkDiagnostics> diagnosticsAsync) {
     final latencyLabel = diagnosticsAsync.when(
       data: (d) => '${d.latencyMs}ms',
       loading: () => '…',
@@ -164,6 +165,37 @@ class SettingsScreen extends ConsumerWidget {
           Text(
             'This app currently targets Solana ${NetworkConfig.clusterDisplayName} only. No mainnet funds are ever used, and this app never holds your keys — signing always happens in your connected wallet app.',
             style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant, height: 1.4),
+          ),
+          const SizedBox(height: 10),
+          InkWell(
+            onTap: () => showDevnetSetupSheet(context),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.warning.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.help_outline_rounded, size: 18, color: AppColors.warning),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Wallet Network Configuration',
+                            style: AppTypography.labelMd.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w700)),
+                        Text('Step-by-step setup guide for Phantom and Solflare',
+                            style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.outline),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 10),
           Container(

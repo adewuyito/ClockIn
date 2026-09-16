@@ -6,6 +6,7 @@ import '../../core/solana/wallet_adapter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/devnet_badge.dart';
+import '../../core/widgets/devnet_setup_sheet.dart';
 
 /// Screen 1 & 1b: Connect Wallet (Mobile Wallet Adapter).
 /// The zero-custody entry point of ClockIn.
@@ -128,7 +129,63 @@ class ConnectWalletScreen extends ConsumerWidget {
                 label: const Text('How does this work?'),
                 style: TextButton.styleFrom(foregroundColor: AppColors.primary),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+
+              // Devnet Network Guidance Banner
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.hub_rounded, size: 18, color: AppColors.warning),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Solana Devnet Required',
+                          style: AppTypography.labelMd.copyWith(
+                            color: AppColors.onSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Ensure your wallet (Phantom or Solflare) network is switched to Devnet. Transactions will fail if your wallet remains on Mainnet.',
+                      style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, height: 1.35),
+                    ),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () => showDevnetSetupSheet(context),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'How to switch wallet to Devnet',
+                              style: AppTypography.labelSm.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_forward_rounded, size: 13, color: AppColors.primary),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
               if (walletState.errorMessage != null)
                 Container(
@@ -175,6 +232,35 @@ class ConnectWalletScreen extends ConsumerWidget {
                         ),
                 ),
               ),
+
+              if (walletState.status == WalletStatus.connecting) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.touch_app_rounded, size: 20, color: AppColors.primary),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Waiting for approval in your wallet… If your wallet does not return automatically after approving, switch back to ClockIn.',
+                          style: AppTypography.bodySm.copyWith(
+                            color: AppColors.onSurface,
+                            fontWeight: FontWeight.w500,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 10),
               Text(
                 'Authorizes via installed MWA wallet (Phantom, Solflare, etc.)',
