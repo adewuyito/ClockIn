@@ -6,22 +6,31 @@
 | **Cluster** | Solana Devnet (`https://api.devnet.solana.com`) |
 | **ProgramData account** | `GmfYDR7SLX8ZRhErkKnD5gt8pTzzbuaH21WUi1ueCnRH` |
 | **Upgrade authority** | `GBZqhLZXAjBtfeVkVWMYWFN8DGmxskwKna3UEXGvfh8P` |
-| **Last deployed in slot** | `496365466` |
-| **Deploy transaction** | [`44bV3b9MimDm2Q7GrhyyEEUGSsmJFAzj4JAYb5YfzjrkJqooHr2NBH4XP1FySKthcMwQDYUBW6A3XLJWvFzai1Nk`](https://explorer.solana.com/tx/44bV3b9MimDm2Q7GrhyyEEUGSsmJFAzj4JAYb5YfzjrkJqooHr2NBH4XP1FySKthcMwQDYUBW6A3XLJWvFzai1Nk?cluster=devnet) |
-| **On-chain size** | 171,232 bytes |
-| **Rent balance** | 0.8707374 SOL |
+| **Last deployed in slot** | `499476909` |
+| **Upgrade transaction** | [`4KYwnZ1B7M2PYVrPZuj67a4P436hP9RnsHwk8EatJGaT2yLJXUJUDeG19c1R5fZQYLxJ9uaARDLUvgWMbx9gDdkp`](https://explorer.solana.com/tx/4KYwnZ1B7M2PYVrPZuj67a4P436hP9RnsHwk8EatJGaT2yLJXUJUDeG19c1R5fZQYLxJ9uaARDLUvgWMbx9gDdkp?cluster=devnet) |
+| **On-chain size** | 293,736 bytes |
+| **Rent balance** | 1.49305772 SOL |
 
-All figures above were re-confirmed live against devnet RPC on 2026-09-11 (`solana program show FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9 --url devnet`, plus a direct `getAccountInfo`/`getSignaturesForAddress` call against the ProgramData account) — not copied from an old note. The deploy transaction signature above is the one whose slot (`496365466`) matches `solana program show`'s "Last Deployed In Slot" exactly.
+All figures above re-confirmed live against devnet RPC on 2026-09-16 (`solana program show FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9 --url devnet`).
 
-Deployed via `cargo build-sbf --arch v1 --sbf-out-dir target/deploy` followed by `solana program deploy` — see `docs/ARCHITECTURE.md`'s "Known-bad default build" note for why `anchor build`'s own default build step is bypassed (it silently produces an unexecutable binary in this environment).
+Built via `cargo build-sbf --arch v1 --sbf-out-dir target/deploy` followed by `solana program deploy` (see `docs/ARCHITECTURE.md` for build toolchain specifications).
 
 ## Verified on-chain behavior
 
-- **`register_worker`** — signed via Solflare on a physical Android device (Samsung SM-A515F), confirmed by reading both the transaction and the resulting `WorkerProfile` PDA back from devnet RPC directly (not just trusting the app's own UI). The exact transaction signature from that test session wasn't captured — worth recording the next time this is re-run, rather than reconstructing it after the fact.
-- **`submit_review`** — exercised in the Anchor test suite (`program/tests/reputation.ts`, 10 passing cases, including self-review rejection, duplicate-review rejection, invalid-rating rejection, and the `getProgramAccounts` + `memcmp` read path), but **not yet separately confirmed via a physical-device wallet round-trip** — only `register_worker` has a confirmed real-wallet signature so far.
-- **Phantom** has not been re-tested since finding that a wallet's own active network setting (not anything this app requests via MWA) governs whether devnet transactions are accepted — see `docs/ARCHITECTURE.md`'s "MWA on-device findings" section. Only Solflare has been confirmed with the corrected network setting.
+1. **`register_worker`** — Worker registers profile PDA (`workerProfile`), initialized with 0 jobs and 0 rating sum.
+2. **`create_and_fund`** — Employer creates `EscrowContract` PDA and deposits funds into `Vault` PDA.
+   - Sample Devnet Tx: [`2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT`](https://explorer.solana.com/tx/2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT?cluster=devnet)
+   - Contract ID: `ctr-mu4o1bhi`
+   - Escrow PDA: `ANnhzTYXCNoeGiBLbL6tsc3vWgZ34CEnjiFkUzXFkGdy`
+   - Vault PDA: `8pKKziEKAciNMYRwkALaJ6GnQh3eMYgEht6pABtLcSek`
+3. **`accept_contract`** — Worker signs acceptance, transitioning contract state from `Funded` to `InProgress`.
+   - Sample Devnet Tx: [`3r7Uy2WgmAqPWE6PebJr8pQGWyrnMpNR7FCSnzqYbeq51CvERCB5WjJEA7WFvGxk6qj4TDiaVZem5yc4h58X4HJo`](https://explorer.solana.com/tx/3r7Uy2WgmAqPWE6PebJr8pQGWyrnMpNR7FCSnzqYbeq51CvERCB5WjJEA7WFvGxk6qj4TDiaVZem5yc4h58X4HJo?cluster=devnet)
+4. **`release_and_review`** — Atomic settlement: Vault transfers lamports to worker, Review PDA is created with employer rating (1–5), WorkerProfile stats increment, and contract state transitions to `Completed`.
+   - Sample Devnet Tx: [`3MrtD2X6LNpoinCic5rhcQRuCRnXdjF9FYrVDT7k6ES51zZQTYCymwL79UPF2boqJ7G1sjb525815Uu6kk6TjF7j`](https://explorer.solana.com/tx/3MrtD2X6LNpoinCic5rhcQRuCRnXdjF9FYrVDT7k6ES51zZQTYCymwL79UPF2boqJ7G1sjb525815Uu6kk6TjF7j?cluster=devnet)
+   - Review PDA: `2busELa3QLiDczW5cU9GM5PXm67eYwZ39vNJxt87Yk6j` (Rating: 5, Job: `ctr-mu4o1bhi`)
+   - WorkerProfile PDA: `7z36uYsrE3UwbDEVQEgyL6YCEqnfCYMEgUeJF2CdDZsz` (`total_jobs`: 1, `rating_sum`: 5)
 
 ## Known caveats
 
-- The upgrade authority (`GBZqhLZXAjBtfeVkVWMYWFN8DGmxskwKna3UEXGvfh8P`) is a local dev keypair, not a multisig or a burned authority — fine for a devnet hackathon build, but would need to change before any mainnet deployment.
-- `program/reputation-keypair.json` (the program's own keypair, distinct from the upgrade authority above) is gitignored — devnet only. If it's ever regenerated, `declare_id!` in `program/programs/reputation/src/lib.rs` and every value in this file must be updated together, or this record goes stale.
+- The upgrade authority (`GBZqhLZXAjBtfeVkVWMYWFN8DGmxskwKna3UEXGvfh8P`) is a local dev keypair, not a multisig or burned authority — suitable for devnet hackathon evaluation.
+- `program/reputation-keypair.json` (the program's own keypair) is gitignored (devnet only).

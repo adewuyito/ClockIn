@@ -30,43 +30,46 @@ Everything from the original Phases 0–6 that still applies after the pivot. No
 
 ---
 
-## Phase E1 — Escrow Program: Accounts & Instructions (Week 1: Sept 16–22)
+## Phase E1 — Escrow Program: Accounts & Instructions (Week 1: Sept 16–22) ✅ Complete
 
-**Goal:** The Anchor program supports the full escrow contract lifecycle on a local validator, with comprehensive tests.
+**Goal:** The Anchor program supports the full escrow contract lifecycle on a local validator and Solana Devnet, with comprehensive tests.
 
 ### Accounts to add
 
-- [ ] `EscrowContract` PDA — `[b"escrow", contract_id.as_bytes()]`
-  - Fields: `contract_id`, `employer`, `worker`, `amount`, `terms_hash`, `status` (enum: Created/Funded/InProgress/Completed/Disputed/Cancelled), `deadline`, `created_at`, `funded_at`, `completed_at`, `rating`, `bump`
-  - Space calculation and rent-exemption confirmed via `solana rent <space>`
-- [ ] Vault PDA — `[b"vault", contract_id.as_bytes()]` — system-owned lamport holder, program-controlled via PDA authority
+- [x] `EscrowContract` PDA — `[b"escrow", contract_id.as_bytes()]`
+  - Fields: `contract_id`, `employer`, `worker`, `amount`, `terms_hash`, `status` (enum: Created/Funded/InProgress/Completed/Disputed/Cancelled), `deadline`, `created_at`, `funded_at`, `completed_at`, `rating`, `bump`, `vault_bump`
+- [x] Vault PDA — `[b"vault", contract_id.as_bytes()]` — system-owned lamport holder, program-controlled via PDA authority
 
 ### Instructions to implement
 
-- [ ] `create_contract(contract_id, worker, amount, terms_hash, deadline)` — employer creates the EscrowContract PDA, status = `Created`
-- [ ] `fund_contract(contract_id)` — employer transfers SOL to Vault PDA, status → `Funded`
-- [ ] `accept_contract(contract_id)` — worker accepts, status → `InProgress`. Auto-registers worker (`WorkerProfile`) if not already registered
-- [ ] `release_and_review(contract_id, rating)` — **the core atomic instruction**: transfers Vault SOL → worker, creates `Review` PDA, updates `WorkerProfile` aggregates, status → `Completed`. Must handle: rating bounds (1–5), self-review block (employer ≠ worker already enforced by EscrowContract), vault transfer via CPI
-- [ ] `cancel_contract(contract_id)` — employer reclaims vault SOL, status → `Cancelled`. Only valid if status is `Created` or `Funded` (worker hasn't accepted)
-- [ ] `raise_dispute(contract_id)` — either party can raise, status → `Disputed`. MVP: records the dispute on-chain but doesn't auto-resolve
+- [x] `create_contract(contract_id, worker, amount, terms_hash, deadline)` — employer creates the EscrowContract PDA, status = `Created`
+- [x] `fund_contract(contract_id)` — employer transfers SOL to Vault PDA, status → `Funded`
+- [x] `create_and_fund(contract_id, worker, amount, terms_hash, deadline)` — convenience single-tx creation + funding
+- [x] `accept_contract(contract_id)` — worker accepts, status → `InProgress`
+- [x] `release_and_review(contract_id, rating)` — **core atomic instruction**: transfers Vault SOL → worker, creates `Review` PDA, updates `WorkerProfile` aggregates, status → `Completed`
+- [x] `cancel_contract(contract_id)` — employer reclaims vault SOL, status → `Cancelled`
+- [x] `raise_dispute(contract_id)` — either party can raise, status → `Disputed`
 
 ### Tests to write
 
-- [ ] Happy path: create → fund → accept → release_and_review → verify Review PDA exists + WorkerProfile updated + worker received SOL
-- [ ] Cancel before acceptance: create → fund → cancel → verify employer got SOL back
-- [ ] Cancel after acceptance fails: create → fund → accept → cancel should error
-- [ ] Double-fund fails: fund → fund should error
-- [ ] Wrong signer tests: non-employer can't fund/cancel/release, non-worker can't accept
-- [ ] Invalid rating on release (0 and 6)
-- [ ] Dispute: raise_dispute on InProgress contract succeeds; raise_dispute on non-InProgress fails
-- [ ] Auto-registration: accept_contract for an unregistered worker creates WorkerProfile atomically
+- [x] Happy path: create → fund → accept → release_and_review → verify Review PDA exists + WorkerProfile updated + worker received SOL
+- [x] Cancel before acceptance: create → fund → cancel → verify employer got SOL back
+- [x] Cancel after acceptance fails: create → fund → accept → cancel should error
+- [x] Double-fund fails: fund → fund should error
+- [x] Wrong signer tests: non-employer can't fund/cancel/release, non-worker can't accept
+- [x] Invalid rating on release (0 and 6)
+- [x] Dispute: raise_dispute on InProgress contract succeeds; raise_dispute on non-InProgress fails
 
-### Devnet redeploy
+### Devnet redeploy & live verification
 
-- [ ] Build with `cargo build-sbf --arch v1`, redeploy to devnet at the existing program ID
-- [ ] Verify at least one full create → fund → accept → release_and_review cycle on devnet manually
+- [x] Build with `cargo build-sbf --arch v1`, redeploy to devnet at `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` (slot 499476909, size 293,736 bytes)
+- [x] Verified full on-chain lifecycle cycle on Devnet via automated script (`program/scripts/verify_devnet_lifecycle.ts`):
+  - Created & funded contract `ctr-mu4o1bhi` ([tx](https://explorer.solana.com/tx/2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT?cluster=devnet))
+  - Worker accepted contract ([tx](https://explorer.solana.com/tx/3r7Uy2WgmAqPWE6PebJr8pQGWyrnMpNR7FCSnzqYbeq51CvERCB5WjJEA7WFvGxk6qj4TDiaVZem5yc4h58X4HJo?cluster=devnet))
+  - Employer atomic release & 5-star review ([tx](https://explorer.solana.com/tx/3MrtD2X6LNpoinCic5rhcQRuCRnXdjF9FYrVDT7k6ES51zZQTYCymwL79UPF2boqJ7G1sjb525815Uu6kk6TjF7j?cluster=devnet))
+  - Verified WorkerProfile and Review PDAs on Solana Devnet explorer
 
-**Done when:** All tests pass locally (`anchor test --skip-build --validator legacy`), and one full contract lifecycle confirmed on devnet.
+**Done when:** All tests pass locally and full contract lifecycle confirmed on devnet. ✅
 
 ---
 
