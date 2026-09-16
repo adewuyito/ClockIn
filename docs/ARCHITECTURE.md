@@ -2,13 +2,19 @@
 
 ## Overview
 
-Two components. An **Anchor program** (Rust) is the source of truth for reputation data — who's registered, what reviews exist, aggregate scores. A **Flutter app**, Android-first, is the only client for the MVP; it reads and writes to the program via Solana RPC (through the [`solana`](https://pub.dev/packages/solana) Dart package) and signs transactions via **Mobile Wallet Adapter** (through [`solana_mobile_client`](https://pub.dev/packages/solana_mobile_client)) — the app never generates or holds a private key itself; it asks an installed wallet app to sign. There is no backend server for reputation data itself — the program *is* the database, with a local Drift cache in front of it for offline-first UX (see the local-persistence note below). This is a deliberate simplicity choice for MVP scope, not a claim that it's the only valid design.
+ClockIn is a **P2P Work Contract & Escrow Protocol** on Solana. The core idea: freelancers find work wherever deals happen — X/Twitter DMs, Telegram groups, Discord servers, WhatsApp — then use ClockIn to formalize the agreement, lock funds in escrow, and release payment upon completion, with an atomic on-chain review generated at the moment of settlement. The app is not a marketplace or job board; it's the settlement layer for deals negotiated elsewhere.
+
+Two components. An **Anchor program** (Rust) is the source of truth for contracts, escrow vaults, reputation data, and reviews. A **Flutter app**, Android-first, is the only client for the MVP; it reads and writes to the program via Solana RPC (through the [`solana`](https://pub.dev/packages/solana) Dart package) and signs transactions via **Mobile Wallet Adapter** (through [`solana_mobile_client`](https://pub.dev/packages/solana_mobile_client)) — the app never generates or holds a private key itself; it asks an installed wallet app to sign. There is no backend server — the program *is* the database, with a local Drift cache in front of it for offline-first UX (see the local-persistence note below).
 
 ```mermaid
 flowchart LR
+    subgraph ext["Off-Platform (X, Telegram, Discord, WhatsApp)"]
+        DEAL["Deal Negotiated"]
+    end
     subgraph app["Flutter App (Android-first)"]
         UI["Widgets / Screens"]
-        VM["ViewModels / Controllers"]
+        VM["Riverpod Providers"]
+        CS["ContractService"]
         RS["ReputationService"]
         DB["Drift local cache"]
     end
@@ -17,33 +23,132 @@ flowchart LR
     end
     subgraph net["Solana Network (Devnet)"]
         RPC["Solana RPC\n(simulate / send tx)"]
-        PROG["Reputation Program\n(Anchor / Rust)"]
+        PROG["ClockIn Program\n(Anchor / Rust)"]
+        VAULT["Escrow Vault PDAs\n(SOL locked)"]
     end
-    UI --> VM --> RS
+    DEAL -.->|share contract link/QR| UI
+    UI --> VM --> CS
+    CS <--> RS
+    CS <--> DB
     RS <--> DB
-    RS -->|via solana pkg| RPC --> PROG
-    RS -.->|sign request, MWA intent| MWA
-    MWA -.->|signature back| RS
+    CS -->|via solana pkg| RPC --> PROG
+    PROG <-->|CPI transfer| VAULT
+    CS -.->|sign request, MWA intent| MWA
+    MWA -.->|signature back| CS
+```
+
+## Core concept: Escrow-linked reputation
+
+The key architectural insight — and the project's core novelty — is that **reviews are not a standalone action; they are atomically generated as a side effect of escrow settlement.** You cannot leave a review without having had real funds at stake. You cannot receive a review without having completed a funded contract. This makes the cost of a fake review equal to the cost of locking real SOL in escrow and completing a full contract lifecycle, which is a fundamentally stronger sybil-resistance mechanism than signature-only checks.
+
+**Previous architecture (preserved as foundation):** `WorkerProfile` PDAs track aggregate reputation; `Review` PDAs store individual attestations. These still exist and work exactly as before — the escrow layer wraps around them, not replaces them.
+
+## Account model
+
+### Existing (unchanged)
+
+- **`WorkerProfile`** — PDA seeds: `[b"worker", worker.key()]`. One per worker. Tracks `total_jobs`, `rating_sum`, `created_at`. Already deployed and tested on devnet.
+- **`Review`** — PDA seeds: `[b"review", worker.key(), job_id.as_bytes()]`. One per (worker, job_id). Already deployed and tested on devnet.
+
+### New: Escrow accounts
+
+- **`EscrowContract`** — PDA seeds: `[b"escrow", contract_id.as_bytes()]`. One per contract. Stores the terms, parties, state machine, and payment details.
+
+```
+EscrowContract {
+    contract_id: String,       // ≤32 bytes, client-generated unique ID
+    employer: Pubkey,          // the party funding the escrow
+    worker: Pubkey,            // the party performing the work
+    amount: u64,               // lamports locked in escrow
+    terms_hash: [u8; 32],      // SHA-256 of off-chain terms document (not stored on-chain)
+    status: ContractStatus,    // Created | Funded | InProgress | Completed | Disputed | Cancelled
+    deadline: i64,             // Unix timestamp — optional deadline for work completion
+    created_at: i64,
+    funded_at: i64,            // 0 if not yet funded
+    completed_at: i64,         // 0 if not yet completed
+    rating: u8,                // 0 until completion, 1-5 at settlement
+    bump: u8,
+}
+```
+
+- **Vault PDA** — PDA seeds: `[b"vault", contract_id.as_bytes()]`. A system-owned account holding the locked SOL. The program has authority over this PDA and performs CPI transfers to/from it. No custom account data — it's just a lamport holder.
+
+### Contract status state machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Created: create_contract
+    Created --> Funded: fund_contract (employer deposits SOL)
+    Funded --> InProgress: accept_contract (worker accepts)
+    InProgress --> Completed: release_and_review (employer releases + rates)
+    InProgress --> Disputed: raise_dispute (either party)
+    Created --> Cancelled: cancel_contract (employer, before funding)
+    Funded --> Cancelled: cancel_contract (employer, worker hasn't accepted)
+    Completed --> [*]
+    Cancelled --> [*]
+    Disputed --> Completed: resolve_dispute (future: arbitration)
+    Disputed --> Cancelled: resolve_dispute (future: arbitration)
 ```
 
 ## Data flows
 
-### 1. Worker registration
-1. Worker opens the app; connects an installed wallet via Mobile Wallet Adapter (no key ever created or stored by this app).
-2. App builds a `register_worker` instruction referencing the worker's own wallet as the signer; sends it to the wallet app via MWA for approval.
-3. `ReputationService` sends the signed transaction, polls for confirmation. The UI should reflect *confirmed* state, not just "submitted" — a Solana tx can still fail after simulation succeeds, same discipline as StellarRep had for Soroban.
-4. On success, the local Drift cache is updated from the confirmed on-chain account state (not just optimistically from the request).
+### 1. Contract creation & funding (employer-initiated)
 
-### 2. Review submission (two-party)
-1. Worker completes a job outside the app and shares a job reference with the counterparty — MVP handoff mechanism still to be decided (see `docs/APP_SPEC.md`'s Screens section; StellarRep settled on manual paste for its own MVP, worth revisiting here since Mobile Wallet Adapter and Android make deep links more natural than they were on iOS).
-2. Reviewer opens the app, enters the worker's address + job reference, picks a rating.
-3. The reviewer's *own* wallet signs the `submit_review` instruction via MWA — this is the sybil-resistance anchor for MVP: the program requires the *reviewer's* signature, not the worker's, so a worker can't self-review, and a given job reference can only be used once per worker (program-enforced — see `docs/PROGRAM_SPEC.md`).
-4. Both parties' local caches refresh from the confirmed on-chain state.
+1. Employer negotiates a deal off-platform (X DM, Telegram, Discord, WhatsApp — wherever deals happen naturally).
+2. Employer opens ClockIn, creates a contract: specifies the worker's Solana address, payment amount, optional deadline, and a hash of any off-chain terms.
+3. The `create_contract` instruction initializes the `EscrowContract` PDA. The employer then calls `fund_contract` to transfer SOL into the Vault PDA — this is the moment real money is at stake.
+4. Employer shares the contract ID with the worker (via QR code, deep link, or manual paste). **The contract link is the handoff mechanism** — it replaces the old "how does the reviewer find the worker" question from the reputation-only architecture.
 
-### 3. Reputation lookup
-1. Anyone can enter a Solana address — this is a read, no signature involved.
-2. App fetches the worker's reputation account via Solana RPC — no transaction, no fee, no wallet interaction required for reads.
-3. Local Drift cache serves this instantly if already synced, then refreshes from chain — see the trust/re-verification note below.
+### 2. Contract acceptance (worker-side)
+
+1. Worker receives the contract link/QR/ID from the employer.
+2. Worker opens ClockIn, views the contract details (amount, deadline, terms hash).
+3. Worker calls `accept_contract` — signed by the worker's wallet via MWA. Status moves to `InProgress`.
+4. If the worker isn't already registered (`WorkerProfile` doesn't exist), `accept_contract` can atomically `register_worker` as well — one fewer transaction for new users.
+
+### 3. Settlement: release & review (atomic)
+
+1. Work is completed off-platform.
+2. Employer opens the contract in ClockIn, rates the work (1–5), and calls `release_and_review`.
+3. **In a single transaction**, the program:
+   - Transfers the locked SOL from the Vault PDA to the worker's wallet.
+   - Creates a `Review` PDA (same structure as before, but with `contract_id` as the `job_id`).
+   - Updates the worker's `WorkerProfile` aggregates (`total_jobs += 1`, `rating_sum += rating`).
+   - Sets the contract status to `Completed`.
+4. **This atomicity is the core sybil-resistance mechanism.** A review cannot exist without a payment having been made. A payment cannot be made without funds having been locked. The cost of fabricating a review is the cost of actually locking and transferring real SOL.
+
+### 4. Cancellation
+
+1. Employer can cancel a contract and reclaim funds **only if** the worker hasn't accepted yet (status is `Created` or `Funded`).
+2. Once the worker has accepted (`InProgress`), the employer cannot unilaterally cancel — this protects the worker from starting work and having the rug pulled.
+3. On cancellation, SOL in the Vault PDA is returned to the employer.
+
+### 5. Dispute (MVP-minimal)
+
+1. Either party can raise a dispute on an `InProgress` contract, moving it to `Disputed`.
+2. **MVP: disputes are recorded on-chain but not automatically resolved.** Resolution requires manual intervention (future: DAO arbitration, mediator selection). For the hackathon, the dispute mechanism exists as a state and an on-chain record, with resolution deferred to a post-MVP arbitration system.
+3. The fact that disputes are on-chain and timestamped is itself valuable — it creates an immutable record of disagreement that any future arbitration system can reference.
+
+### 6. Reputation lookup (unchanged)
+
+1. Anyone can look up any Solana address — read-only, no signature needed.
+2. `WorkerProfile` shows aggregate stats; `Review` accounts (filtered by `memcmp` on the `worker` field) show individual reviews.
+3. Reviews now carry implicit weight because each one is backed by a settled escrow contract.
+
+## Instructions summary
+
+| Instruction | Signer | What it does |
+|---|---|---|
+| `register_worker` | worker | Creates `WorkerProfile` PDA. **Unchanged from current deployed program.** |
+| `create_contract` | employer | Creates `EscrowContract` PDA with status `Created`. |
+| `fund_contract` | employer | Transfers SOL to Vault PDA, status → `Funded`. |
+| `accept_contract` | worker | Worker accepts, status → `InProgress`. Optionally auto-registers worker. |
+| `release_and_review` | employer | Transfers vault SOL → worker, creates `Review`, updates `WorkerProfile`, status → `Completed`. **Atomic.** |
+| `cancel_contract` | employer | Returns vault SOL → employer, status → `Cancelled`. Only if worker hasn't accepted. |
+| `raise_dispute` | employer OR worker | Status → `Disputed`. Records who raised it and when. |
+| `submit_review` | reviewer | Standalone review (no escrow). **Unchanged from current deployed program.** Kept for backward compatibility but expected to be deprecated in favor of escrow-linked reviews. |
+
+> **Design decision: `create_contract` and `fund_contract` are separate instructions.** This lets an employer create a contract, share it with the worker for review, and only lock funds after the worker has seen the terms. Alternatively, `create_and_fund` could be a single instruction for the common case — decide during implementation which UX flow is better and whether to support both.
 
 ## MWA on-device findings (Phantom / Solflare)
 
@@ -51,65 +156,62 @@ First real on-device testing (Phantom and Solflare, both Android) surfaced two r
 
 **Wallets don't reliably return focus to the app after completing a local-association flow.** Confirmed this is not a ClockIn bug: `WalletAdapter`'s `connect()` and `signAndSendTransaction()` both correctly await the real result and call `scenario.close()` in a `finally` block (verified against the actual `solana_mobile_client` plugin source — the return-to-caller step is Android's own `startActivityForResult`/`onActivityResult` mechanism, which fires only when the *wallet's* activity calls `finish()`, entirely outside this app's control). Both Phantom and Solflare completed their MWA session correctly (encrypted session established, JSON‑RPC round-trip succeeds) but did not always bring ClockIn back to the foreground afterward — the user has to manually switch back. Workaround: none available from the dApp side; this is wallet-app behavior. Worth re-testing against newer wallet releases before the submission deadline in case it's fixed upstream.
 
-**Devnet transactions were being declined with no clear cause — root cause was the wallet's own active-network setting, not anything in this app.** Every `register_worker`/`submit_review` attempt on-device was getting declined (Phantom: `0 signatures`, no reason given, near-instantly; Solflare: explicit "Blockhash expired because too much time passed between transaction creation and signing"). Ruled out, in order, before finding the real cause: insufficient devnet funds (funded the test wallet, still failed); a devnet/cluster mismatch in `authorize()`'s cluster-scoped-vs-fallback path (added logging, confirmed devnet-scoped `authorize()` succeeds directly on both connect and sign — not the cause); and a malformed instruction or serialized transaction (disproved conclusively: re-simulated the *exact* base64 bytes the app generates directly against devnet RPC — `err: null`, program executes and creates the account correctly). The actual cause: **the wallet app's own active-network setting (Devnet/Testnet/Mainnet, in the wallet's own Settings screen) is what actually governs simulation and submission — MWA's `authorize(cluster: ...)` parameter is advisory and does not force it.** A freshly-installed wallet defaults to Mainnet; against a devnet-only program and devnet blockhash, that produces exactly the two symptoms seen (Phantom auto-declines a transaction that can never be valid on its selected network almost instantly; Solflare's blockhash check against the wrong chain's history reads as "expired" since it will never find a match). Switching Solflare's own network setting to Devnet — no code change — was the actual fix; the transaction succeeded on the next attempt.
+**Devnet transactions were being declined — root cause was the wallet's own active-network setting.** Every `register_worker`/`submit_review` attempt on-device was getting declined. The actual cause: **the wallet app's own active-network setting (Devnet/Testnet/Mainnet, in the wallet's own Settings screen) is what actually governs simulation and submission — MWA's `authorize(cluster: ...)` parameter is advisory and does not force it.** A freshly-installed wallet defaults to Mainnet; against a devnet-only program and devnet blockhash, that produces instant declines or "blockhash expired" errors. Switching the wallet's own network setting to Devnet — no code change — was the actual fix. **Action item: the app must surface a clear, explicit "make sure your wallet is set to Devnet" instruction in the connect flow** — this is exactly the kind of setup step a judge or new user will trip over silently.
 
-Also implemented, still worth keeping even though it wasn't the fix for this specific failure: `ReputationService._signAndSendWithRetry` (wraps both `registerWorker` and `submitReview`) retries once with a freshly-fetched blockhash if the wallet rejects the transaction — genuinely useful for actual blockhash-expiry races (a slow approval on a correctly-configured wallet), just not what was happening here. **Action item for `docs/APP_SPEC.md` / the submission checklist:** the app should surface a clear, explicit "make sure your wallet is set to Devnet" instruction somewhere in the connect flow — this is exactly the kind of setup step a judge or new user will trip over silently, the same way this session did.
+**MWA `SignedTx` requires placeholder signatures.** `SignedTx(compiledMessage: compiledMessage)` without signatures produces a transaction the wallet can't process. Must include `Signature(List.filled(64, 0), publicKey: signer)` to indicate which signature slots the wallet should fill.
 
 ## Local persistence: trust model
 
-Drift caches on-chain state (`WorkerProfiles`, `Reviews`) plus `DraftReviews` for offline-composed reviews awaiting a connection. Decide early (by the time `ReputationService` is wired up — Phase 5 in `docs/ROADMAP.md`) how this cache is treated:
-- **Read-through, always re-verify before showing a number that matters** (e.g. right before a reviewer submits, or the first time a profile is opened) — safer, more RPC calls.
-- **Trust the cache for casual browsing, only re-verify on explicit refresh or before a write** — faster/more offline-friendly, small window where a stale number is shown.
+Drift caches on-chain state (`WorkerProfiles`, `Reviews`, `EscrowContracts`) plus `DraftReviews` for offline-composed reviews and `DraftContracts` for offline-composed contracts awaiting a connection.
 
-Whichever is chosen, be explicit about it in the UI (a "last synced" timestamp, minimum) — the whole point of on-chain reputation is that it's trustworthy; a UI that silently shows stale cached data as if it were live undermines that.
-
-**Decided: trust the cache, refresh in the background** (`ReputationRepository.getWorkerProfile`/`getWorkerReviews` serve the cached row immediately, then trigger `refreshWorkerProfile`/`refreshWorkerReviews` unawaited). The required transparency piece is now in the UI: both `MyProfileScreen` and `WorkerProfileScreen`'s hero cards show "Synced Xm ago" under the trust-meta row, reading `WorkerProfile.syncedAt` — My Profile's via its existing pull-to-refresh, Worker Profile's as a tap-to-refresh row (that screen had no pull-to-refresh). Reviews and the Look Up screen's recent-lookups list still don't surface a synced timestamp; revisit if this is worth extending there too.
+**Decided: trust the cache, refresh in the background** (`ReputationRepository.getWorkerProfile`/`getWorkerReviews` serve the cached row immediately, then trigger an unawaited background refresh). The required transparency piece is in the UI: profile cards show "Synced Xm ago" reading `WorkerProfile.syncedAt`. Contract screens should show a similar sync indicator — contract state transitions (especially `Funded` → `InProgress` and `InProgress` → `Completed`) are time-sensitive and worth re-verifying from chain before acting on.
 
 ## Security / trust model
 
-- **Sybil resistance is signature-based for MVP, not stake-based.** A review only counts if it's signed by an address distinct from the worker's, tied to a unique job reference. This blocks the most trivial attack (self-review) but does **not** block collusion between two real accounts fabricating a fake job — that's a genuinely harder problem, explicitly out of scope for MVP (see Non-goals). Be direct about this limitation in the README rather than implying the MVP fully solves review fraud.
-- **Key custody is Mobile Wallet Adapter's job, not this app's.** Unlike StellarRep (which stored a Keychain-held key directly), this app never generates, imports, or stores a private key at all — every signature is an MWA round-trip to a separate wallet app the user already trusts. This is a meaningfully stronger security posture, and worth stating clearly in the README as a differentiator, not just an implementation detail.
-- **Network posture is devnet-only for the entire MVP build.** No mainnet program ID, no mainnet keys, anywhere in this repo, until a deliberate, separate later decision — see `CLAUDE.md`'s ground rules.
+- **Sybil resistance is now escrow-linked, not just signature-based.** In the previous architecture, a review only required the reviewer's signature — one person could generate five free wallets and review "themselves" from each. Now, each escrow-linked review requires real SOL to be locked and transferred, making the cost of fabrication equal to the cost of actual payment. Standalone `submit_review` (without escrow) still exists for backward compatibility but should be clearly marked as "unverified" in the UI and weighted lower in any aggregate score.
+- **Escrow safety: the Vault PDA is program-controlled.** Neither party can drain the vault outside the program's state machine. The employer can only reclaim funds if the worker hasn't accepted; the worker only receives funds when the employer explicitly releases them. This is enforced by Anchor constraints and PDA authority, not application logic.
+- **Key custody is Mobile Wallet Adapter's job, not this app's.** Unlike StellarRep (which stored a Keychain-held key directly), this app never generates, imports, or stores a private key at all — every signature is an MWA round-trip to a separate wallet app the user already trusts. This is a meaningfully stronger security posture.
+- **Terms are hashed, not stored.** The `terms_hash` field stores a SHA-256 of whatever off-chain terms document the parties agree to (could be a screenshot of a DM, a PDF, a text file). The actual terms never touch the blockchain — only the hash does, which is sufficient to prove that a specific document was agreed to at a specific time. This avoids putting sensitive contract details on a public ledger.
+- **Network posture is devnet-only for the entire MVP build.** No mainnet program ID, no mainnet keys, anywhere in this repo, until a deliberate, separate later decision.
 
 ## Build & test toolchain
 
-The versions below are what's actually installed and in use as of this writing — treat them as a snapshot, not a pin. Ground rule 2 in `CLAUDE.md` still applies: re-resolve current versions at build time rather than trusting these numbers.
+The versions below are what's actually installed and in use as of this writing — treat them as a snapshot, not a pin. Re-resolve current versions at build time rather than trusting these numbers.
 
 | Tool | Version | Role |
 |---|---|---|
 | Solana CLI (Agave) | 4.2.2 | `solana` keypair/airdrop/RPC config; `solana program deploy` for devnet |
-| `cargo-build-sbf` + platform-tools | 4.1.0 / v1.54 | compiles the Rust program to the deployable `reputation.so` (SBF bytecode). Downloaded ~1.3 GB into `~/.cache/solana` on first use. |
+| `cargo-build-sbf` + platform-tools | 4.1.0 / v1.54 | compiles the Rust program to the deployable `reputation.so` (SBF bytecode) |
 | `anchor-lang` (crate) | 1.2.0 | the program's only real dependency; pinned in `program/programs/reputation/Cargo.toml` |
 | Anchor CLI | 1.2.0 (via `avm`) | intended for `anchor build` / `anchor test` / `anchor deploy` — **but see the Anchor.toml caveat below** |
-| Node / npm | 26 / bundled | for `anchor test`'s TypeScript client (no yarn/pnpm present) |
+| Node / npm | 26 / bundled | for `anchor test`'s TypeScript client |
 
-**The program was scaffolded by hand, not `anchor init`** — a plain Cargo workspace under `program/` with `anchor-lang` as a dependency. `Anchor.toml` has since been added by hand (see `program/Anchor.toml`'s header comment) so `anchor build`/`anchor test`/`anchor deploy` have a workspace to operate on; it points `[programs.localnet]`/`[programs.devnet]` at the real program ID and uses `[scripts] test` to run the TS suite via `ts-mocha`.
+**The program was scaffolded by hand, not `anchor init`.** `Anchor.toml` was added by hand so `anchor build`/`anchor test`/`anchor deploy` have a workspace to operate on.
 
-**Testing approach: `anchor test` (TypeScript), not a Rust-native harness.** `litesvm` and `solana-program-test` were both tried first and both hit unresolvable dependency conflicts against the Solana 4.x split crates that `anchor-lang` 1.2 pulls (`solana-inflation`, `solana-short-vec` version mismatches). Rather than fight crate-version resolution, tests run through `anchor test` — a local validator plus a TS client via `@coral-xyz/anchor`. The full suite (`program/tests/reputation.ts`, 10 cases covering both registration and review submission, including every failure path) passes reproducibly. Local validator selection: pass `--validator legacy` — this Anchor CLI's default (`surfpool`) isn't installed here.
+**Testing approach: `anchor test` (TypeScript), not a Rust-native harness.** `litesvm` and `solana-program-test` both hit unresolvable dependency conflicts against the Solana 4.x split crates. The full suite (10 cases covering registration and review submission, including every failure path) passes reproducibly.
 
-**Known-bad default build: `anchor build`/`anchor test`'s own build step must not be used as-is.** This environment has multiple Solana/Agave toolchain releases installed side by side (`~/.local/share/solana/install/releases/`), and Anchor 1.2's internal `cargo build-sbf` invocation passes its own implicit `--arch` default that — against the toolchain currently active here — produces an ELF (`e_machine` tag mismatched against what this validator's loader accepts) that deploys "successfully" via genesis clone but is silently unexecutable: every instruction invocation fails with `"Program is not deployed" / "Unsupported program id"`, even though `solana program show`/`account` both report the account as `executable: true` with a correct owner. This is **not** a code, PDA, or test-logic bug — it reproduces identically with a hand-built raw instruction sent straight to a bare `solana-test-validator`, no Anchor or TS code involved at all. `solana program deploy` (a real deploy transaction, not genesis clone) surfaces the real cause immediately: `Error: ELF error: Failed to parse ELF file: invalid file header`.
+**Known-bad default build: `anchor build`/`anchor test`'s own build step must not be used as-is.** Always build the program explicitly before testing:
+```bash
+cd program/programs/reputation
+cargo build-sbf --arch v1 --sbf-out-dir ../../target/deploy
+cd ../..
+anchor test --skip-build --validator legacy
+```
 
-  **The fix — always build the program explicitly before testing, bypassing Anchor's own build step:**
-  ```bash
-  cd program/programs/reputation
-  cargo build-sbf --arch v1 --sbf-out-dir ../../target/deploy
-  cd ../..
-  anchor test --skip-build --validator legacy
-  ```
-  `--arch v0` and `--arch v2` were also confirmed to deploy correctly (only `v3` fails to build at all in this environment) — `v1` is just the one in active use. Passing `--arch` a second time via `anchor test -- --arch v1` does **not** work (`anchor build` already passes its own `--arch`, and cargo-build-sbf rejects the flag twice) — the only reliable fix is the manual pre-build shown above. Since `target/` is gitignored, `target/deploy/reputation-keypair.json` must be present (copied from `program/reputation-keypair.json`, see `Anchor.toml`'s header comment) before `cargo build-sbf` runs, or the build regenerates a fresh keypair with a new program ID that won't match `declare_id!`.
+**AVM proxy quirk.** `anchor` on `PATH` is an `avm` proxy that hangs when run outside an Anchor project. Run it from inside `program/`, or call `~/.avm/bin/anchor-1.2.0` directly.
 
-**AVM proxy quirk.** `anchor` on `PATH` is an `avm` proxy that resolves the version from project context; it hangs when run outside an Anchor project (or with flaky network — it does update checks). Run it from inside `program/`, or call `~/.avm/bin/anchor-1.2.0` directly.
-
-**Toolchain drift across sessions.** Multiple Solana/Agave releases are installed on this machine (seen so far: solana-cli 3.1.10 with platform-tools v1.52, and 4.2.2 with platform-tools v1.54, selected via the `~/.local/share/solana/install/active_release` symlink). Which one is active can and does change between sessions — don't assume the table above still matches `solana --version`'s actual output; re-check it, and re-run the explicit `--arch` build step above regardless of which release is active, since that's what actually matters for a working local test run.
+**Toolchain drift across sessions.** Multiple Solana/Agave releases are installed on this machine. Which one is active can change between sessions — re-check `solana --version` and re-run the explicit `--arch` build step regardless.
 
 ## Non-goals for MVP
 
-Intentionally excluded from the first working version — not because they're unimportant, but because trying to ship all of them at once is how MVPs stall. Each is a real candidate for a GitHub issue once the core loop works, so other hackathon-adjacent contributors (or future you) have something concrete to pick up:
+Intentionally excluded from the first working version. Each is a real candidate for a post-hackathon issue:
 
-- **Dispute resolution / review retraction** — a bad-faith review, once submitted, is permanent.
-- **Stake-weighted or escrow-linked reviews** — requiring a real on-chain payment reference before a review counts would meaningfully raise the cost of fake reviews, but is materially bigger scope.
+- **Automated dispute resolution / arbitration DAO** — disputes can be raised and recorded on-chain, but resolution is manual. Building a full arbitration system (mediator selection, evidence submission, voting) is a separate product.
+- **Multi-milestone contracts** — MVP supports single-payment escrow. Phased milestones (release 30% at checkpoint 1, 70% at completion) are a natural extension but significantly more complex state management.
+- **SPL token escrow** — MVP is SOL-only. Supporting USDC/USDT or other SPL tokens requires token account management and a more complex vault design.
+- **On-chain terms storage** — only the hash is stored. Decentralized terms storage (IPFS/Arweave) is a future improvement.
 - **Multi-marketplace aggregation** — importing/reconciling existing reputation from other platforms.
-- **Reviewer reputation** — weighting a review by how trustworthy the *reviewer* is, not just the worker.
+- **Reviewer reputation / weighted reviews** — weighting a review by how trustworthy the *reviewer* is.
 - **Mainnet deployment and a real key-management story beyond "the user's own wallet app handles it."**
-- **iOS.** Flutter scaffolds it by default; Solana Mobile Stack doesn't need it and this hackathon doesn't reward it. Don't spend effort here.
-- **Worker identity: display name and avatar photo.** Several Stitch screens show a name ("Solana Contributor") and a profile photo next to a worker's rating — deliberately not built, and not faked either: `WorkerProfile` (see `docs/PROGRAM_SPEC.md`) has exactly five fields (`worker`, `total_jobs`, `rating_sum`, `created_at`, `bump`), nothing identity-shaped, so there's currently no mechanism for a name or photo to reach a *different* user's device at all — `WalletAdapter`'s `accountLabel` is local to the connecting wallet's own session and never leaves it. Three real options if this becomes a priority post-hackathon, cheapest first: (1) an on-chain `name` field (bounded-length string) added to `WorkerProfile` or a separate optional metadata PDA — a program change, more rent, a new signed instruction; an avatar *image* still can't live on-chain, only a URI to one; (2) the Metaplex-style pattern — an on-chain URI pointing to an off-chain JSON blob (`{name, avatarUrl}`) on IPFS/Arweave — more standard, pulls in an upload step and remote-image loading; (3) stay pseudonymous on purpose — identity/KYC is a different product concern from "did this person complete verified work," and an unverified photo next to a rating can read as *less* trustworthy, not more. Deliberately choosing (3) for the hackathon build. Same gap, same call, for **review comments**: the Stitch worker-profile screen shows free-text review comments, but `Review` (`program/programs/reputation/src/lib.rs`) has no text field either — `worker`, `reviewer`, `job_id`, `rating`, `timestamp`, `bump` only. Adding one is the same shape of change as option (1) above (more account space, larger rent, a longer-running transaction to write it) — worth reconsidering together with worker identity rather than separately, since both are "richer profile than this program currently stores" the same way.
+- **iOS.** Flutter scaffolds it by default; Solana Mobile Stack doesn't need it and this hackathon doesn't reward it.
+- **Worker identity: display name and avatar photo.** Deliberately choosing pseudonymity for the hackathon build — identity/KYC is a different product concern from "did this person complete verified, paid work." Same reasoning applies to review comments (no text field on `Review`). Revisit both together post-hackathon.
