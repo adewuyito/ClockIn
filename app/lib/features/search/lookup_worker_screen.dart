@@ -7,6 +7,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_header.dart';
+import '../../core/widgets/qr_scanner_sheet.dart';
 import 'worker_profile_screen.dart';
 
 /// Screen 3: Look Up Worker by Address.
@@ -93,6 +94,22 @@ class _LookupWorkerScreenState extends ConsumerState<LookupWorkerScreen> {
     }
   }
 
+  Future<void> _scanQr() async {
+    final result = await QrScannerSheet.show(
+      context,
+      title: 'Scan Worker QR',
+      hintText: 'Align worker address or Solana Pay QR code',
+    );
+    if (result != null && mounted) {
+      if (result.solanaAddress != null) {
+        _searchController.text = result.solanaAddress!;
+        _performSearch();
+      } else {
+        _showSnack('No Solana address found in QR code');
+      }
+    }
+  }
+
   void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
@@ -163,8 +180,8 @@ class _LookupWorkerScreenState extends ConsumerState<LookupWorkerScreen> {
                       iconColor: AppColors.onSecondaryContainer,
                       iconBg: AppColors.secondaryContainer,
                       title: 'Scan QR',
-                      subtitle: 'Not available yet',
-                      onTap: () => _showSnack("QR scanning isn't built yet — paste the address instead."),
+                      subtitle: 'Camera viewfinder',
+                      onTap: _scanQr,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -258,17 +275,30 @@ class _LookupWorkerScreenState extends ConsumerState<LookupWorkerScreen> {
                         ),
                         Padding(
                           padding: const EdgeInsets.only(right: 6),
-                          child: TextButton.icon(
-                            onPressed: _pasteFromClipboard,
-                            icon: const Icon(Icons.content_paste_rounded, size: 14),
-                            label: Text('Paste', style: AppTypography.labelSm.copyWith(fontWeight: FontWeight.w700)),
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.onSurfaceVariant,
-                              backgroundColor: AppColors.surfaceContainer,
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.qr_code_scanner_rounded, size: 20, color: AppColors.primary),
+                                onPressed: _scanQr,
+                                tooltip: 'Scan QR code',
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                constraints: const BoxConstraints(),
+                              ),
+                              const SizedBox(width: 4),
+                              TextButton.icon(
+                                onPressed: _pasteFromClipboard,
+                                icon: const Icon(Icons.content_paste_rounded, size: 14),
+                                label: Text('Paste', style: AppTypography.labelSm.copyWith(fontWeight: FontWeight.w700)),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.onSurfaceVariant,
+                                  backgroundColor: AppColors.surfaceContainer,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

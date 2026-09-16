@@ -23,7 +23,7 @@ subprojects {
     if (project.name != "app") {
         afterEvaluate {
             extensions.findByType<com.android.build.gradle.BaseExtension>()?.apply {
-                compileSdkVersion(35)
+                compileSdkVersion(36)
             }
         }
     }

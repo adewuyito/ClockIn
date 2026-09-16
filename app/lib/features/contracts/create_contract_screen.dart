@@ -7,6 +7,7 @@ import 'package:solana/solana.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/contract_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/qr_scanner_sheet.dart';
 import 'contract_detail_screen.dart';
 
 class CreateContractScreen extends ConsumerStatefulWidget {
@@ -68,6 +69,39 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
       setState(() {
         _workerController.text = data.text!.trim();
       });
+    }
+  }
+
+  Future<void> _scanWorkerAddressQr() async {
+    final result = await QrScannerSheet.show(
+      context,
+      title: 'Scan Worker QR',
+      hintText: 'Scan worker wallet address or Solana Pay code',
+    );
+    if (result != null && mounted) {
+      if (result.solanaAddress != null) {
+        setState(() {
+          _workerController.text = result.solanaAddress!;
+          if (result.amountSol != null && _amountController.text.trim().isEmpty) {
+            _amountController.text = result.amountSol.toString();
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Scanned address: ${result.solanaAddress!.substring(0, 4)}…${result.solanaAddress!.substring(result.solanaAddress!.length - 4)}',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unrecognized QR payload: ${result.raw}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -476,10 +510,20 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
                 ),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.content_paste_rounded, size: 20),
-                  onPressed: _pasteFromClipboard,
-                  tooltip: 'Paste address',
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.qr_code_scanner_rounded, size: 20, color: AppColors.primaryContainer),
+                      onPressed: _scanWorkerAddressQr,
+                      tooltip: 'Scan QR code',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.content_paste_rounded, size: 20),
+                      onPressed: _pasteFromClipboard,
+                      tooltip: 'Paste address',
+                    ),
+                  ],
                 ),
               ),
             ),

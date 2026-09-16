@@ -11,6 +11,7 @@ import '../../core/solana/reputation_errors.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_header.dart';
+import '../../core/widgets/qr_scanner_sheet.dart';
 
 /// Screen 5 / 5b / 5e: Submit Review (form, self-review-blocked, success).
 ///
@@ -131,6 +132,45 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
   void _copy(String text, String feedback) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(feedback)));
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (data?.text != null && data!.text!.trim().isNotEmpty) {
+      setState(() {
+        _workerController.text = data.text!.trim();
+      });
+    }
+  }
+
+  Future<void> _scanWorkerAddressQr() async {
+    final result = await QrScannerSheet.show(
+      context,
+      title: 'Scan Worker QR',
+      hintText: 'Align worker address or Solana Pay code',
+    );
+    if (result != null && mounted) {
+      if (result.solanaAddress != null) {
+        setState(() {
+          _workerController.text = result.solanaAddress!;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Scanned address: ${result.solanaAddress!.substring(0, 4)}…${result.solanaAddress!.substring(result.solanaAddress!.length - 4)}',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unrecognized QR payload: ${result.raw}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _switchConnectedWallet() async {
@@ -422,9 +462,24 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
               controller: _workerController,
               onChanged: (_) => setState(() {}),
               style: AppTypography.labelMd,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Enter worker base58 address…',
-                prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.qr_code_scanner_rounded, size: 20, color: AppColors.primary),
+                      onPressed: _scanWorkerAddressQr,
+                      tooltip: 'Scan QR code',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.content_paste_rounded, size: 20),
+                      onPressed: _pasteFromClipboard,
+                      tooltip: 'Paste from clipboard',
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 8),

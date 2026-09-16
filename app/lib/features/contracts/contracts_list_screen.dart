@@ -6,6 +6,7 @@ import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_header.dart';
+import '../../core/widgets/qr_scanner_sheet.dart';
 import 'contract_detail_screen.dart';
 import 'create_contract_screen.dart';
 
@@ -20,6 +21,38 @@ class ContractsListScreen extends ConsumerStatefulWidget {
 
 class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
   ContractFilter _filter = ContractFilter.all;
+
+  Future<void> _scanContractOrCounterpartyQr() async {
+    final result = await QrScannerSheet.show(
+      context,
+      title: 'Scan Contract or Worker',
+      hintText: 'Align contract share QR or worker address',
+    );
+    if (result != null && mounted) {
+      if (result.contractId != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ContractDetailScreen(contractId: result.contractId!),
+          ),
+        );
+      } else if (result.solanaAddress != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => CreateContractScreen(
+              initialWorkerAddress: result.solanaAddress,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unrecognized QR: ${result.raw}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,15 +92,9 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                           err.toString(),
                           textAlign: TextAlign.center,
                           style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
+                            fontSize: 12,
                             color: AppColors.onSurfaceVariant,
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () => ref.refresh(myContractsProvider),
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Retry'),
                         ),
                       ],
                     ),
@@ -84,25 +111,41 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const CreateContractScreen(),
-            ),
-          );
-        },
-        backgroundColor: AppColors.primaryContainer,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        icon: const Icon(Icons.add_rounded, size: 22),
-        label: Text(
-          'New Contract',
-          style: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
+      floatingActionButton: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'scan_contract_qr',
+            onPressed: _scanContractOrCounterpartyQr,
+            backgroundColor: AppColors.surfaceContainerLowest,
+            foregroundColor: AppColors.primaryContainer,
+            elevation: 3,
+            tooltip: 'Scan QR code',
+            child: const Icon(Icons.qr_code_scanner_rounded, size: 20),
           ),
-        ),
+          const SizedBox(width: 12),
+          FloatingActionButton.extended(
+            heroTag: 'create_contract_fab',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const CreateContractScreen(),
+                ),
+              );
+            },
+            backgroundColor: AppColors.primaryContainer,
+            foregroundColor: Colors.white,
+            elevation: 4,
+            icon: const Icon(Icons.add_rounded, size: 22),
+            label: Text(
+              'New Contract',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
