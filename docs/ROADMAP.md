@@ -124,20 +124,22 @@ Everything from the original Phases 0–6 that still applies after the pivot. No
 - [x] Seed devnet with realistic multi-party contracts across all lifecycle states (`program/scripts/seed_devnet_contracts.ts`)
 - [x] Verified full on-chain escrow lifecycle on Solana Devnet with transaction explorer signatures
 - [x] 60–90 second judging demo walkthrough script prepared in `docs/JUDGING_PLAN.md`
-- [x] Full test suite passing: 22 Anchor integration tests + 16 Flutter repository and widget tests
+- [x] Full test suite passing: 22 Anchor integration tests + 17 Flutter repository and widget tests
 - [x] Production debug APK verified and built (`build/app/outputs/flutter-apk/app-debug.apk`)
+- [x] Production release APK built and verified (`build/app/outputs/flutter-apk/app-release.apk`, 78.0MB)
 
-### Documentation
+### Phase 3 Stretch Goals ✅ All Complete
 
-- [x] Overhauled `README.md` leading with the P2P Work Contract & Escrow Protocol pitch, architecture diagram, and setup guide
-- [x] Updated `PROGRAM_SPEC.md` with the 7 escrow instructions, accounts, and error codes
-- [x] Updated `APP_SPEC.md` with the new screens, service layer, and Drift schema
-- [x] Updated `JUDGING_PLAN.md` marking Novelty, Stickiness, and UX criteria locked in
+- [x] **Camera QR Scanner** (`mobile_scanner` integration + `QrScannerSheet`) — scan counterparty Solana addresses, Solana Pay URIs, and contract deep links across Create Contract, Contracts List, Look Up Worker, and Submit Review screens.
+- [x] **Celebratory Settlement Animation** (`CelebrationBadge`) — elastic spring scale with radial particle sparkle burst on atomic release & review.
+- [x] **Tactile Haptic Feedback** — haptic clicks on star rating selection, tab switches, and heavy impact on on-chain settlements.
+- [x] **Offline Draft Contracts** (`DraftContracts` Drift table, schema v4) — save and restore pending contract terms, worker addresses, and deadlines locally with one-tap restore and auto-cleanup on on-chain confirmation.
+- [x] **Solana Explorer Deep Links** — one-tap copy and explorer lookup on settlement modal.
 
 ### Submission Checklist
 
+- [x] Upload final release APK (`flutter build apk --release` -> `app/build/app/outputs/flutter-apk/app-release.apk`)
 - [ ] Record 60–90 second video demo following the walkthrough script
-- [ ] Upload final release APK (`flutter build apk --release`)
 - [ ] Submit to [CLOCK IN Hackathon portal](https://solanamobile.radiant.nexus/) before Oct 8 deadline
 
 ---

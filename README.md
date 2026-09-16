@@ -126,16 +126,20 @@ cargo build-sbf --arch v1 --sbf-out-dir target/deploy
 anchor test --skip-build --validator legacy
 ```
 
-### 2. Run the Flutter Mobile App
+### 2. Run or Install the Flutter Mobile App
 ```bash
 cd app
 flutter pub get
 
-# Run test suite (16 tests including Drift in-memory tests)
+# Run test suite (17 tests including Drift SQLite in-memory tests)
 flutter test
 
 # Run app on connected Android device
 flutter run
+
+# Or build the release APK directly
+flutter build apk --release
+# Output: app/build/app/outputs/flutter-apk/app-release.apk (78 MB)
 ```
 
 ### 3. Wallet Configuration (Crucial for Devnet Testing)

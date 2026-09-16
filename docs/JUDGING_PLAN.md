@@ -50,10 +50,13 @@ Status key: 🔴 not started · 🟡 discussed, not yet acted on · 🟢 locked 
 ### Locked-in Execution
 - [x] **Devnet Network Guidance Banner & Modal:** Prominent alert on Connect and Settings screens with step-by-step instructions for switching Phantom and Solflare to Devnet (`55de232`).
 - [x] **MWA Focus-Return Guidance:** In-flight status prompt informing the user to return to ClockIn if their wallet does not auto-redirect (`55de232`).
-- [x] **Tactile Haptic Feedback:** Micro-interactions (`selectionClick` and `lightImpact`) on star rating selections, release actions, and filter tabs (`a9bffe8`).
-- [x] **Offline Drafts Recovery Sheet:** Form restoration bottom sheet allowing users to view, load, or delete saved review drafts from SQLite (`2814bd6`).
-- [x] **Custom Android Launcher Icon:** Replaced Flutter default icon with ClockIn brand mark (stopwatch with emerald lightning bolt) across all Android mipmap densities (`a97351d`).
-- [x] **Contract Sharing with QR Codes:** Screen 10 (`ContractShareScreen`) renders a scannable QR code and one-tap copy button for sharing contract IDs with counterparties.
+- [x] **Tactile Haptic Feedback:** Micro-interactions (`selectionClick`, `lightImpact`, and `heavyImpact`) on star rating selections, release actions, and filter tabs (`a9bffe8`).
+- [x] **Camera QR Code Scanner:** Viewfinder modal (`QrScannerSheet`) powered by `mobile_scanner` supporting raw base58 addresses, Solana Pay URIs, and contract deep links across all input screens.
+- [x] **Celebratory Settlement Animation:** Elastic spring badge with custom radial particle burst (`CelebrationBadge`) when funds are released and reviews anchored.
+- [x] **Offline Drafts Recovery Sheets:** Form restoration bottom sheets for both reviews and escrow contracts, backed by Drift SQLite persistence.
+- [x] **Custom Android Launcher Icon:** Replaced Flutter default icon with ClockIn brand mark across all Android mipmap densities (`a97351d`).
+- [x] **Contract Sharing with QR Codes:** Screen 10 (`ContractShareScreen`) renders scannable QR codes and one-tap copy buttons.
+- [x] **Production Release APK:** Packaged standalone release APK (`app/build/app/outputs/flutter-apk/app-release.apk`, 78MB) with font asset tree-shaking (99% reduction).
 
 ---
 
