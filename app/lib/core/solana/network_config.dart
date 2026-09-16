@@ -29,6 +29,11 @@ class NetworkConfig {
   /// Active WebSocket URL. Currently always [devnetWsUrl] — see [clusterDisplayName].
   static String get wsUrl => devnetWsUrl;
 
+  /// Returns a full Solana Explorer URL for a path (e.g. `tx/<sig>` or `address/<addr>`).
+  static String solanaExplorerUrl(String path) {
+    return 'https://explorer.solana.com/$path?cluster=$clusterName';
+  }
+
   /// Deployed ClockIn reputation Anchor program ID on Devnet.
   static const String programIdString =
       'FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9';

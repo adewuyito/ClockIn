@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/celebration_badge.dart';
 
 class ReleaseAndReviewModal extends ConsumerStatefulWidget {
   final EscrowContract contract;
@@ -71,6 +73,7 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
         _isSuccess = true;
         _txSignature = signature;
       });
+      HapticFeedback.heavyImpact();
     } catch (e) {
       setState(() {
         _isSubmitting = false;
@@ -321,18 +324,10 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 12),
-        Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(
-            color: AppColors.success.withValues(alpha: 0.15),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.check_circle_rounded,
-            size: 44,
-            color: AppColors.success,
-          ),
+        const CelebrationBadge(
+          icon: Icons.verified_rounded,
+          color: AppColors.success,
+          size: 76,
         ),
         const SizedBox(height: 16),
         Text(
@@ -401,7 +396,31 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () {
+              final url = NetworkConfig.solanaExplorerUrl('tx/$_txSignature');
+              Clipboard.setData(ClipboardData(text: url));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Explorer link copied to clipboard')),
+              );
+            },
+            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+            label: Text(
+              'Copy Solana Explorer Link',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+          ),
+          const SizedBox(height: 16),
         ],
 
         SizedBox(

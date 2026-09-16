@@ -11,6 +11,7 @@ import '../../core/solana/reputation_errors.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_header.dart';
+import '../../core/widgets/celebration_badge.dart';
 import '../../core/widgets/qr_scanner_sheet.dart';
 
 /// Screen 5 / 5b / 5e: Submit Review (form, self-review-blocked, success).
@@ -254,6 +255,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
         _successRating = _rating;
         _activeDraftId = null;
       });
+      HapticFeedback.heavyImpact();
     } catch (e) {
       final err = ReputationException.from(e);
       setState(() {
@@ -988,11 +990,10 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         child: Column(
           children: [
-            Container(
-              width: 88,
-              height: 88,
-              decoration: const BoxDecoration(color: Color(0xFFE8F6EE), shape: BoxShape.circle),
-              child: const Icon(Icons.check_circle_rounded, size: 48, color: AppColors.success),
+            const CelebrationBadge(
+              icon: Icons.check_circle_rounded,
+              color: AppColors.success,
+              size: 88,
             ),
             const SizedBox(height: 16),
             Text('Review submitted', style: AppTypography.headlineMd),
