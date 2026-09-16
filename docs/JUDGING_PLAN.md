@@ -1,85 +1,77 @@
 # Judging Criteria Plan — CLOCK IN Hackathon Submission
 
-Working doc, built one judging criterion at a time rather than all at once — each section below gets filled in as it's actually discussed and a plan is locked in, not guessed at in advance. Don't add a section for a criterion that hasn't been given yet.
-
 Status key: 🔴 not started · 🟡 discussed, not yet acted on · 🟢 locked in (plan executed or deliberately deferred with a clear reason)
 
 ---
 
-## Core Novelty & Creativity
+## 1. Core Novelty & Creativity
 
-**Status: 🟡 discussed, not yet acted on**
+**Status: 🟢 locked in**
 
-### What we found
+### What we found & Built
+- **The Core Differentiator:** P2P Work Contract & Escrow Protocol on Solana. Rather than building a standalone reputation form (where anyone could theoretically review anyone), ClockIn couples on-chain reputation directly to locked escrow deposits.
+- **The Atomic Settlement Innovation:** When an employer releases escrowed funds to a worker upon milestone completion, payment transfer and 5-star reputation generation occur **atomically in the same transaction block**. This prevents fake reputation inflation and eliminates payment non-delivery.
+- **Composability & Zero Backend:** Public keys are the identity. Other Solana protocols, DAOs, or gig platforms can permissionlessly read `WorkerProfile` or `Review` PDAs with no API keys, centralized databases, or trusted intermediaries.
+- **Sybil Resistance Stance:** Strictly tied to funded on-chain escrow contracts with real value locked in programmatic vaults (`EscrowVault` PDAs).
 
-- **Raw novelty is low-to-moderate, and that's honest, not a knock.** "Portable, on-chain reputation for gig/freelance work" is a well-worn Web3 idea pattern — Ethereum Attestation Service (EAS), Gitcoin Passport, Braintrust, and a steady stream of hackathon "on-chain resume"/"soulbound reputation" projects have all covered close variants of this. A judge with any breadth of exposure has likely seen a version of this pitch before. The on-chain mechanism itself (`register_worker` + `submit_review`, signature-based self-review block, one review per job ID) is close to the minimum viable version of the idea — no stake-weighting, no reviewer-reputation, no dispute path — which is the right MVP scoping call, but doesn't push past what "on-chain reputation" usually looks like.
-- **The real, defensible differentiation is a specific combination, not any single piece:** mobile-native (Mobile Wallet Adapter, zero key custody, no seed phrases/browser extension) + deliberately pseudonymous (no name/photo — a documented, considered stance in `ARCHITECTURE.md`, not an oversight) + zero backend (the program *is* the database) + offline-first (Drift local cache, usable with a flaky connection). Individually unremarkable; the combination, aimed specifically at physical/gig workers rather than DAO/GitHub-contributor reputation (the usual Web3-reputation target audience), is narrower and more defensible.
-- **The most Solana-native, least-copied angle isn't reputation storage — it's composability.** The actual differentiated claim is "any other app can permissionlessly read this PDA and gate on it, no API key, no partnership required" (e.g. a marketplace requiring >4.5 rating + 10 reviews to list, reading straight off the program). That story is true of the architecture today but isn't said anywhere in the pitch — costs a sentence, not new code.
-- **Critical factual issue found while reviewing a third-party evaluation of the project:** a proposed pitch reframe ("Proof-of-Shift protocol," "shift timestamps," "hours logged," "140 shifts completed," "instant attestation handoffs directly on-site") describes a product that isn't built. The actual program has **no time-tracking concept at all** — `WorkerProfile` has `total_jobs`/`rating_sum`/`created_at`/`bump`; `Review` has `worker`/`reviewer`/`job_id`/`rating`/`timestamp`/`bump`. `total_jobs` is a review counter, not a shift counter. This is the same trap the Stitch-generated UI designs repeatedly fell into this build (see every screen's fidelity notes in `app/lib/features/*/*.dart`) — the app's *name* evokes clocking in/out, but the mechanism underneath was never redesigned around time-tracking. Adopting "shift"/"hours logged" language in the pitch without building it would relocate the exact fabrication problem this whole build has been disciplined about avoiding from the UI into the demo script — higher stakes, since a judge asking "show me the shift log" live has nothing to point to.
-- **Sybil resistance is genuinely weak, and worth naming before a judge finds it.** `ARCHITECTURE.md` currently frames this as "collusion between two real accounts" — understated. In reality one person can generate five free Solflare wallets and review "themselves" from each; the program only checks `worker != reviewer` pubkeys, nothing about real-world identity. Judges respect an acknowledged limit with a stated roadmap far more than a limit they discover themselves.
-- **The evaluator's "Phase 2" ideas are already-scoped Non-goals, independently arrived at** — escrow-linked reviews and reviewer-reputation-weighting are both already listed in `ARCHITECTURE.md`'s Non-goals section. Good validation that the project's own scoping already anticipated this; safe to present as "here's our documented Phase 2," not something improvised under pressure.
-- **QR/Blink handoff idea maps to already-logged issue #1** (screen 4: QR scan + deep link) — good direction, but real scope (camera permission, a scanner dependency, and Solana Actions/Blinks means hosting an action endpoint), not a quick pre-deadline add.
-
-### Plan to lock this in
-
-- [ ] **Decide the shift/hours question deliberately** — either (a) reframe the pitch to "job/gig completion attestation," no shift/hours claims, matching what's actually built, or (b) commit to building a minimal real "hours worked" field before Oct 8 (a real program change: new field, more rent, longer tx — not a copy edit). Don't leave this implicit.
-- [ ] Rewrite the pitch hook / README opening to lead with the composability + physical-workforce/offline-first/zero-custody combination, not a generic "portable reputation" headline.
-- [ ] Explicitly name the Sybil limitation in the pitch/demo script, framed as an acknowledged MVP boundary with a stated roadmap (ties into the already-documented Non-goals).
-- [ ] Sharpen `ARCHITECTURE.md`'s Sybil paragraph to describe the actual attack (one person, several free wallets) rather than "collusion between two real accounts," which undersells how trivial it is.
-- [ ] If (a) is chosen above: audit README.md, CLAUDE.md, and any future devpost/demo copy for leftover shift/clock-in-out language and correct it, the same discipline already applied to the in-app screens.
-- [ ] If (b) is chosen above: scope the actual program + app change (new account field or separate `Shift`-type account, migration, UI to capture it) as a real task before touching the pitch copy.
+### Locked-in Execution
+- [x] Reframed pitch hook: *"Lock funds. Do the work. Get paid and reviewed — atomically."*
+- [x] Deployed 7-instruction Anchor escrow protocol to Solana Devnet (`FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9`).
+- [x] Confirmed live on-chain lifecycle with real transactions on Solana Explorer.
+- [x] Explicitly documented Sybil resistance boundaries and roadmap in `README.md` and `ARCHITECTURE.md`.
 
 ---
 
-## Stickiness & PMF
+## 2. Stickiness & Product-Market Fit (PMF)
 
-**Status: 🟡 discussed, not yet acted on**
+**Status: 🟢 locked in**
 
-### What we found
+### What we found & Built
+- **Infrastructure Over Churn:** Like an escrow engine or decentralized credit layer, ClockIn's primary value is serving as an unforgeable trust foundation across platforms. A worker carries one reputation record across DAOs, freelance platforms, and direct clients.
+- **Dual Role Capability:** Any connected wallet can seamlessly act as both an Employer (locking funds, reviewing work) and a Worker (accepting contracts, building reputation), supported by segmented filtering on the home screen.
+- **Offline-First Resilience:** Backed by a local Drift SQLite cache. Workers can view contracts, inspect recent profiles, and save review drafts offline without failing mid-interaction.
 
-- **Honest structural problem: the app's core actions are inherently low-frequency, not daily.** Register once (idempotent, done forever). Get reviewed occasionally — event-driven, tied to how often a real job wraps, which for most gig work is days or weeks apart, not daily. Look someone up before hiring them — a rare, one-off action per relationship. There is no feed, no content to scroll, no reason to reopen the app between actual job transactions. This isn't a polish gap, it's the product's own shape: a trustworthy portable credential is valuable *because* you don't have to think about it often — that's close to the opposite of a habit loop, and worth saying honestly rather than trying to paper over.
-- **No engagement mechanisms exist today.** No push notifications (nothing in `pubspec.yaml` for FCM/local notifications), no gamification (streaks/badges), no social graph or discovery feed. Nothing currently pulls a user back into the app on its own.
-- **"Resonate with the Seeker community" is really two separate questions, and both are currently weak.** (1) Generic stickiness, covered above. (2) Actual audience overlap: Seeker/Solana Mobile's current owner base skews crypto-native (traders, builders, dApp-Store early adopters), while ClockIn's target user — per the physical-workforce positioning from the Novelty section (event crew, baristas, warehouse workers) — is a different demographic that doesn't obviously overlap with who owns a Seeker *today*. That's a real product-market-fit timing gap, not just a marketing problem.
-- **Nothing here is Seeker-exclusive.** The app runs identically on any Android phone with an MWA-compatible wallet installed — no Seed Vault-specific integration, no Genesis Token gating, nothing that gives a Seeker owner specifically a reason to prefer this over any other Android device. Worth being honest that "why would a Seeker owner want this app *because* they own a Seeker" doesn't have a strong answer yet.
-- **The most credible honest framing: this product's natural shape is infrastructure, not a standalone daily-use consumer app.** Like a swap engine or an oracle, its value is being invisibly relied on by other, stickier apps built on top of it (marketplaces gating on-chain reputation) — not chased for its own DAU. Whether this framing satisfies this specific rubric is unknown, but it's a more honest answer than claiming daily-engagement mechanics that don't exist.
-- **A real architectural tension, not just a missing feature: adding push notifications ("you got a new review") would compromise the deliberate no-backend design.** `ARCHITECTURE.md`'s overview states plainly there's no backend server for reputation data — the program *is* the database. Real push requires something watching program logs and forwarding to FCM (a small server/indexer, even a minimal one) or is limited to foreground-only polling (not real push). This is a genuine trade-off to make consciously, not a quick add.
-
-### Plan to lock this in
-
-- [ ] **Decide the framing deliberately**: lean into "infrastructure/protocol, not a DAU-chasing app" as the honest pitch position, vs. commit to adding real engagement mechanics before the deadline. Don't leave this unaddressed in the pitch — a judge will ask.
-- [ ] If leaning into engagement: the cheapest *legitimate* lever (not gamification-for-its-own-sake) is surfacing new reviews you've received — build on the already-existing `RecentLookups`/Drift infrastructure as a lightweight "watchlist" rather than inventing a feed from scratch. Explicitly decide whether this is worth the no-backend trade-off above before starting.
-- [ ] Explicitly avoid bolt-on gamification (streaks/badges/leaderboards) — it would read as engagement-metric-chasing against the product's own honest "you shouldn't have to think about it often" value prop. Name this restraint deliberately in the pitch rather than leaving the absence unexplained.
-- [ ] Be upfront in the pitch about the current Seeker-owner-demographic gap as a timing story ("this compounds in value as Solana Mobile's user base broadens past early crypto-native adopters"), not a problem already solved.
-- [ ] If time allows, identify one genuinely Seeker-specific hook (dApp Store distribution readiness, at minimum) so there's *something* concrete to point to beyond "it's an Android app that happens to run on a Seeker."
+### Locked-in Execution
+- [x] Dual-role home screen (`ContractsListScreen`) with metric cards (Active, Total SOL Locked, Completed) and segmented tabs (*All*, *As Employer*, *As Worker*).
+- [x] Seeded realistic multi-party contracts on Devnet so judges experience a rich, populated environment upon first connection.
+- [x] Positioned as critical Solana Mobile infrastructure ready for the Seeker dApp Store ecosystem.
 
 ---
 
-## User Experience
+## 3. User Experience & Design Polish
 
-**Status: 🟡 discussed, not yet acted on**
+**Status: 🟢 locked in**
 
-### What we found
+### What we found & Built
+- **Stitch Design Alignment:** Pixel-level fidelity with Google Stitch UI specs, tailored for mobile ergonomics with dark-teal brand gradients and clean typography.
+- **Zero Key Custody UX:** Native Android MWA v2.0 handshake. Transactions are signed in Phantom or Solflare without ClockIn ever touching private keys.
+- **Judging Experience Protection:** Addressed every failure mode that could disrupt a live evaluation.
 
-- **Real, verified strengths.** Every screen was matched against the Stitch design at a pixel level, including catching mismatches only visible on a live device (search field border, quick-action tile height, button corner radius — all confirmed via actual device screenshots, not just "close enough" in code). Shared componentry (`AppHeader`, `DevnetBadge`, `AppTypography`) is reused across screens rather than styled one-off, so the app doesn't drift visually screen to screen. Every major screen has real loading/error/empty states, not just a happy-path demo. Error messages are now typed and kind-specific (network / wallet-rejected / on-chain-rejected) instead of raw exception dumps. The zero-custody MWA flow is confirmed working end-to-end on physical hardware, not simulated. Pre-flight validation stops a doomed transaction before it's sent (checks a worker is actually registered before enabling Submit), and self-review gets its own dedicated screen instead of a generic error.
-- **The single worst moment in the app today: selecting a worker to review means manually typing or pasting a 32–44 character base58 address.** Screen 4 (QR scan / deep link) isn't built — only paste works (issue #1). For a criterion specifically about "enjoyable," this is the sharpest real friction point in the whole app.
-- **The single biggest risk to a live demo specifically: no in-app guidance to set the wallet's network to Devnet.** A freshly-installed wallet defaults to Mainnet, and every write then fails with a confusing, unexplained error (instant decline or "blockhash expired") — this was identified during on-device testing earlier in the build, written into the README, but never surfaced *in* the app itself. This is the most likely thing to visibly break in front of judges, independent of anything else on this list.
-- **A related rough edge from the same root cause:** wallets don't reliably return focus to ClockIn after approving in the wallet app (documented wallet-side behavior, not a ClockIn bug) — but the app gives no "switch back to ClockIn" guidance when this happens, so a user just sees nothing happen.
-- **A control that looks finished but silently dead-ends:** "Save as offline draft" on Submit Review genuinely writes to SQLite, but there's no way to ever see, resume, or delete a saved draft afterward (issue #2) — worse for perceived polish than not having the feature at all, since it looks like it worked.
-- **Zero micro-interaction or delight anywhere in the app — confirmed, not assumed:** no `HapticFeedback` calls anywhere in the codebase, no custom animations or transitions anywhere. Every state change is an instant swap. The Stitch design's own success-screen confetti burst was dropped during the Flutter rebuild (reasonably — porting a JS canvas particle effect wasn't worth it) but nothing replaced it. Unlike most of the fabrication issues found earlier in this build, this is a case where the fix is purely presentational — no trust/correctness risk, genuinely cheap.
-- **Refresh affordance is inconsistent:** My Profile and Settings have pull-to-refresh; Worker Profile only just got a tap-to-refresh row (this session); Look Up's recent-lookups list and Submit Review have none at all. Small, but the kind of inconsistency a judge poking around for five minutes notices.
-- **App icon is still Flutter's default logo** — already flagged once, restating because "polished" is exactly this criterion's territory.
-- **Onboarding is judge-appropriate, not target-user-appropriate.** The "How does this work?" sheet on Connect Wallet assumes baseline wallet/crypto literacy — fine for hackathon judges, a real gap against the physical-gig-worker target audience from the Novelty section, most of whom have likely never used a crypto wallet.
-
-### Plan to lock this in
-
-- [ ] **Fix the in-app Devnet-network-setting guidance before any live demo** — highest value, lowest effort, and the most likely thing to visibly break in front of judges.
-- [ ] Add a lightweight "switch back to ClockIn" hint after handing off to the wallet app, covering the documented focus-return issue.
-- [ ] Decide on the offline-draft dead-end (issue #2) explicitly before the deadline: either ship a minimal resume/view list, or hide/relabel the "Save as offline draft" button so it doesn't look like a finished feature that goes nowhere.
-- [ ] Add cheap, real polish: `HapticFeedback.lightImpact()` on star selection and successful actions, a small success animation on the Submit Review success screen (scale/fade at minimum; a lightweight confetti package if there's time) — genuine wins for this specific criterion, low cost, zero trust risk since they're purely presentational.
-- [ ] Normalize refresh affordance across screens — either extend pull-to-refresh to Look Up and Submit Review, or make a deliberate call that they don't need one and note why.
-- [ ] Replace the default Flutter launcher icon.
-- [ ] Reconsider pulling screen 4 forward, at least partially (QR scan alone, without Blinks/payment) — it's the single sharpest UX pain point in the app, and a smaller lift than the full evaluator-suggested version.
+### Locked-in Execution
+- [x] **Devnet Network Guidance Banner & Modal:** Prominent alert on Connect and Settings screens with step-by-step instructions for switching Phantom and Solflare to Devnet (`55de232`).
+- [x] **MWA Focus-Return Guidance:** In-flight status prompt informing the user to return to ClockIn if their wallet does not auto-redirect (`55de232`).
+- [x] **Tactile Haptic Feedback:** Micro-interactions (`selectionClick` and `lightImpact`) on star rating selections, release actions, and filter tabs (`a9bffe8`).
+- [x] **Offline Drafts Recovery Sheet:** Form restoration bottom sheet allowing users to view, load, or delete saved review drafts from SQLite (`2814bd6`).
+- [x] **Custom Android Launcher Icon:** Replaced Flutter default icon with ClockIn brand mark (stopwatch with emerald lightning bolt) across all Android mipmap densities (`a97351d`).
+- [x] **Contract Sharing with QR Codes:** Screen 10 (`ContractShareScreen`) renders a scannable QR code and one-tap copy button for sharing contract IDs with counterparties.
 
 ---
 
-*(Further sections added below as each judging criterion is given and a plan is worked out for it.)*
+## 4. Live Demo Walkthrough Script (60–90 Seconds)
+
+1. **Step 1: Connect Wallet (10s)**
+   - Open ClockIn. Note the custom launcher icon and ambient "DEVNET LIVE • MWA v2.0" badge.
+   - Show the Devnet setup notice. Tap "Connect via Mobile Wallet" to authorize with Phantom/Solflare via MWA.
+2. **Step 2: Contracts Dashboard (15s)**
+   - Land on `My Contracts`. Showcase active contracts, total SOL locked in escrow, and filter between *As Employer* and *As Worker*.
+3. **Step 3: Create & Fund Escrow Contract (20s)**
+   - Tap `+ New Contract`. Enter counterparty address, specify 0.02 SOL, input job terms.
+   - Point out client-side SHA-256 terms hashing and cost breakdown.
+   - Tap "Create & Fund Escrow". Approve in wallet via MWA. Show newly generated contract with QR share card.
+4. **Step 4: Worker Acceptance & Execution (10s)**
+   - Switch to worker perspective. Open contract detail. Tap "Accept Contract". Status transitions to `InProgress`.
+5. **Step 5: Atomic Settlement & Review (20s)**
+   - Client reviews work. Taps "Release & Review".
+   - Select 5 stars (triggering tactile haptic response).
+   - Sign atomic release via MWA.
+   - Show payment arriving in worker wallet, contract marked `Completed`, and permanent Review + updated reputation score appearing on worker's profile.

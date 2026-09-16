@@ -1,59 +1,153 @@
-# Program Spec — Reputation Program (Anchor)
+# Program Spec — P2P Work Contract & Escrow Protocol (Anchor)
 
-This is a spec and reference skeleton, not copy-paste-final code — same caveat StellarRep's version had. It's written against a current Anchor version, but exact macro/constraint behavior shifts across Anchor releases; cross-check against the current [Anchor docs](https://www.anchor-lang.com/docs) during Phase 1–2 rather than trusting this file blindly. See `CLAUDE.md`'s ground rules on not hardcoding versions.
+**Program ID:** `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9`  
+**Anchor Version:** 1.2.0  
+**Solana SBF:** Cargo build-sbf (arch v1)  
+**Cluster:** Solana Devnet (`https://api.devnet.solana.com`)  
 
-## Account model
+---
 
-Solana's account-based storage doesn't map 1:1 onto Soroban's key-value `DataKey` enum — this section documents the actual design decisions made translating StellarRep's model, not just a mechanical port.
+## 1. Account Architecture & PDA Seed Derivations
 
-**Decision: no on-chain review-index list.** StellarRep's Soroban version needed a `DataKey::ReviewIds(Address) -> Vec<Symbol>` just to support pagination, because Soroban has no way to query storage by anything other than an exact key. Solana's RPC has `getProgramAccounts` with `memcmp` filters — the client can ask "give me every `Review` account whose `worker` field matches this pubkey" directly, no index structure needed on-chain. This avoids the unbounded-growth-vector problem entirely rather than working around it, and is a genuine simplification, not just a different flavor of the same design.
+The ClockIn program manages 5 distinct accounts across reputation and escrow layers:
+
+```mermaid
+erDiagram
+    WorkerProfile {
+        Pubkey worker
+        u32 total_jobs
+        u64 rating_sum
+        i64 created_at
+        u8 bump
+    }
+    Review {
+        Pubkey worker
+        Pubkey reviewer
+        String job_id
+        u8 rating
+        i64 timestamp
+        u8 bump
+    }
+    EscrowContract {
+        String contract_id
+        Pubkey employer
+        Pubkey worker
+        u64 amount
+        terms_hash bytes32
+        ContractStatus status
+        i64 deadline
+        i64 created_at
+        i64 funded_at
+        i64 completed_at
+        u8 rating
+        u8 bump
+        u8 vault_bump
+    }
+    EscrowVault {
+        u8 bump
+    }
+
+    WorkerProfile ||--o{ Review : receives
+    EscrowContract ||--|| EscrowVault : holds_lamports
+    EscrowContract ||--|| Review : settles_with
+```
+
+### 1.1 WorkerProfile PDA
+- **PDA Seeds:** `[b"worker", worker.key().as_ref()]`
+- **Purpose:** Stores aggregate reputation score and job count for a worker address.
+- **Space:** `8 (discriminator) + 32 (worker) + 4 (total_jobs) + 8 (rating_sum) + 8 (created_at) + 1 (bump) = 61 bytes`
+
+### 1.2 Review PDA
+- **PDA Seeds:** `[b"review", worker.key().as_ref(), job_id.as_bytes()]`
+- **Purpose:** Individual signed review with a 1–5 star rating. Existence of this PDA blocks duplicate reviews for the same job.
+- **Max Job ID Length:** 32 bytes (`MAX_JOB_ID_LEN`)
+- **Space:** `8 + 32 (worker) + 32 (reviewer) + (4 + 32) (job_id) + 1 (rating) + 8 (timestamp) + 1 (bump) = 118 bytes`
+
+### 1.3 EscrowContract PDA
+- **PDA Seeds:** `[b"escrow", contract_id.as_bytes()]`
+- **Purpose:** Manages the full lifecycle state, terms hash, and parties of a P2P contract.
+- **Max Contract ID Length:** 32 bytes (`MAX_CONTRACT_ID_LEN`)
+- **Space:** `8 + (4 + 32) (contract_id) + 32 (employer) + 32 (worker) + 8 (amount) + 32 (terms_hash) + 1 (status enum) + 8 (deadline) + 8 (created_at) + 8 (funded_at) + 8 (completed_at) + 1 (rating) + 1 (bump) + 1 (vault_bump) = 186 bytes`
+
+### 1.4 EscrowVault PDA
+- **PDA Seeds:** `[b"vault", contract_id.as_bytes()]`
+- **Purpose:** System-owned programmatic vault holding locked contract lamports. Controlled purely by program authority via CPI and PDA seeds.
+- **Space:** `8 (discriminator) + 1 (bump) = 9 bytes`
+
+---
+
+## 2. Contract Lifecycle States
 
 ```rust
-use anchor_lang::prelude::*;
-
-/// PDA seeds: [b"worker", worker.key().as_ref()]
-/// One per worker; existence of this account is exactly "is this address registered."
-#[account]
-pub struct WorkerProfile {
-    pub worker: Pubkey,
-    pub total_jobs: u32,
-    pub rating_sum: u64,   // sum of all ratings; average = rating_sum / total_jobs
-    pub created_at: i64,   // Unix timestamp at registration (Clock sysvar)
-    pub bump: u8,
-}
-impl WorkerProfile {
-    // discriminator (8) + worker (32) + total_jobs (4) + rating_sum (8) + created_at (8) + bump (1)
-    pub const SPACE: usize = 8 + 32 + 4 + 8 + 8 + 1;
-}
-
-/// PDA seeds: [b"review", worker.key().as_ref(), job_id.as_bytes()]
-/// job_id length is bounded (see MAX_JOB_ID_LEN) since it's a PDA seed component —
-/// Solana caps total seed bytes per PDA (32 bytes per seed, 16 seeds max as of
-/// this writing; confirm current limits before assuming). This account's mere
-/// existence at this PDA is what blocks a duplicate review for the same
-/// (worker, job_id) — Anchor's `init` constraint fails if it already exists,
-/// no explicit "has this job_id been used" check needed.
-pub const MAX_JOB_ID_LEN: usize = 32;
-
-#[account]
-pub struct Review {
-    pub worker: Pubkey,
-    pub reviewer: Pubkey,
-    pub job_id: String,    // <= MAX_JOB_ID_LEN
-    pub rating: u8,        // 1-5
-    pub timestamp: i64,
-    pub bump: u8,
-}
-impl Review {
-    // discriminator (8) + worker (32) + reviewer (32) + job_id (4 len-prefix + MAX_JOB_ID_LEN)
-    // + rating (1) + timestamp (8) + bump (1)
-    pub const SPACE: usize = 8 + 32 + 32 + (4 + MAX_JOB_ID_LEN) + 1 + 8 + 1;
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+pub enum ContractStatus {
+    Created,    // Employer initialized contract specification without depositing
+    Funded,     // Employer deposited SOL into programmatic Vault PDA
+    InProgress, // Worker accepted contract terms; work is underway
+    Completed,  // Employer approved work; payment released & review written atomically
+    Disputed,   // Party flagged dispute; funds locked pending resolution
+    Cancelled,  // Employer cancelled prior to worker acceptance; funds refunded
 }
 ```
 
-**No rent-exemption/TTL concern the way Soroban had one.** Solana accounts are either rent-exempt (funded with enough lamports to be permanently exempt — the normal case, and what `init` with a correctly computed `space` gives you) or they get garbage-collected; there's no separate "extend the TTL periodically" maintenance call needed like Soroban's persistent-storage archival. Confirm the current rent-exemption minimum via `solana rent <space>` rather than assuming a number.
+---
 
-## Errors
+## 3. Protocol Instructions
+
+### 3.1 `register_worker`
+- **Signer:** `worker`
+- Initializes `WorkerProfile` PDA with `total_jobs = 0` and `rating_sum = 0`.
+
+### 3.2 `submit_review(job_id: String, rating: u8)`
+- **Signer:** `reviewer`
+- Enforces `rating` between 1 and 5, and `worker != reviewer`.
+- Creates `Review` PDA and updates `WorkerProfile` aggregates.
+
+### 3.3 `create_contract(contract_id, worker, amount, terms_hash, deadline)`
+- **Signer:** `employer`
+- Initializes `EscrowContract` PDA in `ContractStatus::Created` state.
+- Enforces `amount > 0`, `employer != worker`, and `contract_id.len() <= 32`.
+
+### 3.4 `fund_contract(contract_id)`
+- **Signer:** `employer`
+- Enforces contract is in `Created` state.
+- Transfers `amount` lamports from `employer` to `vault` PDA via System Program CPI.
+- Initializes `vault` PDA and updates status to `Funded`.
+
+### 3.5 `create_and_fund(contract_id, worker, amount, terms_hash, deadline)`
+- **Signer:** `employer`
+- Combined single-transaction convenience instruction.
+- Initializes `EscrowContract` directly in `Funded` state and deposits lamports into `vault` PDA via CPI.
+
+### 3.6 `accept_contract(contract_id)`
+- **Signer:** `worker`
+- Enforces contract is in `Funded` state and signer matches `contract.worker`.
+- Transitions contract status to `InProgress`.
+
+### 3.7 `release_and_review(contract_id, rating: u8)`
+- **Signer:** `employer`
+- **Core atomic settlement instruction:**
+  1. Enforces contract status is `InProgress` and signer is `employer`.
+  2. Enforces rating is between 1 and 5.
+  3. Transfers `amount` lamports from `vault` PDA directly to `worker`.
+  4. Creates `Review` PDA for the worker keyed to `contract_id`.
+  5. Increments `WorkerProfile.total_jobs` and adds `rating` to `rating_sum`.
+  6. Transitions contract status to `Completed`.
+
+### 3.8 `cancel_contract(contract_id)`
+- **Signer:** `employer`
+- Valid only when contract is `Created` or `Funded` (prior to worker acceptance).
+- If `Funded`, transfers all vault lamports back to `employer`.
+- Transitions contract status to `Cancelled`.
+
+### 3.9 `raise_dispute(contract_id)`
+- **Signer:** `employer` OR `worker`
+- Valid only when contract is in `InProgress` state.
+- Transitions contract status to `Disputed`.
+
+---
+
+## 4. Error Code Reference
 
 ```rust
 #[error_code]
@@ -68,117 +162,40 @@ pub enum ReputationError {
     DuplicateReview,
     #[msg("A worker cannot review themself.")]
     SelfReview,
-    #[msg("job_id is too long.")]
+    #[msg("job_id exceeds maximum length of 32 bytes.")]
     JobIdTooLong,
+    #[msg("contract_id exceeds maximum length of 32 bytes.")]
+    ContractIdTooLong,
+    #[msg("Escrow amount must be greater than zero.")]
+    ZeroAmount,
+    #[msg("Contract cannot be created with oneself.")]
+    SelfContract,
+    #[msg("Deadline must be in the future.")]
+    InvalidDeadline,
+    #[msg("Contract is in an invalid status for this operation.")]
+    InvalidContractStatus,
+    #[msg("Only the designated employer can perform this action.")]
+    NotEmployer,
+    #[msg("Only the designated worker can perform this action.")]
+    NotWorker,
+    #[msg("Worker account does not match contract specification.")]
+    WorkerMismatch,
+    #[msg("Arithmetic overflow.")]
+    Overflow,
 }
 ```
 
-Unlike Soroban's `#[contracterror]` (a plain numeric-discriminant enum the client decodes from a diagnostic string — see StellarRep's `ReputationService.run(_:)` for how awkward that ended up being), Anchor's `#[error_code]` errors arrive at the client as structured, decodable program errors via the RPC simulation/transaction response. Confirm the exact client-side decoding path (`solana` Dart package's error handling) during Phase 5 rather than assuming it's as awkward as the Soroban case was.
+---
 
-## Instructions
+## 5. Test Harness & Coverage
 
-```rust
-use anchor_lang::prelude::*;
-
-declare_id!("FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9"); // program keypair at program/reputation-keypair.json (gitignored, devnet only). This ID is claimed at first deploy; regenerate the keypair + update this if it's ever lost.
-
-#[program]
-pub mod reputation {
-    use super::*;
-
-    /// Worker registers themself. Signed by `worker` (Anchor's `init` +
-    /// `Signer` constraint on the worker account enforces this — there's no
-    /// separate `require_auth()` call the way Soroban needed).
-    pub fn register_worker(ctx: Context<RegisterWorker>) -> Result<()> {
-        let profile = &mut ctx.accounts.worker_profile;
-        profile.worker = ctx.accounts.worker.key();
-        profile.total_jobs = 0;
-        profile.rating_sum = 0;
-        profile.created_at = Clock::get()?.unix_timestamp;
-        profile.bump = ctx.bumps.worker_profile;
-        Ok(())
-    }
-
-    /// Reviewer submits a review for a worker's completed job. Signed by
-    /// `reviewer`, NOT `worker` — mirrors StellarRep's sybil-resistance
-    /// anchor exactly.
-    pub fn submit_review(ctx: Context<SubmitReview>, job_id: String, rating: u8) -> Result<()> {
-        require!(job_id.len() <= MAX_JOB_ID_LEN, ReputationError::JobIdTooLong);
-        require!(rating >= 1 && rating <= 5, ReputationError::InvalidRating);
-        require!(
-            ctx.accounts.worker_profile.worker != ctx.accounts.reviewer.key(),
-            ReputationError::SelfReview
-        );
-        // Duplicate-review protection is structural, not a manual check: the
-        // `review` account's `init` constraint (seeded off worker + job_id)
-        // already fails the whole instruction if this exact PDA exists.
-
-        let review = &mut ctx.accounts.review;
-        review.worker = ctx.accounts.worker_profile.worker;
-        review.reviewer = ctx.accounts.reviewer.key();
-        review.job_id = job_id;
-        review.rating = rating;
-        review.timestamp = Clock::get()?.unix_timestamp;
-        review.bump = ctx.bumps.review;
-
-        let profile = &mut ctx.accounts.worker_profile;
-        profile.total_jobs += 1;
-        profile.rating_sum += rating as u64;
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct RegisterWorker<'info> {
-    #[account(mut)]
-    pub worker: Signer<'info>,
-    #[account(
-        init,
-        payer = worker,
-        space = WorkerProfile::SPACE,
-        seeds = [b"worker", worker.key().as_ref()],
-        bump,
-    )]
-    pub worker_profile: Account<'info, WorkerProfile>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(job_id: String)]
-pub struct SubmitReview<'info> {
-    #[account(mut)]
-    pub reviewer: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [b"worker", worker_profile.worker.as_ref()],
-        bump = worker_profile.bump,
-    )]
-    pub worker_profile: Account<'info, WorkerProfile>,
-    #[account(
-        init,
-        payer = reviewer,
-        space = Review::SPACE,
-        seeds = [b"review", worker_profile.worker.as_ref(), job_id.as_bytes()],
-        bump,
-    )]
-    pub review: Account<'info, Review>,
-    pub system_program: Program<'info, System>,
-}
-```
-
-**Note what's missing on purpose:** no `get_reputation`/`get_reviews` instructions. Reads happen client-side via plain RPC account fetches (`getAccountInfo` for a known worker PDA, `getProgramAccounts` with a `memcmp` filter on the `worker` field for that worker's reviews) — no transaction, no fee, no instruction needed, same "reads are free and simulate-only" spirit as the Soroban version but achieved through Solana's native account-query RPCs rather than a dedicated read function. Confirm the exact `memcmp` offset (past the 8-byte Anchor discriminator, then whatever precedes the `worker` field in `Review`'s layout) against the actual compiled IDL during Phase 5, not by hand-counting bytes from this doc.
-
-## Testing plan
-
-Every failure path needs a test that actually triggers it:
-
-- `register_worker` succeeds on first call
-- `register_worker` fails on a second call for the same worker (Anchor's `init` constraint rejects re-initializing an existing PDA — confirm the actual error kind Anchor surfaces here, e.g. account-already-in-use, rather than assuming it maps to a custom error)
-- `submit_review` succeeds and correctly updates `total_jobs`/`rating_sum`
-- `submit_review` fails if the worker was never registered (the `worker_profile` account fetch/seeds constraint should fail — confirm whether this surfaces as an Anchor account-not-found error or needs an explicit check)
-- `submit_review` fails with `SelfReview` if `reviewer == worker_profile.worker`
-- `submit_review` fails with `InvalidRating` for 0 and for 6
-- `submit_review` fails (structurally, via the `review` PDA's `init` constraint) for a repeated `(worker, job_id)`
-- `submit_review` fails if not actually signed by the claimed reviewer (Anchor's `Signer<'info>` type should make an unsigned reviewer impossible to construct a valid transaction with — confirm this holds via a test that tries anyway, not just by trusting the type system, mirroring how StellarRep explicitly tested `require_auth` rather than assuming it worked because it compiled)
-
-**Test harness: `anchor test` (TypeScript), decided.** The Rust-native options were tried first — `litesvm` and `solana-program-test` both hit unresolvable dependency conflicts against the Solana 4.x split crates `anchor-lang` 1.2 pulls (`solana-inflation` 3.1.1 vs 3.2.0, `solana-short-vec`). Rather than fight crate resolution, tests go through `anchor test`: a local validator plus a `@coral-xyz/anchor` TS client, keeping no Solana test framework in the program's own `Cargo.toml`. See `docs/ARCHITECTURE.md`'s "Build & test toolchain" section for the full context and the `Anchor.toml` prerequisite (the program was hand-scaffolded, so one has to be added before `anchor test` has a workspace to run in). Deploy the devnet artifact separately in Phase 3 with `anchor deploy` (or `solana program deploy target/deploy/reputation.so` if the Anchor CLI is still Anchor.toml-blocked at that point).
+Test suite executed with Anchor integration test harness (`npx ts-mocha` against local validator):
+- **22 passing test cases**:
+  - Worker self-registration and duplicate rejection
+  - Submit review, self-review block, rating validation (1–5)
+  - Lifecycle 1: Two-step create (`create_contract`) → fund (`fund_contract`)
+  - Lifecycle 2: Single-step `create_and_fund` → `accept_contract` → atomic `release_and_review`
+  - Lifecycle 3: Dispute flow on `InProgress` contract
+  - Lifecycle 4: Cancellation and refund of `Funded` contract
+  - Unauthorized signer rejection (non-employer, non-worker)
+  - Balance verification after vault disbursement

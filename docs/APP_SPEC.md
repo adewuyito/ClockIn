@@ -1,102 +1,117 @@
-# App Spec — Flutter (Android-first)
+# App Spec — Flutter (Android-First Mobile Client)
 
-This is a spec and reference skeleton for what the app should become, not a retrospective of what's built — only the Drift schema exists so far (see `CLAUDE.md`'s Current status). Written the way StellarRep's *original* `APP_SPEC.md` was before any phase touched it: several real decisions below are deliberately left open for whichever phase actually gets there, rather than pre-decided here.
+**Platform:** Android (Primary, Mobile Wallet Adapter target)  
+**Framework:** Flutter 3.29.x / Dart 3.7.x  
+**State Management:** Riverpod 2.6.1 (`flutter_riverpod`)  
+**Local Database:** Drift 2.34.4 (SQLite offline-first reactive cache)  
+**Wallet Integration:** Solana Mobile Wallet Adapter (MWA) v2.0 (`solana_mobile_client`)  
 
-## Dependency setup
+---
 
-Already in `app/pubspec.yaml` as of the fork:
-
-```yaml
-dependencies:
-  drift: ^2.34.4
-  drift_flutter: ^0.3.1
-  solana: ^0.31.2+1
-  solana_mobile_client: ^0.1.2
-
-dev_dependencies:
-  drift_dev: ^2.34.5
-  build_runner: ^2.4.15
-```
-
-These were current as of the fork — confirm against [pub.dev](https://pub.dev) before adding anything new or bumping a version; this ecosystem (especially `solana_mobile_client`, a thinner/newer package than the Stellar SDK StellarRep depended on) moves fast and has fewer users to catch breakage early.
-
-- [`solana`](https://pub.dev/packages/solana) — RPC client, transaction building, keypair/pubkey types. Route all Solana RPC calls through this; don't hand-roll JSON-RPC.
-- [`solana_mobile_client`](https://pub.dev/packages/solana_mobile_client) — Mobile Wallet Adapter. This is the actual mechanism for wallet connection and every signature; see `docs/ARCHITECTURE.md`'s security model. **This package is Android-only** — confirm its current platform support before assuming any codepath through it works on iOS/other platforms Flutter also scaffolds.
-- `drift`/`drift_flutter` — local SQLite-backed cache; schema in `app/lib/core/database/app_database.dart`.
-
-## Folder structure
-
-No decision recorded yet on the internal `lib/` layout beyond what exists (`lib/core/database/`). Suggested shape, following StellarRep's Core/Features split (adapt as it turns out to fit Flutter/Dart conventions better than a mechanical port):
+## 1. Directory Structure
 
 ```
 app/
-├── pubspec.yaml
 ├── lib/
-│   ├── main.dart
+│   ├── main.dart                      # Shell, Riverpod ProviderScope, NavigationBar router
 │   ├── core/
 │   │   ├── database/
-│   │   │   ├── app_database.dart      ← Drift schema: WorkerProfiles, Reviews, DraftReviews (exists)
-│   │   │   └── app_database.g.dart    ← generated, not hand-edited
+│   │   │   ├── app_database.dart      # Drift schema: WorkerProfiles, Reviews, DraftReviews, RecentLookups, EscrowContracts
+│   │   │   ├── contract_repository.dart    # High-level reactive repository for Escrow Contracts
+│   │   │   └── reputation_repository.dart  # High-level reactive repository for Profiles & Reviews
+│   │   ├── models/
+│   │   │   ├── escrow_contract.dart   # Domain model with ContractStatus and role helpers
+│   │   │   ├── worker_profile.dart    # Domain model for worker aggregate stats
+│   │   │   └── review.dart            # Domain model for on-chain review records
+│   │   ├── providers/
+│   │   │   └── app_providers.dart     # Riverpod providers streaming wallet state, contracts, & cache
 │   │   ├── solana/
-│   │   │   ├── network_config.dart     ← devnet RPC URL, program ID — single source of truth, nothing hardcoded elsewhere
-│   │   │   ├── wallet_adapter.dart     ← thin wrapper around solana_mobile_client's connect/sign calls
-│   │   │   └── reputation_service.dart ← see Service layer below
-│   │   └── models/
-│   │       ├── worker_profile.dart     ← app-facing model, mirrors the on-chain WorkerProfile account
-│   │       └── review.dart
+│   │   │   ├── network_config.dart    # RPC URL (Devnet) & Program ID (Single Source of Truth)
+│   │   │   ├── wallet_adapter.dart    # MWA connection, session management, and transaction signing
+│   │   │   ├── contract_service.dart  # Anchor instruction builder & deserializer for Escrow
+│   │   │   ├── reputation_service.dart# Anchor instruction builder for Reputation
+│   │   │   └── reputation_errors.dart # Typed error parsing & UI classification
+│   │   ├── theme/
+│   │   │   ├── app_colors.dart        # Stitch-aligned design tokens (Light Fintech palette)
+│   │   │   └── app_theme.dart         # Material 3 typography and component styling
+│   │   └── widgets/
+│   │       ├── app_header.dart        # Reusable app bar with address chip & disconnect menu
+│   │       ├── devnet_badge.dart      # Ambient devnet status indicator
+│   │       └── devnet_setup_sheet.dart# Bottom sheet guide for Phantom & Solflare network configuration
 │   └── features/
-│       ├── wallet_connect/             ← MWA connection flow — the app's actual entry point (no Keychain-style create/import; connecting IS onboarding)
-│       ├── registration/               ← register_worker
-│       ├── profile/                    ← look up any address
-│       └── submit_review/
-├── android/                            ← the platform that actually matters for this hackathon
-└── test/
+│       ├── contracts/                 # Escrow feature module
+│       │   ├── contracts_list_screen.dart   # Screen 7: Segmented list & metric cards
+│       │   ├── create_contract_screen.dart  # Screen 8: Contract creation form & preview
+│       │   ├── contract_detail_screen.dart  # Screen 9: Full state timeline & role actions
+│       │   ├── contract_share_screen.dart   # Screen 10: Contract ID QR sharing
+│       │   └── release_and_review_modal.dart# Screen 11: Atomic settlement modal
+│       ├── profile/
+│       │   ├── my_profile_screen.dart       # Screen 2: User reputation & contract summary
+│       │   ├── worker_profile_screen.dart   # Screen 3b: Counterparty profile detail
+│       │   └── lookup_screen.dart           # Screen 3: Base58 address search & recent lookups
+│       ├── reviews/
+│       │   └── submit_review_screen.dart    # Screen 5: Review authoring with offline drafts sheet
+│       ├── settings/
+│       │   └── settings_screen.dart         # Screen 6: Network diagnostics & security architecture
+│       └── wallet_connect/
+│           └── connect_wallet_screen.dart   # Screen 1: Zero-custody MWA authorization
 ```
 
-## Service layer
+---
 
-Design, not yet built. Same shape as StellarRep's `ReputationServiceProtocol`, adapted:
+## 2. Navigation & User Flows
 
-```dart
-abstract class ReputationService {
-  Future<void> registerWorker({required Ed25519HDPublicKey worker});
-  Future<void> submitReview({
-    required Ed25519HDPublicKey worker,
-    required Ed25519HDPublicKey reviewer,
-    required String jobId,
-    required int rating,
-  });
-  Future<WorkerProfile?> getReputation({required Ed25519HDPublicKey worker});
-  Future<List<Review>> getReviews({required Ed25519HDPublicKey worker});
-}
+The main application shell (`main.dart`) hosts a Material 3 `NavigationBar` with 5 primary destinations:
+
+```
+[Contracts] (Home)  |  [My Profile]  |  [Look Up]  |  [Submit Review]  |  [Settings]
 ```
 
-Key differences from StellarRep's version, not just a mechanical rename:
+### 2.1 Contracts Flow (Screen 7, 8, 9, 10, 11)
+- **`ContractsListScreen`**: Summarizes active contracts count, total SOL locked in vault, and completed contracts. Filter tabs: *All*, *As Employer*, *As Worker*.
+- **`CreateContractScreen`**: Client enters worker public key (with live address validation), escrow amount in SOL, terms text (hashed client-side via SHA-256 into `terms_hash`), and optional deadline. Signs via MWA to invoke `create_and_fund`.
+- **`ContractShareScreen`**: Displays contract ID with QR code rendering and quick copy action for counterparty sharing.
+- **`ContractDetailScreen`**: Displays contract status timeline and renders contextual action buttons based on user role and state:
+  - Employer on `Funded`: Cancel
+  - Worker on `Funded`: Accept Contract
+  - Employer on `InProgress`: Release & Rate (opens `ReleaseAndReviewModal`) OR Raise Dispute
+  - Worker on `InProgress`: Raise Dispute
+- **`ReleaseAndReviewModal`**: Employer selects 1–5 star rating with tactile haptic feedback. Submits atomic settlement transaction via MWA.
 
-- **No `as reader` parameter on reads.** Unlike Soroban (where even a read needed a fee-paying `KeyPair` to build a simulated transaction envelope), Solana account reads are plain RPC calls (`getAccountInfo`/`getProgramAccounts`) — no signer, no transaction, no fee. See `docs/PROGRAM_SPEC.md`'s note on why there are no `get_reputation`/`get_reviews` instructions at all.
-- **Signing goes through Mobile Wallet Adapter, not a held keypair.** `registerWorker`/`submitReview` don't take a `KeyPair` the way StellarRep's did — they need whatever `solana_mobile_client`'s authorize/sign-and-send flow actually requires (an active MWA session, most likely). Design this against the real package API once Phase 4 (Mobile Wallet Adapter Integration) actually happens, rather than guessing the shape here.
-- **Error handling: confirm before assuming.** StellarRep found the hard way that `stellarsdk` had no structured type for a contract's own rejection — it surfaced as a diagnostic string that had to be regex-parsed. Anchor's `#[error_code]` errors are *supposed* to arrive structured (see `docs/PROGRAM_SPEC.md`'s Errors section) — verify this actually holds through the `solana` Dart package's error types during Phase 5, don't assume it's clean just because the Rust side is nicer than Soroban's was.
+### 2.2 Offline Drafts Flow (Screen 5)
+- **`SubmitReviewScreen`**: If network is unavailable or user authoring is interrupted, tapping "Save as offline draft" persists the review in Drift SQLite.
+- A "Drafts (N)" pill button opens the drafts modal, allowing the user to resume editing or delete saved drafts.
+- On confirmed on-chain settlement, the associated draft is automatically removed from SQLite.
 
-**Pending/failed state pattern — port the concept, not the code.** StellarRep's `ContractCallState<Success>` (`.idle`/`.pending`/`.succeeded`/`.failed`) is a good pattern regardless of language: whatever Flutter state-management approach gets picked (see below) should have an equivalent so pending and failed are never collapsed into one loading spinner — same principle, e.g. a Dart sealed class or enum with associated data.
+### 2.3 Wallet Connection & Network Safety Flow (Screen 1 & 6)
+- **`ConnectWalletScreen`**: Initiates MWA session with installed wallet. Displays prominent Devnet guidance notice with one-tap link to `DevnetSetupSheet`.
+- While connecting, displays an active MWA handoff prompt advising the user to switch back to ClockIn after approving in Phantom or Solflare.
 
-## Screens
+---
 
-1. **Wallet Connect** — the app's actual entry point; there's no create/import flow the way StellarRep had, since Mobile Wallet Adapter means every wallet already exists in a separate app the user installed themselves. Connecting a wallet via MWA *is* onboarding. Handle "no compatible wallet app installed" as a distinct, actionable state (link to install one), not a generic error.
-2. **Profile / Look Up** — search by any address; shows aggregate rating, job count, review list. Looking up an unregistered address should be a distinct state offering registration (if it's your own connected wallet's address) — same principle as StellarRep's `ProfileViewModel.isNotRegistered`, not yet built here.
-3. **Submit Review** — the reviewer-side flow. **Handoff mechanism: not yet decided.** StellarRep settled on manual paste for MVP speed; worth deliberately revisiting here rather than defaulting to the same choice — Android + a same-device-class hackathon audience makes both a QR scan (`camera`/`mobile_scanner` packages) and an `Intent`-based deep link more natural than they were on iOS, and either could be a real differentiator for judges since "mobile-native handoff" is squarely in this hackathon's theme. Decide explicitly in whichever phase reaches this, and record the choice + reasoning here.
-4. **Settings** — a persistent, hard-to-miss network indicator (must read "Devnet" throughout the hackathon build — this should not be a small label a judge could miss, especially since the whole point of MWA is that *this app itself* never shows key material, so the network indicator is one of the few trust signals left for the user to check).
+## 3. Drift Local SQLite Schema
 
-## State management
+Defined in `app_database.dart`:
+- **`WorkerProfiles`**: Caches on-chain worker stats (`worker`, `totalJobs`, `ratingSum`, `syncedAt`).
+- **`Reviews`**: Caches individual review records (`worker`, `reviewer`, `jobId`, `rating`, `timestamp`).
+- **`DraftReviews`**: Offline-first drafts (`id`, `workerAddress`, `jobId`, `rating`, `notes`, `createdAt`, `status`).
+- **`RecentLookups`**: Recency pointer table for recently searched worker addresses.
+- **`EscrowContracts`**: Local mirror of on-chain escrow contracts (`contractId`, `employer`, `worker`, `amountLamports`, `status`, `deadline`, `createdAt`, `fundedAt`, `completedAt`, `rating`, `syncedAt`).
 
-**Not yet decided.** StellarRep locked in `ObservableObject`/`@Published` early (Phase 4) with reasoning recorded here once made; do the same for Flutter rather than defaulting silently. Real options, roughly StellarRep-equivalent in spirit:
-- Plain `ChangeNotifier`/`ValueNotifier` + `provider` — minimal, matches StellarRep's "don't add a dependency you don't need" instinct.
-- `riverpod` — more structure, better testability for async state, heavier.
-- `flutter_bloc` — most ceremony, most explicit state-transition modeling (closest analog to `ContractCallState` as a first-class pattern).
+---
 
-Pick one, don't mix, and record the choice + reasoning here once a real ViewModel/controller gets built (the wallet-connect flow in Phase 4 is the natural first place this decision becomes unavoidable).
+## 4. State Management (Riverpod)
 
-## Testing approach
+- **`walletStateProvider`**: Notifier tracking MWA connection status, public key, account label, and errors.
+- **`myContractsProvider`**: `StreamProvider<List<EscrowContract>>` continuously streaming the user's contracts from the Drift cache with background RPC refresh.
+- **`contractDetailProvider(contractId)`**: Streams single contract state reactively.
+- **`draftReviewsProvider`**: `StreamProvider<List<DraftReview>>` streaming offline drafts.
+- **`workerProfileProvider(address)`**: Watches on-chain / cached profile for any base58 address.
+- **`networkDiagnosticsProvider`**: Periodically measures RPC latency, current epoch progress, and finalized slot.
 
-Same philosophy as StellarRep, adapted to Flutter's tooling:
-- **Fast, offline unit tests** for controllers/view-models against a mocked `ReputationService` — `flutter test`, no network, no device needed. The Drift schema already has tests (`app/test/`) in this spirit.
-- **A small number of real integration tests** against live devnet — `integration_test` package (Flutter's on-device/emulator integration test runner) is the natural fit here, since Mobile Wallet Adapter fundamentally can't be tested any other way (it requires a real wallet app installed, so it can't be mocked out at the unit-test level and still prove anything about the actual submission-worthy flow). Keep these clearly separated from the fast unit suite, same reasoning as StellarRep's `*IntegrationTests.swift` files being split from the mocked ones.
+---
+
+## 5. Verification & Testing Standards
+
+- **16 Unit & Widget Tests**: Tests Drift database CRUD operations, reactive provider streaming, PDA derivation utilities, and UI smoke tests without requiring an active device.
+- **`flutter analyze`**: Zero errors, zero warnings, enforced linting (`flutter_lints`).
