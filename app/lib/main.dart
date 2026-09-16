@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/providers/app_providers.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'features/contracts/contracts_list_screen.dart';
 import 'features/profile/my_profile_screen.dart';
 import 'features/reviews/submit_review_screen.dart';
 import 'features/search/lookup_worker_screen.dart';
@@ -57,10 +58,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     final wallet = ref.watch(walletStateProvider);
 
     final screens = [
-      // Tab 0: Profile / Connect
-      wallet.isConnected
-          ? const MyProfileScreen()
-          : const ConnectWalletScreen(),
+      // Tab 0: Contracts (P2P Escrow)
+      const ContractsListScreen(),
 
       // Tab 1: Look Up Worker
       LookupWorkerScreen(
@@ -72,7 +71,12 @@ class _AppShellState extends ConsumerState<AppShell> {
         initialWorkerAddress: _prefilledWorkerForReview,
       ),
 
-      // Tab 3: Settings & Devnet Info
+      // Tab 3: Profile / Connect
+      wallet.isConnected
+          ? const MyProfileScreen()
+          : const ConnectWalletScreen(),
+
+      // Tab 4: Settings & Devnet Info
       const SettingsScreen(),
     ];
 
@@ -91,10 +95,10 @@ class _AppShellState extends ConsumerState<AppShell> {
         backgroundColor: AppColors.surfaceContainerLowest,
         indicatorColor: AppColors.secondaryContainer.withValues(alpha: 0.5),
         destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline_rounded),
-            selectedIcon: const Icon(Icons.person_rounded, color: AppColors.primary),
-            label: wallet.isConnected ? 'My Profile' : 'Connect',
+          const NavigationDestination(
+            icon: Icon(Icons.handshake_outlined),
+            selectedIcon: Icon(Icons.handshake_rounded, color: AppColors.primary),
+            label: 'Contracts',
           ),
           const NavigationDestination(
             icon: Icon(Icons.search_rounded),
@@ -105,6 +109,11 @@ class _AppShellState extends ConsumerState<AppShell> {
             icon: Icon(Icons.rate_review_outlined),
             selectedIcon: Icon(Icons.rate_review_rounded, color: AppColors.primary),
             label: 'Review',
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.person_outline_rounded),
+            selectedIcon: const Icon(Icons.person_rounded, color: AppColors.primary),
+            label: wallet.isConnected ? 'Profile' : 'Connect',
           ),
           const NavigationDestination(
             icon: Icon(Icons.settings_outlined),

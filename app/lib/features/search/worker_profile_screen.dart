@@ -6,6 +6,7 @@ import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../contracts/create_contract_screen.dart';
 
 /// Screen 4a/4b: Worker Profile (Loaded / Not Registered) — pushed from
 /// the Look Up screen after a successful search, matching how Stitch
@@ -684,23 +685,55 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
         color: AppColors.surfaceContainerLowest,
         boxShadow: [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, -2))],
       ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: ElevatedButton.icon(
-          onPressed: () {
-            final onSelect = widget.onSelectWorkerForReview;
-            if (onSelect != null) {
-              Navigator.of(context).pop();
-              onSelect(widget.address);
-            }
-          },
-          icon: const Icon(Icons.rate_review_rounded, size: 20),
-          label: const Text('Leave a review'),
-          style: ElevatedButton.styleFrom(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: SizedBox(
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CreateContractScreen(
+                        initialWorkerAddress: widget.address,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.handshake_rounded, size: 20),
+                label: const Text('Create Contract'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryContainer,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: SizedBox(
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  final onSelect = widget.onSelectWorkerForReview;
+                  if (onSelect != null) {
+                    Navigator.of(context).pop();
+                    onSelect(widget.address);
+                  }
+                },
+                icon: const Icon(Icons.rate_review_rounded, size: 18),
+                label: const Text('Review'),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.outlineVariant),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
