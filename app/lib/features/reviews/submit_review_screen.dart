@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:solana/solana.dart';
+import '../../core/database/app_database.dart' hide WorkerProfile, Review, EscrowContract;
 import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/network_config.dart';
@@ -60,6 +61,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
   };
 
   int _rating = 5;
+  int? _activeDraftId;
   bool _isSubmitting = false;
   String? _txError;
   ReputationErrorKind? _txErrorKind;
@@ -202,6 +204,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
         jobId: jobId,
         rating: _rating,
         walletAdapter: adapter,
+        draftId: _activeDraftId,
       );
 
       setState(() {
@@ -209,6 +212,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
         _successWorkerAddress = workerAddress;
         _successJobId = jobId;
         _successRating = _rating;
+        _activeDraftId = null;
       });
     } catch (e) {
       final err = ReputationException.from(e);
@@ -238,12 +242,14 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
     }
 
     final repo = ref.read(reputationRepositoryProvider);
-    await repo.saveDraftReview(
+    final savedId = await repo.saveDraftReview(
+      id: _activeDraftId,
       workerAddress: workerAddress,
       jobId: jobId,
       rating: _rating,
       notes: notes.isNotEmpty ? notes : null,
     );
+    _activeDraftId = savedId;
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -306,6 +312,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
     final targetLookupResolved = targetProfileAsync?.hasValue ?? false;
     final targetNotRegistered =
         validAddress != null && targetLookupResolved && targetProfile == null;
+    final draftsAsync = ref.watch(draftReviewsProvider);
 
     final canSubmit = wallet.isConnected &&
         !_isSubmitting &&
@@ -327,12 +334,85 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Leave a review', style: AppTypography.headlineSm),
-            const SizedBox(height: 4),
-            Text(
-              'Rate a worker for a completed job. This is written on-chain and can\'t be edited afterward.',
-              style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Leave a review', style: AppTypography.headlineSm),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Rate a worker for a completed job. This is written on-chain and can\'t be edited afterward.',
+                        style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                draftsAsync.when(
+                  data: (drafts) => drafts.isNotEmpty
+                      ? ActionChip(
+                          avatar: const Icon(Icons.drafts_outlined, size: 16, color: AppColors.primary),
+                          label: Text(
+                            'Drafts (${drafts.length})',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                          ),
+                          backgroundColor: AppColors.surfaceContainerLow,
+                          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            _showDraftsSheet(context, drafts);
+                          },
+                        )
+                      : const SizedBox.shrink(),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
+                ),
+              ],
             ),
+            if (_activeDraftId != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.tertiaryContainer.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.tertiary.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.edit_note_rounded, size: 18, color: AppColors.tertiary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Editing loaded offline draft',
+                        style: AppTypography.labelMd.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _activeDraftId = null;
+                          _workerController.clear();
+                          _jobIdController.clear();
+                          _notesController.clear();
+                          _rating = 5;
+                        });
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Clear', style: TextStyle(color: AppColors.error, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
 
             // Worker address input
@@ -984,6 +1064,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
                     _successTxSignature = null;
                     _successWorkerAddress = null;
                     _successJobId = null;
+                    _activeDraftId = null;
                     _workerController.clear();
                     _jobIdController.clear();
                     _notesController.clear();
@@ -994,6 +1075,192 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showDraftsSheet(BuildContext context, List<DraftReview> drafts) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.drafts_rounded, size: 20, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text('Saved Offline Drafts', style: AppTypography.titleMd.copyWith(fontSize: 18)),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '${drafts.length} ${drafts.length == 1 ? 'draft' : 'drafts'}',
+                      style: AppTypography.labelSm.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Stored locally in SQLite via Drift. Tap a draft to resume editing or delete drafts you no longer need.',
+                style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: drafts.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final draft = drafts[index];
+                    final dateStr = DateFormat.yMMMd().add_jm().format(draft.createdAt);
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _activeDraftId == draft.id
+                              ? AppColors.primary
+                              : AppColors.surfaceContainerHighest,
+                        ),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        title: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '${draft.rating}',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Job: ${draft.jobId}',
+                                style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.w700),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              'Worker: ${draft.workerAddress.length > 16 ? '${draft.workerAddress.substring(0, 8)}…${draft.workerAddress.substring(draft.workerAddress.length - 6)}' : draft.workerAddress}',
+                              style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                            ),
+                            if (draft.notes?.trim().isNotEmpty == true) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '"${draft.notes!}"',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.bodySm.copyWith(fontStyle: FontStyle.italic, color: AppColors.outline),
+                              ),
+                            ],
+                            const SizedBox(height: 4),
+                            Text(
+                              dateStr,
+                              style: AppTypography.labelSm.copyWith(color: AppColors.outline, fontSize: 10),
+                            ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Delete draft',
+                              icon: const Icon(Icons.delete_outline_rounded, size: 20, color: AppColors.error),
+                              onPressed: () async {
+                                HapticFeedback.selectionClick();
+                                await ref.read(reputationRepositoryProvider).deleteDraftReview(draft.id);
+                                if (_activeDraftId == draft.id) {
+                                  setState(() => _activeDraftId = null);
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  _activeDraftId = draft.id;
+                                  _workerController.text = draft.workerAddress;
+                                  _jobIdController.text = draft.jobId;
+                                  _notesController.text = draft.notes ?? '';
+                                  _rating = draft.rating;
+                                });
+                                Navigator.of(sheetContext).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Draft loaded into form.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              child: const Text('Load', style: TextStyle(fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
