@@ -38,7 +38,16 @@ enum ProgramErrorCode {
   duplicateReview(6003, 'A review for this job has already been submitted.'),
   selfReview(6004, "You can't review your own connected address."),
   jobIdTooLong(6005, 'Job reference is too long.'),
-  overflow(6006, 'Arithmetic overflow on-chain — this should not happen in practice.');
+  overflow(6006, 'Arithmetic overflow on-chain — this should not happen in practice.'),
+  contractIdTooLong(6007, 'Contract reference is too long (max 32 characters).'),
+  zeroAmount(6008, 'Escrow amount must be greater than zero.'),
+  selfContract(6009, 'You cannot create a contract hiring yourself.'),
+  invalidDeadline(6010, 'Contract deadline must be in the future.'),
+  invalidContractStatus(6011, 'Contract is not in the required status for this action.'),
+  unauthorizedWorker(6012, 'Only the assigned worker can accept this contract.'),
+  unauthorizedEmployer(6013, 'Only the employer can perform this action.'),
+  unauthorizedParticipant(6014, 'Only a contract participant can perform this action.'),
+  workerMismatch(6015, 'Worker account does not match the contract recipient.');
 
   const ProgramErrorCode(this.code, this.friendlyMessage);
 

@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solana/solana.dart';
-import '../database/app_database.dart' hide WorkerProfile, Review;
+import '../database/app_database.dart' hide WorkerProfile, Review, EscrowContract;
 import '../database/reputation_repository.dart';
+import '../database/contract_repository.dart';
+import '../models/escrow_contract.dart';
 import '../models/review.dart';
 import '../models/worker_profile.dart';
 import '../solana/network_config.dart';
 import '../solana/reputation_service.dart';
+import '../solana/contract_service.dart';
 import '../solana/wallet_adapter.dart';
 
 // ==================== CORE INFRASTRUCTURE PROVIDERS ====================
@@ -31,16 +34,29 @@ final reputationServiceProvider = Provider<ReputationService>((ref) {
   return ReputationService(client: client);
 });
 
+/// Anchor ContractService provider for P2P Escrow protocol.
+final contractServiceProvider = Provider<ContractService>((ref) {
+  final client = ref.watch(solanaClientProvider);
+  return ContractService(client: client);
+});
+
 /// Mobile Wallet Adapter provider.
 final walletAdapterProvider = Provider<WalletAdapter>((ref) {
   return WalletAdapter();
 });
 
-/// Repository coordinating on-chain state and Drift local cache.
+/// Repository coordinating on-chain reputation state and Drift local cache.
 final reputationRepositoryProvider = Provider<ReputationRepository>((ref) {
   final db = ref.watch(databaseProvider);
   final reputationService = ref.watch(reputationServiceProvider);
   return ReputationRepository(db: db, reputationService: reputationService);
+});
+
+/// Repository coordinating on-chain escrow contracts and Drift local cache.
+final contractRepositoryProvider = Provider<ContractRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  final contractService = ref.watch(contractServiceProvider);
+  return ContractRepository(db: db, contractService: contractService);
 });
 
 // ==================== WALLET STATE MANAGEMENT ====================
@@ -171,6 +187,31 @@ final draftReviewsProvider = StreamProvider<List<DraftReview>>((ref) {
 final recentLookupsProvider = StreamProvider<List<WorkerProfile>>((ref) {
   final repository = ref.watch(reputationRepositoryProvider);
   return repository.watchRecentLookups();
+});
+
+// ==================== ESCROW CONTRACTS REACTIVE PROVIDERS ====================
+
+/// Watches all contracts for the currently connected wallet (as employer or worker).
+final myContractsProvider = StreamProvider<List<EscrowContract>>((ref) {
+  final wallet = ref.watch(walletStateProvider);
+  if (!wallet.isConnected || wallet.address == null) {
+    return Stream.value(const []);
+  }
+
+  final repository = ref.watch(contractRepositoryProvider);
+  // Trigger background refresh from RPC
+  repository.refreshContractsForWallet(wallet.address!);
+
+  // Watch Drift database reactively
+  return repository.watchContractsForWallet(wallet.address!);
+});
+
+/// Watches a single contract by its contractId from local Drift database,
+/// while triggering an on-chain refresh from RPC.
+final contractProvider = StreamProvider.family<EscrowContract?, String>((ref, contractId) {
+  final repository = ref.watch(contractRepositoryProvider);
+  repository.getContract(contractId);
+  return repository.watchContract(contractId);
 });
 
 // ==================== SETTINGS SCREEN: REAL NETWORK DATA ====================

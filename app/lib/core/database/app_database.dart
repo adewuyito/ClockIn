@@ -51,13 +51,34 @@ class RecentLookups extends Table {
   Set<Column> get primaryKey => {address};
 }
 
-@DriftDatabase(tables: [WorkerProfiles, Reviews, DraftReviews, RecentLookups])
+/// Local cache for on-chain escrow contracts.
+class EscrowContracts extends Table {
+  TextColumn get contractId => text()();
+  TextColumn get employer => text()();
+  TextColumn get worker => text()();
+  Int64Column get amount => int64()();
+  TextColumn get termsHash => text()();
+  TextColumn get termsText => text().nullable()();
+  TextColumn get status => text()(); // 'created', 'funded', 'in_progress', 'completed', 'disputed', 'cancelled'
+  Int64Column get deadline => int64()();
+  Int64Column get createdAt => int64()();
+  Int64Column get fundedAt => int64()();
+  Int64Column get completedAt => int64()();
+  IntColumn get rating => integer()();
+  TextColumn get lastTxSignature => text().nullable()();
+  DateTimeColumn get syncedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {contractId};
+}
+
+@DriftDatabase(tables: [WorkerProfiles, Reviews, DraftReviews, RecentLookups, EscrowContracts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,6 +87,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) {
             await m.createTable(recentLookups);
           }
+          if (from < 3) {
+            await m.createTable(escrowContracts);
+          }
         },
       );
 }
+

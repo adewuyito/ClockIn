@@ -1488,6 +1488,817 @@ class RecentLookupsCompanion extends UpdateCompanion<RecentLookup> {
   }
 }
 
+class $EscrowContractsTable extends EscrowContracts
+    with TableInfo<$EscrowContractsTable, EscrowContract> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EscrowContractsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _contractIdMeta = const VerificationMeta(
+    'contractId',
+  );
+  @override
+  late final GeneratedColumn<String> contractId = GeneratedColumn<String>(
+    'contract_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _employerMeta = const VerificationMeta(
+    'employer',
+  );
+  @override
+  late final GeneratedColumn<String> employer = GeneratedColumn<String>(
+    'employer',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _workerMeta = const VerificationMeta('worker');
+  @override
+  late final GeneratedColumn<String> worker = GeneratedColumn<String>(
+    'worker',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<BigInt> amount = GeneratedColumn<BigInt>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.bigInt,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _termsHashMeta = const VerificationMeta(
+    'termsHash',
+  );
+  @override
+  late final GeneratedColumn<String> termsHash = GeneratedColumn<String>(
+    'terms_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _termsTextMeta = const VerificationMeta(
+    'termsText',
+  );
+  @override
+  late final GeneratedColumn<String> termsText = GeneratedColumn<String>(
+    'terms_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deadlineMeta = const VerificationMeta(
+    'deadline',
+  );
+  @override
+  late final GeneratedColumn<BigInt> deadline = GeneratedColumn<BigInt>(
+    'deadline',
+    aliasedName,
+    false,
+    type: DriftSqlType.bigInt,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<BigInt> createdAt = GeneratedColumn<BigInt>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.bigInt,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fundedAtMeta = const VerificationMeta(
+    'fundedAt',
+  );
+  @override
+  late final GeneratedColumn<BigInt> fundedAt = GeneratedColumn<BigInt>(
+    'funded_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.bigInt,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<BigInt> completedAt = GeneratedColumn<BigInt>(
+    'completed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.bigInt,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ratingMeta = const VerificationMeta('rating');
+  @override
+  late final GeneratedColumn<int> rating = GeneratedColumn<int>(
+    'rating',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastTxSignatureMeta = const VerificationMeta(
+    'lastTxSignature',
+  );
+  @override
+  late final GeneratedColumn<String> lastTxSignature = GeneratedColumn<String>(
+    'last_tx_signature',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncedAtMeta = const VerificationMeta(
+    'syncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> syncedAt = GeneratedColumn<DateTime>(
+    'synced_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    contractId,
+    employer,
+    worker,
+    amount,
+    termsHash,
+    termsText,
+    status,
+    deadline,
+    createdAt,
+    fundedAt,
+    completedAt,
+    rating,
+    lastTxSignature,
+    syncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'escrow_contracts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EscrowContract> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('contract_id')) {
+      context.handle(
+        _contractIdMeta,
+        contractId.isAcceptableOrUnknown(data['contract_id']!, _contractIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contractIdMeta);
+    }
+    if (data.containsKey('employer')) {
+      context.handle(
+        _employerMeta,
+        employer.isAcceptableOrUnknown(data['employer']!, _employerMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_employerMeta);
+    }
+    if (data.containsKey('worker')) {
+      context.handle(
+        _workerMeta,
+        worker.isAcceptableOrUnknown(data['worker']!, _workerMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_workerMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('terms_hash')) {
+      context.handle(
+        _termsHashMeta,
+        termsHash.isAcceptableOrUnknown(data['terms_hash']!, _termsHashMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_termsHashMeta);
+    }
+    if (data.containsKey('terms_text')) {
+      context.handle(
+        _termsTextMeta,
+        termsText.isAcceptableOrUnknown(data['terms_text']!, _termsTextMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('deadline')) {
+      context.handle(
+        _deadlineMeta,
+        deadline.isAcceptableOrUnknown(data['deadline']!, _deadlineMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deadlineMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('funded_at')) {
+      context.handle(
+        _fundedAtMeta,
+        fundedAt.isAcceptableOrUnknown(data['funded_at']!, _fundedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fundedAtMeta);
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_completedAtMeta);
+    }
+    if (data.containsKey('rating')) {
+      context.handle(
+        _ratingMeta,
+        rating.isAcceptableOrUnknown(data['rating']!, _ratingMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ratingMeta);
+    }
+    if (data.containsKey('last_tx_signature')) {
+      context.handle(
+        _lastTxSignatureMeta,
+        lastTxSignature.isAcceptableOrUnknown(
+          data['last_tx_signature']!,
+          _lastTxSignatureMeta,
+        ),
+      );
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(
+        _syncedAtMeta,
+        syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {contractId};
+  @override
+  EscrowContract map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EscrowContract(
+      contractId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}contract_id'],
+      )!,
+      employer: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employer'],
+      )!,
+      worker: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worker'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.bigInt,
+        data['${effectivePrefix}amount'],
+      )!,
+      termsHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}terms_hash'],
+      )!,
+      termsText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}terms_text'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      deadline: attachedDatabase.typeMapping.read(
+        DriftSqlType.bigInt,
+        data['${effectivePrefix}deadline'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.bigInt,
+        data['${effectivePrefix}created_at'],
+      )!,
+      fundedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.bigInt,
+        data['${effectivePrefix}funded_at'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.bigInt,
+        data['${effectivePrefix}completed_at'],
+      )!,
+      rating: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rating'],
+      )!,
+      lastTxSignature: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_tx_signature'],
+      ),
+      syncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}synced_at'],
+      )!,
+    );
+  }
+
+  @override
+  $EscrowContractsTable createAlias(String alias) {
+    return $EscrowContractsTable(attachedDatabase, alias);
+  }
+}
+
+class EscrowContract extends DataClass implements Insertable<EscrowContract> {
+  final String contractId;
+  final String employer;
+  final String worker;
+  final BigInt amount;
+  final String termsHash;
+  final String? termsText;
+  final String status;
+  final BigInt deadline;
+  final BigInt createdAt;
+  final BigInt fundedAt;
+  final BigInt completedAt;
+  final int rating;
+  final String? lastTxSignature;
+  final DateTime syncedAt;
+  const EscrowContract({
+    required this.contractId,
+    required this.employer,
+    required this.worker,
+    required this.amount,
+    required this.termsHash,
+    this.termsText,
+    required this.status,
+    required this.deadline,
+    required this.createdAt,
+    required this.fundedAt,
+    required this.completedAt,
+    required this.rating,
+    this.lastTxSignature,
+    required this.syncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['contract_id'] = Variable<String>(contractId);
+    map['employer'] = Variable<String>(employer);
+    map['worker'] = Variable<String>(worker);
+    map['amount'] = Variable<BigInt>(amount);
+    map['terms_hash'] = Variable<String>(termsHash);
+    if (!nullToAbsent || termsText != null) {
+      map['terms_text'] = Variable<String>(termsText);
+    }
+    map['status'] = Variable<String>(status);
+    map['deadline'] = Variable<BigInt>(deadline);
+    map['created_at'] = Variable<BigInt>(createdAt);
+    map['funded_at'] = Variable<BigInt>(fundedAt);
+    map['completed_at'] = Variable<BigInt>(completedAt);
+    map['rating'] = Variable<int>(rating);
+    if (!nullToAbsent || lastTxSignature != null) {
+      map['last_tx_signature'] = Variable<String>(lastTxSignature);
+    }
+    map['synced_at'] = Variable<DateTime>(syncedAt);
+    return map;
+  }
+
+  EscrowContractsCompanion toCompanion(bool nullToAbsent) {
+    return EscrowContractsCompanion(
+      contractId: Value(contractId),
+      employer: Value(employer),
+      worker: Value(worker),
+      amount: Value(amount),
+      termsHash: Value(termsHash),
+      termsText: termsText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(termsText),
+      status: Value(status),
+      deadline: Value(deadline),
+      createdAt: Value(createdAt),
+      fundedAt: Value(fundedAt),
+      completedAt: Value(completedAt),
+      rating: Value(rating),
+      lastTxSignature: lastTxSignature == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastTxSignature),
+      syncedAt: Value(syncedAt),
+    );
+  }
+
+  factory EscrowContract.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EscrowContract(
+      contractId: serializer.fromJson<String>(json['contractId']),
+      employer: serializer.fromJson<String>(json['employer']),
+      worker: serializer.fromJson<String>(json['worker']),
+      amount: serializer.fromJson<BigInt>(json['amount']),
+      termsHash: serializer.fromJson<String>(json['termsHash']),
+      termsText: serializer.fromJson<String?>(json['termsText']),
+      status: serializer.fromJson<String>(json['status']),
+      deadline: serializer.fromJson<BigInt>(json['deadline']),
+      createdAt: serializer.fromJson<BigInt>(json['createdAt']),
+      fundedAt: serializer.fromJson<BigInt>(json['fundedAt']),
+      completedAt: serializer.fromJson<BigInt>(json['completedAt']),
+      rating: serializer.fromJson<int>(json['rating']),
+      lastTxSignature: serializer.fromJson<String?>(json['lastTxSignature']),
+      syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'contractId': serializer.toJson<String>(contractId),
+      'employer': serializer.toJson<String>(employer),
+      'worker': serializer.toJson<String>(worker),
+      'amount': serializer.toJson<BigInt>(amount),
+      'termsHash': serializer.toJson<String>(termsHash),
+      'termsText': serializer.toJson<String?>(termsText),
+      'status': serializer.toJson<String>(status),
+      'deadline': serializer.toJson<BigInt>(deadline),
+      'createdAt': serializer.toJson<BigInt>(createdAt),
+      'fundedAt': serializer.toJson<BigInt>(fundedAt),
+      'completedAt': serializer.toJson<BigInt>(completedAt),
+      'rating': serializer.toJson<int>(rating),
+      'lastTxSignature': serializer.toJson<String?>(lastTxSignature),
+      'syncedAt': serializer.toJson<DateTime>(syncedAt),
+    };
+  }
+
+  EscrowContract copyWith({
+    String? contractId,
+    String? employer,
+    String? worker,
+    BigInt? amount,
+    String? termsHash,
+    Value<String?> termsText = const Value.absent(),
+    String? status,
+    BigInt? deadline,
+    BigInt? createdAt,
+    BigInt? fundedAt,
+    BigInt? completedAt,
+    int? rating,
+    Value<String?> lastTxSignature = const Value.absent(),
+    DateTime? syncedAt,
+  }) => EscrowContract(
+    contractId: contractId ?? this.contractId,
+    employer: employer ?? this.employer,
+    worker: worker ?? this.worker,
+    amount: amount ?? this.amount,
+    termsHash: termsHash ?? this.termsHash,
+    termsText: termsText.present ? termsText.value : this.termsText,
+    status: status ?? this.status,
+    deadline: deadline ?? this.deadline,
+    createdAt: createdAt ?? this.createdAt,
+    fundedAt: fundedAt ?? this.fundedAt,
+    completedAt: completedAt ?? this.completedAt,
+    rating: rating ?? this.rating,
+    lastTxSignature: lastTxSignature.present
+        ? lastTxSignature.value
+        : this.lastTxSignature,
+    syncedAt: syncedAt ?? this.syncedAt,
+  );
+  EscrowContract copyWithCompanion(EscrowContractsCompanion data) {
+    return EscrowContract(
+      contractId: data.contractId.present
+          ? data.contractId.value
+          : this.contractId,
+      employer: data.employer.present ? data.employer.value : this.employer,
+      worker: data.worker.present ? data.worker.value : this.worker,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      termsHash: data.termsHash.present ? data.termsHash.value : this.termsHash,
+      termsText: data.termsText.present ? data.termsText.value : this.termsText,
+      status: data.status.present ? data.status.value : this.status,
+      deadline: data.deadline.present ? data.deadline.value : this.deadline,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      fundedAt: data.fundedAt.present ? data.fundedAt.value : this.fundedAt,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      rating: data.rating.present ? data.rating.value : this.rating,
+      lastTxSignature: data.lastTxSignature.present
+          ? data.lastTxSignature.value
+          : this.lastTxSignature,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EscrowContract(')
+          ..write('contractId: $contractId, ')
+          ..write('employer: $employer, ')
+          ..write('worker: $worker, ')
+          ..write('amount: $amount, ')
+          ..write('termsHash: $termsHash, ')
+          ..write('termsText: $termsText, ')
+          ..write('status: $status, ')
+          ..write('deadline: $deadline, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('fundedAt: $fundedAt, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('rating: $rating, ')
+          ..write('lastTxSignature: $lastTxSignature, ')
+          ..write('syncedAt: $syncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    contractId,
+    employer,
+    worker,
+    amount,
+    termsHash,
+    termsText,
+    status,
+    deadline,
+    createdAt,
+    fundedAt,
+    completedAt,
+    rating,
+    lastTxSignature,
+    syncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EscrowContract &&
+          other.contractId == this.contractId &&
+          other.employer == this.employer &&
+          other.worker == this.worker &&
+          other.amount == this.amount &&
+          other.termsHash == this.termsHash &&
+          other.termsText == this.termsText &&
+          other.status == this.status &&
+          other.deadline == this.deadline &&
+          other.createdAt == this.createdAt &&
+          other.fundedAt == this.fundedAt &&
+          other.completedAt == this.completedAt &&
+          other.rating == this.rating &&
+          other.lastTxSignature == this.lastTxSignature &&
+          other.syncedAt == this.syncedAt);
+}
+
+class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
+  final Value<String> contractId;
+  final Value<String> employer;
+  final Value<String> worker;
+  final Value<BigInt> amount;
+  final Value<String> termsHash;
+  final Value<String?> termsText;
+  final Value<String> status;
+  final Value<BigInt> deadline;
+  final Value<BigInt> createdAt;
+  final Value<BigInt> fundedAt;
+  final Value<BigInt> completedAt;
+  final Value<int> rating;
+  final Value<String?> lastTxSignature;
+  final Value<DateTime> syncedAt;
+  final Value<int> rowid;
+  const EscrowContractsCompanion({
+    this.contractId = const Value.absent(),
+    this.employer = const Value.absent(),
+    this.worker = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.termsHash = const Value.absent(),
+    this.termsText = const Value.absent(),
+    this.status = const Value.absent(),
+    this.deadline = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.fundedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.rating = const Value.absent(),
+    this.lastTxSignature = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  EscrowContractsCompanion.insert({
+    required String contractId,
+    required String employer,
+    required String worker,
+    required BigInt amount,
+    required String termsHash,
+    this.termsText = const Value.absent(),
+    required String status,
+    required BigInt deadline,
+    required BigInt createdAt,
+    required BigInt fundedAt,
+    required BigInt completedAt,
+    required int rating,
+    this.lastTxSignature = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : contractId = Value(contractId),
+       employer = Value(employer),
+       worker = Value(worker),
+       amount = Value(amount),
+       termsHash = Value(termsHash),
+       status = Value(status),
+       deadline = Value(deadline),
+       createdAt = Value(createdAt),
+       fundedAt = Value(fundedAt),
+       completedAt = Value(completedAt),
+       rating = Value(rating);
+  static Insertable<EscrowContract> custom({
+    Expression<String>? contractId,
+    Expression<String>? employer,
+    Expression<String>? worker,
+    Expression<BigInt>? amount,
+    Expression<String>? termsHash,
+    Expression<String>? termsText,
+    Expression<String>? status,
+    Expression<BigInt>? deadline,
+    Expression<BigInt>? createdAt,
+    Expression<BigInt>? fundedAt,
+    Expression<BigInt>? completedAt,
+    Expression<int>? rating,
+    Expression<String>? lastTxSignature,
+    Expression<DateTime>? syncedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (contractId != null) 'contract_id': contractId,
+      if (employer != null) 'employer': employer,
+      if (worker != null) 'worker': worker,
+      if (amount != null) 'amount': amount,
+      if (termsHash != null) 'terms_hash': termsHash,
+      if (termsText != null) 'terms_text': termsText,
+      if (status != null) 'status': status,
+      if (deadline != null) 'deadline': deadline,
+      if (createdAt != null) 'created_at': createdAt,
+      if (fundedAt != null) 'funded_at': fundedAt,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (rating != null) 'rating': rating,
+      if (lastTxSignature != null) 'last_tx_signature': lastTxSignature,
+      if (syncedAt != null) 'synced_at': syncedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  EscrowContractsCompanion copyWith({
+    Value<String>? contractId,
+    Value<String>? employer,
+    Value<String>? worker,
+    Value<BigInt>? amount,
+    Value<String>? termsHash,
+    Value<String?>? termsText,
+    Value<String>? status,
+    Value<BigInt>? deadline,
+    Value<BigInt>? createdAt,
+    Value<BigInt>? fundedAt,
+    Value<BigInt>? completedAt,
+    Value<int>? rating,
+    Value<String?>? lastTxSignature,
+    Value<DateTime>? syncedAt,
+    Value<int>? rowid,
+  }) {
+    return EscrowContractsCompanion(
+      contractId: contractId ?? this.contractId,
+      employer: employer ?? this.employer,
+      worker: worker ?? this.worker,
+      amount: amount ?? this.amount,
+      termsHash: termsHash ?? this.termsHash,
+      termsText: termsText ?? this.termsText,
+      status: status ?? this.status,
+      deadline: deadline ?? this.deadline,
+      createdAt: createdAt ?? this.createdAt,
+      fundedAt: fundedAt ?? this.fundedAt,
+      completedAt: completedAt ?? this.completedAt,
+      rating: rating ?? this.rating,
+      lastTxSignature: lastTxSignature ?? this.lastTxSignature,
+      syncedAt: syncedAt ?? this.syncedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (contractId.present) {
+      map['contract_id'] = Variable<String>(contractId.value);
+    }
+    if (employer.present) {
+      map['employer'] = Variable<String>(employer.value);
+    }
+    if (worker.present) {
+      map['worker'] = Variable<String>(worker.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<BigInt>(amount.value);
+    }
+    if (termsHash.present) {
+      map['terms_hash'] = Variable<String>(termsHash.value);
+    }
+    if (termsText.present) {
+      map['terms_text'] = Variable<String>(termsText.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (deadline.present) {
+      map['deadline'] = Variable<BigInt>(deadline.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<BigInt>(createdAt.value);
+    }
+    if (fundedAt.present) {
+      map['funded_at'] = Variable<BigInt>(fundedAt.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<BigInt>(completedAt.value);
+    }
+    if (rating.present) {
+      map['rating'] = Variable<int>(rating.value);
+    }
+    if (lastTxSignature.present) {
+      map['last_tx_signature'] = Variable<String>(lastTxSignature.value);
+    }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<DateTime>(syncedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EscrowContractsCompanion(')
+          ..write('contractId: $contractId, ')
+          ..write('employer: $employer, ')
+          ..write('worker: $worker, ')
+          ..write('amount: $amount, ')
+          ..write('termsHash: $termsHash, ')
+          ..write('termsText: $termsText, ')
+          ..write('status: $status, ')
+          ..write('deadline: $deadline, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('fundedAt: $fundedAt, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('rating: $rating, ')
+          ..write('lastTxSignature: $lastTxSignature, ')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1495,6 +2306,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ReviewsTable reviews = $ReviewsTable(this);
   late final $DraftReviewsTable draftReviews = $DraftReviewsTable(this);
   late final $RecentLookupsTable recentLookups = $RecentLookupsTable(this);
+  late final $EscrowContractsTable escrowContracts = $EscrowContractsTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1504,6 +2318,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     reviews,
     draftReviews,
     recentLookups,
+    escrowContracts,
   ];
 }
 
@@ -2354,6 +3169,398 @@ typedef $$RecentLookupsTableProcessedTableManager =
       RecentLookup,
       PrefetchHooks Function()
     >;
+typedef $$EscrowContractsTableCreateCompanionBuilder =
+    EscrowContractsCompanion Function({
+      required String contractId,
+      required String employer,
+      required String worker,
+      required BigInt amount,
+      required String termsHash,
+      Value<String?> termsText,
+      required String status,
+      required BigInt deadline,
+      required BigInt createdAt,
+      required BigInt fundedAt,
+      required BigInt completedAt,
+      required int rating,
+      Value<String?> lastTxSignature,
+      Value<DateTime> syncedAt,
+      Value<int> rowid,
+    });
+typedef $$EscrowContractsTableUpdateCompanionBuilder =
+    EscrowContractsCompanion Function({
+      Value<String> contractId,
+      Value<String> employer,
+      Value<String> worker,
+      Value<BigInt> amount,
+      Value<String> termsHash,
+      Value<String?> termsText,
+      Value<String> status,
+      Value<BigInt> deadline,
+      Value<BigInt> createdAt,
+      Value<BigInt> fundedAt,
+      Value<BigInt> completedAt,
+      Value<int> rating,
+      Value<String?> lastTxSignature,
+      Value<DateTime> syncedAt,
+      Value<int> rowid,
+    });
+
+class $$EscrowContractsTableFilterComposer
+    extends Composer<_$AppDatabase, $EscrowContractsTable> {
+  $$EscrowContractsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get employer => $composableBuilder(
+    column: $table.employer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get worker => $composableBuilder(
+    column: $table.worker,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<BigInt> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get termsHash => $composableBuilder(
+    column: $table.termsHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get termsText => $composableBuilder(
+    column: $table.termsText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<BigInt> get deadline => $composableBuilder(
+    column: $table.deadline,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<BigInt> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<BigInt> get fundedAt => $composableBuilder(
+    column: $table.fundedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<BigInt> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rating => $composableBuilder(
+    column: $table.rating,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastTxSignature => $composableBuilder(
+    column: $table.lastTxSignature,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EscrowContractsTableOrderingComposer
+    extends Composer<_$AppDatabase, $EscrowContractsTable> {
+  $$EscrowContractsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get employer => $composableBuilder(
+    column: $table.employer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get worker => $composableBuilder(
+    column: $table.worker,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<BigInt> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get termsHash => $composableBuilder(
+    column: $table.termsHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get termsText => $composableBuilder(
+    column: $table.termsText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<BigInt> get deadline => $composableBuilder(
+    column: $table.deadline,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<BigInt> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<BigInt> get fundedAt => $composableBuilder(
+    column: $table.fundedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<BigInt> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rating => $composableBuilder(
+    column: $table.rating,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastTxSignature => $composableBuilder(
+    column: $table.lastTxSignature,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EscrowContractsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EscrowContractsTable> {
+  $$EscrowContractsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get employer =>
+      $composableBuilder(column: $table.employer, builder: (column) => column);
+
+  GeneratedColumn<String> get worker =>
+      $composableBuilder(column: $table.worker, builder: (column) => column);
+
+  GeneratedColumn<BigInt> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get termsHash =>
+      $composableBuilder(column: $table.termsHash, builder: (column) => column);
+
+  GeneratedColumn<String> get termsText =>
+      $composableBuilder(column: $table.termsText, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<BigInt> get deadline =>
+      $composableBuilder(column: $table.deadline, builder: (column) => column);
+
+  GeneratedColumn<BigInt> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<BigInt> get fundedAt =>
+      $composableBuilder(column: $table.fundedAt, builder: (column) => column);
+
+  GeneratedColumn<BigInt> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get rating =>
+      $composableBuilder(column: $table.rating, builder: (column) => column);
+
+  GeneratedColumn<String> get lastTxSignature => $composableBuilder(
+    column: $table.lastTxSignature,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get syncedAt =>
+      $composableBuilder(column: $table.syncedAt, builder: (column) => column);
+}
+
+class $$EscrowContractsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EscrowContractsTable,
+          EscrowContract,
+          $$EscrowContractsTableFilterComposer,
+          $$EscrowContractsTableOrderingComposer,
+          $$EscrowContractsTableAnnotationComposer,
+          $$EscrowContractsTableCreateCompanionBuilder,
+          $$EscrowContractsTableUpdateCompanionBuilder,
+          (
+            EscrowContract,
+            BaseReferences<
+              _$AppDatabase,
+              $EscrowContractsTable,
+              EscrowContract
+            >,
+          ),
+          EscrowContract,
+          PrefetchHooks Function()
+        > {
+  $$EscrowContractsTableTableManager(
+    _$AppDatabase db,
+    $EscrowContractsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EscrowContractsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EscrowContractsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EscrowContractsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> contractId = const Value.absent(),
+                Value<String> employer = const Value.absent(),
+                Value<String> worker = const Value.absent(),
+                Value<BigInt> amount = const Value.absent(),
+                Value<String> termsHash = const Value.absent(),
+                Value<String?> termsText = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<BigInt> deadline = const Value.absent(),
+                Value<BigInt> createdAt = const Value.absent(),
+                Value<BigInt> fundedAt = const Value.absent(),
+                Value<BigInt> completedAt = const Value.absent(),
+                Value<int> rating = const Value.absent(),
+                Value<String?> lastTxSignature = const Value.absent(),
+                Value<DateTime> syncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EscrowContractsCompanion(
+                contractId: contractId,
+                employer: employer,
+                worker: worker,
+                amount: amount,
+                termsHash: termsHash,
+                termsText: termsText,
+                status: status,
+                deadline: deadline,
+                createdAt: createdAt,
+                fundedAt: fundedAt,
+                completedAt: completedAt,
+                rating: rating,
+                lastTxSignature: lastTxSignature,
+                syncedAt: syncedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String contractId,
+                required String employer,
+                required String worker,
+                required BigInt amount,
+                required String termsHash,
+                Value<String?> termsText = const Value.absent(),
+                required String status,
+                required BigInt deadline,
+                required BigInt createdAt,
+                required BigInt fundedAt,
+                required BigInt completedAt,
+                required int rating,
+                Value<String?> lastTxSignature = const Value.absent(),
+                Value<DateTime> syncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EscrowContractsCompanion.insert(
+                contractId: contractId,
+                employer: employer,
+                worker: worker,
+                amount: amount,
+                termsHash: termsHash,
+                termsText: termsText,
+                status: status,
+                deadline: deadline,
+                createdAt: createdAt,
+                fundedAt: fundedAt,
+                completedAt: completedAt,
+                rating: rating,
+                lastTxSignature: lastTxSignature,
+                syncedAt: syncedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$EscrowContractsTable, EscrowContract>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $EscrowContractsTable,
+                    EscrowContract
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EscrowContractsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EscrowContractsTable,
+      EscrowContract,
+      $$EscrowContractsTableFilterComposer,
+      $$EscrowContractsTableOrderingComposer,
+      $$EscrowContractsTableAnnotationComposer,
+      $$EscrowContractsTableCreateCompanionBuilder,
+      $$EscrowContractsTableUpdateCompanionBuilder,
+      (
+        EscrowContract,
+        BaseReferences<_$AppDatabase, $EscrowContractsTable, EscrowContract>,
+      ),
+      EscrowContract,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2366,4 +3573,6 @@ class $AppDatabaseManager {
       $$DraftReviewsTableTableManager(_db, _db.draftReviews);
   $$RecentLookupsTableTableManager get recentLookups =>
       $$RecentLookupsTableTableManager(_db, _db.recentLookups);
+  $$EscrowContractsTableTableManager get escrowContracts =>
+      $$EscrowContractsTableTableManager(_db, _db.escrowContracts);
 }

@@ -66,4 +66,29 @@ class NetworkConfig {
       programId: programId,
     );
   }
+
+  /// Computes the EscrowContract Program Derived Address (PDA).
+  /// Seeds: [b"escrow", contract_id]
+  static Future<Ed25519HDPublicKey> findEscrowPda(String contractId) async {
+    return Ed25519HDPublicKey.findProgramAddress(
+      seeds: [
+        utf8.encode('escrow'),
+        utf8.encode(contractId),
+      ],
+      programId: programId,
+    );
+  }
+
+  /// Computes the EscrowVault Program Derived Address (PDA).
+  /// Seeds: [b"vault", contract_id]
+  static Future<Ed25519HDPublicKey> findVaultPda(String contractId) async {
+    return Ed25519HDPublicKey.findProgramAddress(
+      seeds: [
+        utf8.encode('vault'),
+        utf8.encode(contractId),
+      ],
+      programId: programId,
+    );
+  }
 }
+
