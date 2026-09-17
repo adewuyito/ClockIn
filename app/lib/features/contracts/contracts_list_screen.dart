@@ -755,16 +755,31 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                               ? Icons.schedule_rounded
                               : Icons.calendar_today_rounded,
                           size: 14,
-                          color: AppColors.onSurfaceVariant,
+                          color: contract.deadline != null &&
+                                  DateTime.now().isAfter(contract.deadline!) &&
+                                  contract.status != ContractStatus.completed &&
+                                  contract.status != ContractStatus.cancelled
+                              ? AppColors.warning
+                              : AppColors.onSurfaceVariant,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           contract.deadline != null
-                              ? 'Deadline: ${_formatDate(contract.deadline!)}'
-                              : 'Created: ${_formatDate(contract.createdAt)}',
+                              ? (contract.status == ContractStatus.completed ||
+                                      contract.status == ContractStatus.cancelled
+                                  ? 'Deadline: ${_formatDate(contract.deadline!)}'
+                                  : DateTime.now().isAfter(contract.deadline!)
+                                      ? 'Due: ${_formatDate(contract.deadline!)} (Overdue)'
+                                      : 'Due: ${_formatDate(contract.deadline!)} (${contract.deadline!.difference(DateTime.now()).inDays}d left)')
+                              : 'Created: ${_formatDate(contract.createdAt)} • Flexible',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11.5,
-                            color: AppColors.onSurfaceVariant,
+                            color: contract.deadline != null &&
+                                    DateTime.now().isAfter(contract.deadline!) &&
+                                    contract.status != ContractStatus.completed &&
+                                    contract.status != ContractStatus.cancelled
+                                ? AppColors.warning
+                                : AppColors.onSurfaceVariant,
                             fontWeight: FontWeight.w500,
                           ),
                         ),

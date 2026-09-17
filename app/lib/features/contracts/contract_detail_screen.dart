@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
@@ -343,7 +344,11 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
+
+        // Variable Timeline & Deadline Card
+        _buildTimelineCard(contract),
+        const SizedBox(height: 14),
 
         // Lifecycle Milestones Stepper
         _buildLifecycleStepper(contract),
@@ -380,6 +385,29 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
               const SizedBox(height: 12),
               const Divider(height: 1, color: AppColors.surfaceContainerHigh),
               const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Target Deadline',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    contract.deadline != null
+                        ? DateFormat('EEE, MMM d, yyyy').format(contract.deadline!.toLocal())
+                        : 'Open-ended (Flexible)',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -612,7 +640,11 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
           _buildStepRow(
             stepNumber: '2',
             title: 'Worker Accepted',
-            subtitle: 'Terms agreed and work in progress',
+            subtitle: contract.status == ContractStatus.inProgress
+                ? (contract.deadline != null
+                    ? 'Work in progress • Due ${DateFormat.yMMMd().format(contract.deadline!.toLocal())}'
+                    : 'Work in progress • Flexible open-ended timeline')
+                : 'Terms agreed and work in progress',
             isDone: isInProgress,
             isCurrent: contract.status == ContractStatus.inProgress,
           ),
@@ -763,6 +795,143 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildTimelineCard(EscrowContract contract) {
+    final now = DateTime.now();
+    final hasDeadline = contract.deadline != null;
+    final isTerminal = contract.status == ContractStatus.completed ||
+        contract.status == ContractStatus.cancelled;
+
+    String headline;
+    String subtext;
+    IconData icon;
+    Color accentColor;
+
+    if (!hasDeadline) {
+      headline = 'Open-Ended Timeline';
+      subtext = 'This contract has no fixed expiration date. Escrow funds remain securely locked until deliverables are approved and released.';
+      icon = Icons.all_inclusive_rounded;
+      accentColor = AppColors.primary;
+    } else {
+      final deadline = contract.deadline!;
+      final formattedDate = DateFormat('EEEE, MMM d, yyyy').format(deadline.toLocal());
+      final isOverdue = now.isAfter(deadline) && !isTerminal;
+
+      if (isTerminal) {
+        headline = 'Contract Finalized';
+        subtext = contract.completedAt != null
+            ? 'Completed and released on ${DateFormat.yMMMd().format(contract.completedAt!.toLocal())}.'
+            : 'Escrow settlement completed on Solana Devnet.';
+        icon = Icons.task_alt_rounded;
+        accentColor = AppColors.success;
+      } else if (isOverdue) {
+        final daysPast = now.difference(deadline).inDays;
+        headline = 'Deadline Passed ($formattedDate)';
+        subtext = 'Target completion was $daysPast days ago. If deliverables are missing, employer can initiate dispute or cancellation.';
+        icon = Icons.warning_amber_rounded;
+        accentColor = AppColors.warning;
+      } else {
+        final daysRemaining = deadline.difference(now).inDays;
+        final hoursRemaining = deadline.difference(now).inHours;
+        headline = 'Deadline: $formattedDate';
+        if (daysRemaining > 1) {
+          subtext = '$daysRemaining days remaining for deliverables to be submitted and reviewed.';
+        } else if (hoursRemaining > 0) {
+          subtext = 'Due in ~$hoursRemaining hours • Final milestone sprint.';
+        } else {
+          subtext = 'Due today • Awaiting completion review.';
+        }
+        icon = Icons.timer_outlined;
+        accentColor = AppColors.primary;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 20, color: accentColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'CONTRACT TIMELINE',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: accentColor,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (hasDeadline && !isTerminal) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: (now.isAfter(contract.deadline!)
+                                  ? AppColors.warning
+                                  : AppColors.primary)
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          now.isAfter(contract.deadline!)
+                              ? 'OVERDUE'
+                              : '${contract.deadline!.difference(now).inDays}D LEFT',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: now.isAfter(contract.deadline!)
+                                ? AppColors.warning
+                                : AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  headline,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtext,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: AppColors.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
