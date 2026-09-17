@@ -27,12 +27,12 @@ class WalletAccountSheet extends ConsumerWidget {
     final balanceAsync = ref.watch(walletBalanceProvider);
     final address = wallet.address ?? '';
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+    return Material(
+      color: AppColors.surfaceContainerLowest,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,6 +334,7 @@ class WalletAccountSheet extends ConsumerWidget {
             },
           ),
         ],
+      ),
       ),
     );
   }
