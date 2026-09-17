@@ -23,7 +23,9 @@ class QrScanResult {
   static QrScanResult parse(String raw) {
     final trimmed = raw.trim();
 
-    // 1. ClockIn deep links: clockin://contract/<id> or clockin:contract:<id>
+    // 1. ClockIn deep links:
+    // - contract: clockin://contract/<id> or clockin:contract:<id>
+    // - worker profile: clockin://worker/<address> or clockin:worker:<address>
     if (trimmed.startsWith('clockin://contract/')) {
       final id = trimmed.substring('clockin://contract/'.length);
       return QrScanResult(raw: trimmed, contractId: id);
@@ -31,6 +33,14 @@ class QrScanResult {
     if (trimmed.startsWith('clockin:contract:')) {
       final id = trimmed.substring('clockin:contract:'.length);
       return QrScanResult(raw: trimmed, contractId: id);
+    }
+    if (trimmed.startsWith('clockin://worker/')) {
+      final addr = trimmed.substring('clockin://worker/'.length);
+      return QrScanResult(raw: trimmed, solanaAddress: addr);
+    }
+    if (trimmed.startsWith('clockin:worker:')) {
+      final addr = trimmed.substring('clockin:worker:'.length);
+      return QrScanResult(raw: trimmed, solanaAddress: addr);
     }
 
     // 2. Solana Pay URI: solana:<pubkey>?amount=1.5

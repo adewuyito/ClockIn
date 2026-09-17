@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/app_providers.dart';
 import '../solana/network_config.dart';
 import '../theme/app_colors.dart';
+import 'profile_qr_sheet.dart';
 
 /// Modal bottom sheet displaying connected wallet identity, balance,
 /// explorer links, and a deliberate, confirmed disconnect option.
@@ -265,7 +266,45 @@ class WalletAccountSheet extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
 
-          // Action 2: Disconnect Action
+          // Action 2: Show Address QR Code
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.primaryContainer.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.qr_code_2_rounded, size: 20, color: AppColors.primary),
+            ),
+            title: Text(
+              'Show Address QR Code',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurface,
+              ),
+            ),
+            subtitle: Text(
+              'Display scannable code for ClockIn or Solana wallets',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11.5,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            onTap: () {
+              Navigator.of(context).pop();
+              ProfileQrSheet.show(
+                context,
+                address: address,
+                label: 'Wallet QR Code',
+              );
+            },
+          ),
+          const SizedBox(height: 6),
+
+          // Action 3: Disconnect Action
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Container(

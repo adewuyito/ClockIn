@@ -9,6 +9,7 @@ import '../../core/solana/reputation_errors.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_header.dart';
+import '../../core/widgets/profile_qr_sheet.dart';
 
 /// Screen 2: My Profile (Loaded, Not Registered, Loading Skeleton, Empty Reviews).
 ///
@@ -161,7 +162,15 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   _buildIdentityPill(address, true, profile),
                   const SizedBox(height: 20),
                   _buildHeroCard(profile),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  ProfileQrCard(
+                    address: address,
+                    isRegistered: true,
+                    title: 'Reputation Pass QR',
+                    subtitle: 'Scan with ClockIn, Phantom, or Solflare to verify reputation or hire.',
+                    isCompact: true,
+                  ),
+                  const SizedBox(height: 16),
                   reviewsAsync.when(
                     loading: () => const Center(
                       child: Padding(
@@ -288,6 +297,24 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               ],
             ),
           ),
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => ProfileQrSheet.show(
+              context,
+              address: address,
+              label: 'My Reputation Pass',
+              isRegistered: isRegistered,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryContainer.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.qr_code_2_rounded, size: 18, color: AppColors.primary),
+            ),
+          ),
+          const SizedBox(width: 6),
           InkWell(
             borderRadius: BorderRadius.circular(8),
             onTap: () => _copyAddress(address, feedback: 'Copied'),
@@ -744,6 +771,14 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        ProfileQrCard(
+          address: address,
+          isRegistered: false,
+          title: 'Wallet Address QR',
+          subtitle: 'Scan with ClockIn, Solflare, or Phantom to view address or transfer Devnet SOL.',
+          isCompact: true,
+        ),
       ],
     );
   }
@@ -845,7 +880,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   Widget _buildEmptyReviewsCard(String address) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
@@ -853,104 +888,59 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       ),
       child: Column(
         children: [
-          Stack(
-            clipBehavior: Clip.none,
+          Row(
             children: [
               Container(
-                width: 64,
-                height: 64,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.secondaryContainer.withValues(alpha: 0.4),
+                  color: AppColors.secondaryContainer.withValues(alpha: 0.5),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.qr_code_2_rounded, size: 32, color: AppColors.primary),
+                child: const Icon(Icons.rate_review_outlined, size: 22, color: AppColors.primary),
               ),
-              Positioned(
-                bottom: -2,
-                right: -2,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                  child: const Icon(Icons.share_rounded, size: 16, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'No reviews yet',
+                      style: AppTypography.titleMd.copyWith(color: AppColors.onSurface),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Share your QR code above with a client or DAO you worked with to receive verified feedback.',
+                      style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Text(
-            'No reviews yet',
-            style: AppTypography.titleMd.copyWith(color: AppColors.onSurface),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Share your address with someone you've worked with to get your first review.",
-            textAlign: TextAlign.center,
-            style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant, height: 1.4),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _copyAddress(address, feedback: 'Address copied — share it with your client'),
-              icon: const Icon(Icons.share_rounded, size: 20),
-              label: const Text('Share address'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Solana Devnet Identity',
-                        style: AppTypography.labelSm.copyWith(color: AppColors.outline),
-                      ),
-                      Text(
-                        address,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.labelMd.copyWith(color: AppColors.onSurface),
-                      ),
-                    ],
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => ProfileQrSheet.show(
+                    context,
+                    address: address,
+                    label: 'My Reputation Pass',
                   ),
+                  icon: const Icon(Icons.fullscreen_rounded, size: 18),
+                  label: const Text('Enlarge QR'),
                 ),
-                const SizedBox(width: 8),
-                InkWell(
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: () => _copyAddress(address, feedback: 'Copied!'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.copy_rounded, size: 16, color: AppColors.primary),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Copy',
-                          style: AppTypography.labelSm.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _copyAddress(address, feedback: 'Address copied — share it with your client'),
+                  icon: const Icon(Icons.share_rounded, size: 18),
+                  label: const Text('Share address'),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

@@ -6,6 +6,7 @@ import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/profile_qr_sheet.dart';
 import '../contracts/create_contract_screen.dart';
 
 /// Screen 4a/4b: Worker Profile (Loaded / Not Registered) — pushed from
@@ -203,6 +204,24 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                 Text('DEVNET',
                     style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant, fontWeight: FontWeight.w700)),
               ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: () => ProfileQrSheet.show(
+              context,
+              address: widget.address,
+              label: 'Worker QR Code',
+            ),
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceContainerHigh,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.qr_code_2_rounded, size: 18, color: AppColors.primary),
             ),
           ),
         ],
