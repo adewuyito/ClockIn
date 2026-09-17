@@ -43,8 +43,15 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  int _currentIndex = 0;
+  int _currentIndex = 3; // Defaults to Connect tab (index 3) when disconnected
   String? _prefilledWorkerForReview;
+
+  @override
+  void initState() {
+    super.initState();
+    final wallet = ref.read(walletStateProvider);
+    _currentIndex = wallet.isConnected ? 0 : 3;
+  }
 
   void _onSelectWorkerForReview(String workerAddress) {
     setState(() {
@@ -56,6 +63,15 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final wallet = ref.watch(walletStateProvider);
+
+    // If wallet transitions from connected to disconnected, route back to Connect tab
+    ref.listen<WalletState>(walletStateProvider, (previous, next) {
+      if (previous?.isConnected == true && !next.isConnected) {
+        setState(() {
+          _currentIndex = 3;
+        });
+      }
+    });
 
     final screens = [
       // Tab 0: Contracts (P2P Escrow)
