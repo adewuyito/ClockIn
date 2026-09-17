@@ -154,36 +154,48 @@ class _QrScannerSheetState extends State<QrScannerSheet> {
 
           // Header with controls
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.fromLTRB(20, 0, 12, 0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.onSurface,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.onSurface,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.hintText,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        color: AppColors.onSurfaceVariant,
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.hintText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          color: AppColors.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                       icon: Icon(
                         _isTorchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+                        size: 20,
                         color: _isTorchOn ? AppColors.warning : AppColors.onSurfaceVariant,
                       ),
                       tooltip: 'Toggle flash',
@@ -195,12 +207,18 @@ class _QrScannerSheetState extends State<QrScannerSheet> {
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.flip_camera_ios_rounded, color: AppColors.onSurfaceVariant),
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      icon: const Icon(Icons.flip_camera_ios_rounded, size: 20, color: AppColors.onSurfaceVariant),
                       tooltip: 'Switch camera',
                       onPressed: () => _controller.switchCamera(),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, color: AppColors.onSurfaceVariant),
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.onSurfaceVariant),
                       tooltip: 'Close',
                       onPressed: () => Navigator.of(context).pop(),
                     ),
