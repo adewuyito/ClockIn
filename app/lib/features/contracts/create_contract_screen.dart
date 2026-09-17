@@ -63,10 +63,60 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
   }
 
   void _selectPresetDays(int days) {
+    HapticFeedback.selectionClick();
     setState(() {
       _selectedPresetDays = days;
-      _selectedDeadline = DateTime.now().add(Duration(days: days));
+      if (days == 0) {
+        _selectedDeadline = null;
+      } else {
+        _selectedDeadline = DateTime.now().add(Duration(days: days));
+      }
     });
+  }
+
+  Future<void> _pickCustomDeadline() async {
+    final now = DateTime.now();
+    final firstDate = now.add(const Duration(hours: 1));
+    final initialDate = _selectedDeadline != null && _selectedDeadline!.isAfter(firstDate)
+        ? _selectedDeadline!
+        : now.add(const Duration(days: 7));
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: now.add(const Duration(days: 365 * 3)),
+      helpText: 'SELECT CONTRACT DEADLINE',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryContainer,
+              onPrimary: Colors.white,
+              surface: AppColors.surfaceContainerLowest,
+              onSurface: AppColors.onSurface,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null) {
+      final deadlineWithTime = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        23,
+        59,
+        59,
+      );
+      setState(() {
+        _selectedPresetDays = -1;
+        _selectedDeadline = deadlineWithTime;
+      });
+      HapticFeedback.selectionClick();
+    }
   }
 
   Future<void> _pasteFromClipboard() async {
@@ -329,7 +379,11 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                               _selectedDeadline = DateTime.fromMillisecondsSinceEpoch(
                                 draft.deadline.toInt() * 1000,
                                 isUtc: true,
-                              );
+                              ).toLocal();
+                              _selectedPresetDays = -1;
+                            } else {
+                              _selectedDeadline = null;
+                              _selectedPresetDays = 0;
                             }
                           });
                           Navigator.of(sheetContext).pop();
@@ -507,8 +561,8 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                 _buildReviewItem(
                   'Deadline',
                   _selectedDeadline != null
-                      ? '${_selectedDeadline!.month}/${_selectedDeadline!.day}/${_selectedDeadline!.year}'
-                      : 'None',
+                      ? '${DateFormat.yMMMd().format(_selectedDeadline!)} (${_selectedDeadline!.difference(DateTime.now()).inDays.clamp(0, 9999)}d remaining)'
+                      : 'None (Flexible / Open-Ended)',
                 ),
 
                 const SizedBox(height: 20),
@@ -931,28 +985,67 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
             ),
             const SizedBox(height: 18),
 
-            // Deadline Preset Chips
-            Text(
-              'Expected Deadline',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
+            // Deadline Preset Chips & Variable Timeline
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildPresetChip(3, '3 Days'),
-                const SizedBox(width: 8),
-                _buildPresetChip(7, '7 Days'),
-                const SizedBox(width: 8),
-                _buildPresetChip(14, '14 Days'),
-                const SizedBox(width: 8),
-                _buildPresetChip(30, '30 Days'),
+                Text(
+                  'Contract Timeline & Deadline',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                InkWell(
+                  onTap: _pickCustomDeadline,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_month_rounded, size: 15, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Pick Date',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  _buildPresetChip(0, 'Flexible (None)'),
+                  const SizedBox(width: 8),
+                  _buildPresetChip(1, '24 Hours'),
+                  const SizedBox(width: 8),
+                  _buildPresetChip(3, '3 Days'),
+                  const SizedBox(width: 8),
+                  _buildPresetChip(7, '7 Days'),
+                  const SizedBox(width: 8),
+                  _buildPresetChip(14, '14 Days'),
+                  const SizedBox(width: 8),
+                  _buildPresetChip(30, '30 Days'),
+                  const SizedBox(width: 8),
+                  _buildCustomDateChip(),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            _buildDeadlineSummaryCard(),
+            const SizedBox(height: 28),
 
             // Continue Button
             SizedBox(
@@ -1014,30 +1107,169 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
 
   Widget _buildPresetChip(int days, String label) {
     final isSelected = _selectedPresetDays == days;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _selectPresetDays(days),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.primaryContainer : AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected
-                  ? AppColors.primaryContainer
-                  : AppColors.outlineVariant.withValues(alpha: 0.4),
-            ),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? Colors.white : AppColors.onSurface,
-            ),
+    return GestureDetector(
+      onTap: () => _selectPresetDays(days),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryContainer : AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primaryContainer
+                : AppColors.outlineVariant.withValues(alpha: 0.4),
           ),
         ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? Colors.white : AppColors.onSurface,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomDateChip() {
+    final isCustom = _selectedPresetDays == -1;
+    return GestureDetector(
+      onTap: _pickCustomDeadline,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isCustom ? AppColors.primaryContainer : AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isCustom
+                ? AppColors.primaryContainer
+                : AppColors.outlineVariant.withValues(alpha: 0.4),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.event_available_rounded,
+              size: 14,
+              color: isCustom ? Colors.white : AppColors.primary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              isCustom && _selectedDeadline != null
+                  ? DateFormat('MMM d, yyyy').format(_selectedDeadline!)
+                  : 'Custom Date',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: isCustom ? FontWeight.w700 : FontWeight.w500,
+                color: isCustom ? Colors.white : AppColors.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeadlineSummaryCard() {
+    final hasDeadline = _selectedDeadline != null;
+    final isCustom = _selectedPresetDays == -1;
+
+    String headline;
+    String subtext;
+    IconData icon;
+    Color accentColor;
+
+    if (!hasDeadline) {
+      headline = 'Open-Ended Timeline';
+      subtext = 'No expiration date. Escrow funds stay locked until you approve deliverables or cancel.';
+      icon = Icons.all_inclusive_rounded;
+      accentColor = AppColors.primary;
+    } else {
+      final now = DateTime.now();
+      final difference = _selectedDeadline!.difference(now);
+      final daysRemaining = difference.inDays;
+      final hoursRemaining = difference.inHours;
+      final dateFormatted = DateFormat('EEE, MMM d, yyyy').format(_selectedDeadline!);
+
+      if (isCustom) {
+        headline = 'Target Completion: $dateFormatted';
+      } else {
+        headline = 'Deadline: $dateFormatted';
+      }
+
+      if (daysRemaining > 1) {
+        subtext = '$daysRemaining days remaining • Deliverables due before this date.';
+      } else if (hoursRemaining > 0) {
+        subtext = 'Due in ~$hoursRemaining hours • Fast milestone sprint.';
+      } else {
+        subtext = 'Expires today at 23:59.';
+      }
+      icon = Icons.alarm_on_rounded;
+      accentColor = AppColors.success;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: accentColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  headline,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtext,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    color: AppColors.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isCustom)
+            GestureDetector(
+              onTap: _pickCustomDeadline,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Change',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
