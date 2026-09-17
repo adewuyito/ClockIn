@@ -65,9 +65,6 @@ class SettingsScreen extends ConsumerWidget {
         onCopyAddress: () {
           if (wallet.address != null) _copy(context, wallet.address!, 'Address');
         },
-        onAvatarTap: wallet.isConnected
-            ? () => ref.read(walletStateProvider.notifier).disconnect()
-            : null,
       ),
       body: RefreshIndicator(
         onRefresh: () async {

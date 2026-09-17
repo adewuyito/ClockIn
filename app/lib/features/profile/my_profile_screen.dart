@@ -115,7 +115,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       appBar: AppHeader(
         address: address,
         onCopyAddress: () => _copyAddress(_shorten(address), feedback: 'Copied'),
-        onAvatarTap: () => ref.read(walletStateProvider.notifier).disconnect(),
       ),
       body: RefreshIndicator(
         onRefresh: () async {

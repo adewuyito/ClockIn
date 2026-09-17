@@ -367,9 +367,6 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
       appBar: AppHeader(
         address: wallet.address,
         onCopyAddress: wallet.address == null ? null : () => _copy(wallet.address!, 'Copied'),
-        onAvatarTap: wallet.isConnected
-            ? () => ref.read(walletStateProvider.notifier).disconnect()
-            : null,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -815,7 +812,6 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
       appBar: AppHeader(
         address: wallet.address,
         onCopyAddress: () => _copy(wallet.address!, 'Copied'),
-        onAvatarTap: () => ref.read(walletStateProvider.notifier).disconnect(),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),

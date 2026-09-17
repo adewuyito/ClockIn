@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import 'wallet_account_sheet.dart';
 
 /// Sticky top header matching the Stitch design's chrome, used across
 /// tabs: wordmark + tagline, a "DEVNET" chip, and — when a wallet is
@@ -118,7 +119,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               child: const Icon(Icons.person, color: Colors.white, size: 18),
             ),
             tooltip: 'Wallet options',
-            onPressed: onAvatarTap,
+            onPressed: onAvatarTap ?? () => WalletAccountSheet.show(context),
           ),
         ] else
           const SizedBox(width: 4),

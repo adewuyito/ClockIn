@@ -135,7 +135,6 @@ class _LookupWorkerScreenState extends ConsumerState<LookupWorkerScreen> {
             _showSnack('Copied');
           }
         },
-        onAvatarTap: () => ref.read(walletStateProvider.notifier).disconnect(),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

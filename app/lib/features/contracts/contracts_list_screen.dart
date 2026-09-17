@@ -64,7 +64,18 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const AppHeader(),
+            AppHeader(
+              address: wallet.isConnected ? wallet.address : null,
+              onCopyAddress: wallet.address != null
+                  ? () {
+                      Clipboard.setData(ClipboardData(text: wallet.address!));
+                      HapticFeedback.lightImpact();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Address copied.')),
+                      );
+                    }
+                  : null,
+            ),
             Expanded(
               child: contractsAsync.when(
                 loading: () => const Center(
