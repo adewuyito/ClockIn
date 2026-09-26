@@ -61,8 +61,10 @@ ClockIn/                        (single repo — no split)
 │   ├── ROADMAP.md                ← rewritten — fresh 8-phase plan for Anchor + Flutter + the hackathon deadline
 │   ├── ARCHITECTURE.md           ← rewritten — Anchor/Flutter/MWA architecture, data flows, non-goals
 │   ├── PROGRAM_SPEC.md           ← rewritten — Anchor program spec (renamed from CONTRACT_SPEC.md)
-│   └── APP_SPEC.md               ← rewritten — Flutter app spec (several real decisions, e.g. state management and the review-handoff mechanism, deliberately left open for the phase that reaches them, not pre-decided)
-├── app/                         ← Flutter project (see Tech stack above)
+│   └── APP_SPEC.md               ← rewritten — Flutter app spec (several real decisions, 
+│                                      e.g. state management and the review-handoff mechanism, 
+│                                      deliberately left open for the phase that reaches them, not pre-decided)
+├── app/                          ← Flutter project (see Tech stack above)
 │   ├── pubspec.yaml
 │   ├── lib/
 │   │   └── core/database/app_database.dart   ← Drift schema, already started
