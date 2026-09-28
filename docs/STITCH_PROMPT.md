@@ -1,157 +1,223 @@
-# Stitch Prompt — ClockIn UI
+# Stitch Prompt Guide — ClockIn (Escrow Protocol & $SKR Seeker Integration)
 
-A paste-ready prompt for [Stitch](https://stitch.withgoogle.com) to generate the ClockIn app screens.
+> **Stitch Project:** `2859884629275757623` ("Clock-In Screen Refinement")  
+> **Platform:** Android Mobile Portrait (390px × 844px)  
+> **Theme:** Light mode, clean consumer finance (Revolut / Cash App aesthetic)  
+> **Color Tokens:** Surface `#F8F9FB`, Primary Teal `#00556D` / `#0F6F8C`, Success/Verified Emerald `#1F9D5B`, Warning Amber `#C97A0A`, Error `#BA1A1A`  
+> **Typography:** Plus Jakarta Sans (Primary UI), JetBrains Mono (Cryptographic public keys, balances, hashes)
 
-**Design direction chosen:** clean mainstream consumer-app feel (Revolut / Cash App), light theme, trustworthy, wallet layer present-but-not-shouty, core loop + key states.
+---
 
-It leads with a global design system so every screen comes out consistent, then specifies each screen and its states. It's derived from the functional spec in `PROGRAM_SPEC.md` / `ARCHITECTURE.md` / `APP_SPEC.md` — keep it in sync if those change.
+## CONTEXT BLOCK (Apply to all screens)
 
 ```
-Design a mobile app called "ClockIn" — Android, portrait phone screens.
+You are designing mobile screens for "ClockIn" on Android. The design system is established — maintain exact visual harmony, color tokens, typography, spacing, and component styling.
 
-WHAT IT IS
-ClockIn gives gig and freelance workers a portable reputation record: star
-ratings and job counts that live on a public ledger instead of being locked
-inside one marketplace. A worker builds up reviews from people they've worked
-with; anyone can look up an address before hiring. Users are everyday gig
-workers, not crypto enthusiasts — the blockchain is a trust feature in the
-background, not the headline.
+WHAT CLOCKIN IS:
+ClockIn is a mobile-first P2P Work Contract & Escrow Protocol on Solana, native to the Solana Seeker ecosystem. It enables freelancers and clients to formalize agreements, lock payments safely in smart contract escrow vaults (SOL or $SKR tokens), and release payments with atomic 5-star reputation generation at the moment of settlement.
 
-DESIGN LANGUAGE (apply to every screen)
-- Feel: modern consumer finance / work app — think Revolut, Cash App, or a
-  clean banking app. Approachable, calm, credible. Generous whitespace.
-- Theme: light. Off-white / very light grey app background (#F7F8FA-ish),
-  white cards with soft rounded corners (16px) and very subtle shadows or
-  hairline dividers — not heavy.
-- Primary colour: a deep, trustworthy teal-blue (around #0F6F8C / #12667F)
-  for primary buttons, links, and active states.
-- Semantic colour: green (#1F9D5B) for positive ratings, success, and
-  "verified" marks; amber (#C97A0A) for cautions; red used sparingly only
-  for hard errors.
-- Typography: clean system sans-serif. Strong hierarchy — large bold numbers
-  for the headline rating and job count, comfortable body text, quiet
-  secondary/caption text in mid-grey.
-- Components: full-width rounded primary buttons; large tap targets; star
-  ratings shown as filled/outline stars; list rows with an avatar circle
-  (generated from the address), a rating, a relative date, and an optional
-  one-line note.
-- Iconography: simple line icons. The app's motif is "clocking in / checking
-  in to work" — a subtle clock or check-in glyph is fine for the logo and
-  empty states, nothing literal or skeuomorphic.
+KEY DIFFERENTIATORS IN THIS UPDATE:
+1. $SKR Token Escrow: Users can fund contracts in either native SOL or $SKR tokens (the native Seeker utility token).
+2. Seeker Attested Staking Badge: Workers and employers who stake $SKR to Seeker Guardians receive a verified "Economic Proof-of-Human" badge on their profile with a 48-hour unstake cooldown indicator, proving they are a real human with capital on the line (zero bot risk).
+3. Zero Platform Fee: Pure peer-to-peer on Solana; zero middleman cut vs Web2's 20%.
 
-CRYPTO / WALLET TREATMENT (balanced — visible but not jargon-heavy)
-- Wallet connection is clearly present. Say "Connect wallet" and "Connected
-  wallet", not raw technical terms.
-- Show wallet/worker addresses truncated everywhere: "7Fki…dEt9", with a
-  copy icon where the user's own address appears.
-- Use a small "Verified on-chain" pill (green check) near reputation numbers
-  as a trust signal.
-- A small, unobtrusive "Devnet" chip in the top bar on every screen so it's
-  always clear this is a test network — muted styling, not alarming.
-- No seed phrases, no gas/fee talk, no hex. When an action needs the wallet,
-  say "You'll approve this in your wallet app."
-
-SCREENS
-
-1. CONNECT WALLET / WELCOME
-   - App logo + name. One-line value prop: "A work reputation that follows
-     you between gigs."
-   - Three or four tiny benefit lines with line icons (e.g. "Ratings you
-     own", "Check anyone before you hire", "Verified on a public ledger").
-   - Primary button: "Connect wallet". Helper caption under it: "You'll
-     approve this in your wallet app."
-   - Secondary text link: "How does this work?"
-   - Variant of this screen: NO WALLET APP FOUND — same layout but the button
-     becomes "Install a wallet" with a short line explaining a wallet app is
-     needed, and a muted list of options.
-
-2. MY PROFILE (home screen after connecting)
-   - Top bar: "ClockIn" wordmark, the Devnet chip, and the user's truncated
-     address with a copy icon.
-   - Hero card: very large rating number (e.g. "4.8") with 5 stars beneath,
-     and "23 jobs reviewed" as secondary text. A green "Verified on-chain"
-     pill.
-   - Section: "Recent reviews" — a list of review rows (reviewer avatar +
-     truncated address, star rating, relative date like "3d ago", optional
-     one-line note).
-   - Bottom navigation: Profile (active), Look Up, and a prominent centre
-     action for "Review someone" (leads to Submit Review).
-   - STATE — NOT REGISTERED YET: replace the hero card with a friendly card:
-     "You haven't started your reputation record yet" + short line that this
-     is a one-time step + primary button "Create my record". Recent reviews
-     section hidden.
-   - STATE — LOADING: skeleton placeholders for the hero card and 3 review
-     rows.
-   - STATE — NO REVIEWS: hero card shows "No rating yet", and an empty state
-     under it: "No reviews yet — share your address with someone you've
-     worked with" + a "Share address" button.
-
-3. LOOK UP AN ADDRESS
-   - Title: "Look up a worker". Subtitle: "Check someone's reputation before
-     you work together."
-   - A large search field for pasting a Solana address, with a paste button
-     inside the field and a "Search" button.
-   - Below: "Recent lookups" — a short list of previously viewed addresses
-     (truncated address + their rating + stars), tappable.
-   - STATE — INVALID ADDRESS: inline error under the field: "That doesn't
-     look like a valid address."
-
-4. WORKER PROFILE (viewing someone else)
-   - Same visual structure as My Profile's hero card and review list, but
-     read-only and clearly someone else: their truncated address as the
-     screen title with a copy icon, their big rating, job count, "Verified
-     on-chain" pill.
-   - Full reviews list with a "Load more" affordance at the bottom.
-   - Sticky primary button at the bottom: "Leave a review".
-   - STATE — ADDRESS NOT REGISTERED: instead of the hero card, an empty
-     state: "This address hasn't started a reputation record yet." The
-     "Leave a review" button is disabled with a caption explaining they need
-     a record first.
-
-5. SUBMIT REVIEW
-   - Title: "Leave a review".
-   - Field 1: "Worker's address" — pre-filled and read-only when arriving
-     from a profile; otherwise an editable field with a paste button.
-   - Field 2: "Job reference" — short text input, helper text: "A short ID or
-     name for the job you're reviewing."
-   - Rating: 5 large tappable stars, prominent, centred, with the numeric
-     value shown.
-   - Field 3: "Note (optional)" — a small multiline text area.
-   - Caption near the submit button: "You'll approve this in your wallet.
-     Reviews are permanent."
-   - Primary button: "Submit review".
-   - STATE — SELF REVIEW BLOCKED: if the worker address equals the user's own
-     address, an inline warning replaces the button area: "You can't review
-     yourself."
-   - STATE — SUBMITTING: button becomes a progress state, cycling through
-     "Waiting for wallet approval…" then "Confirming on the network…".
-   - STATE — SUCCESS (separate confirmation screen): large green check,
-     "Review submitted", a summary card showing the stars given + the worker
-     address truncated, a subtle "View on explorer" text link, and a "Done"
-     button that returns to the previous profile.
-   - STATE — ERROR (inline on the form): a red banner with a clear message
-     ("You've already reviewed this job." / "Couldn't reach the network.")
-     and a "Try again" button.
-
-Produce all screens as a coherent set that share the same header, spacing,
-colour system, and component styles.
+DESIGN LANGUAGE:
+- Background: Clean off-white (#F8F9FB), elevated white cards (#FFFFFF) with 16px rounded corners and subtle hairline borders (#E4E7EC).
+- Primary Action: Deep Trustworthy Teal (#0F6F8C / #00556D).
+- Accents & Status: Emerald green (#1F9D5B) for completed/verified, amber (#C97A0A) for pending/Devnet chip, red (#BA1A1A) for errors/disputes.
+- Cryptographic data: Truncated addresses ("7Fki…dEt9") in JetBrains Mono.
+- Top Bar: Always includes back arrow (where applicable), screen title, and persistent "DEVNET" amber pill badge.
 ```
 
 ---
 
-## How to use it in Stitch
+## SCREEN SPECIFICATIONS
 
-1. Set the mode to **mobile** and theme to **Light** in Stitch's controls.
-2. Paste the whole thing for the app-level generation, or feed the **DESIGN LANGUAGE + CRYPTO/WALLET** blocks first, then each numbered screen block one at a time if you want tighter control per screen.
-3. When refining, reference the screen by name — e.g. *"On MY PROFILE, make the rating number bigger and move the Devnet chip…"*. Stitch keeps context within a project.
-4. Generate the state variants (NOT REGISTERED, LOADING, SUCCESS, ERROR, etc.) as their own screens so you have them all as design references before building the Flutter UI.
+### Screen 1: Worker Profile (Loaded) with "Seeker Attested" Staking Badge
+*Reference Screen: `4a. Worker Profile (Loaded)` (`c71b1c1c4f454408992cf0aaab322376`)*
 
-## Mapping to the build
+```
+SCREEN: WORKER PROFILE WITH SEEKER STAKING ATTESTATION
 
-| Stitch screen | Backs onto | Notes |
-|---|---|---|
-| Connect Wallet / Welcome | `solana_mobile_client` `authorize()` | "No wallet app found" is a real MWA failure mode — see `ARCHITECTURE.md` Phase 4 |
-| My Profile | `WorkerProfile` PDA fetch + `getProgramAccounts` for reviews | "Not registered yet" = the `register_worker` CTA |
-| Look Up an Address | client-side address validation, then a `WorkerProfile` fetch | no wallet interaction — reads are free |
-| Worker Profile | same as My Profile, read-only | "Leave a review" pre-fills Submit Review with this address |
-| Submit Review | `submit_review` instruction, MWA-signed | self-review guard is client-side *and* program-enforced (`SelfReview`); "already reviewed" = the `review` PDA `init` failure |
+TOP APP BAR:
+- Back button ("<"), Title: "Worker Profile", Right: "DEVNET" amber pill chip
+
+IDENTITY HEADER:
+- Generated Identicon circle
+- Truncated Solana Address: "7Fki…dEt9" with copy icon
+- "Active Contributor • Registered on-chain"
+
+HERO BADGE: "SEEKER ATTESTED • HUMAN VERIFIED" (New prominent card)
+- Background: Soft emerald tint (#E8F8F0), 1.5px border (#1F9D5B), 16px rounded corners
+- Top Row: Emerald shield/security icon + "SEEKER ATTESTED" in bold uppercase + green checkmark
+- Subtitle: "Economic Proof-of-Human via 250 $SKR Guardian Stake"
+- Three metadata chips inside the card:
+  1. "250 $SKR Staked" (bold)
+  2. "Guardian: Helius"
+  3. "48h Cooldown Active"
+- Trust note: "Guaranteed non-bot. Counterparty has capital locked in the Seeker network."
+
+REPUTATION & WORK METRICS CARD:
+- Large rating: "4.9" with 5 filled emerald stars (#1F9D5B)
+- Subtitle: "18 Verified Escrows Completed"
+- Volume Row: "Total Settled: 42.5 SOL • 1,500 $SKR"
+
+RECENT ESCROW REVIEWS:
+- List of reviews showing client avatar, truncated address, 5 stars, relative date ("2d ago")
+- Badge on row: "Settled in $SKR • Atomic Release"
+
+STICKY BOTTOM CTA:
+- Primary full-width button: "Create Escrow Contract" (Deep Teal #0F6F8C)
+  Caption: "Hire this worker with zero platform fee"
+- Secondary button: "Share Profile"
+```
+
+---
+
+### Screen 2: My Profile (Loaded) with Staking Status & Loyalty CTA
+*Reference Screen: `2. My Profile (Loaded)` (`79abb9d7dd83467686cfa20373b5bfc8`)*
+
+```
+SCREEN: MY PROFILE (LOADED) WITH STAKING STATUS
+
+TOP BAR:
+- "ClockIn" wordmark, "DEVNET" amber chip, connected wallet icon
+
+HERO CARD:
+- Rating: "5.0" with 5 stars
+- "24 Escrow Contracts Completed • 0 Disputed"
+- "Personal Solana QR Card" toggle button
+
+STAKING STATUS MODULE (Two States):
+- State A (When Staked):
+  Card showing "🛡️ You are Seeker Attested" with "250 $SKR Staked to Guardian: Helius" + "48h Unstake Cooldown Active".
+- State B (When Unstaked):
+  Tonal card (#E4F1F5) with info icon: "Boost Your Hiring Trust: Stake 50 $SKR to earn the Seeker Verified badge & unlock top search placement." Button: "Stake $SKR".
+
+RECENT CONTRACTS & SETTLEMENTS:
+- Segmented history showing both SOL and $SKR escrow completions
+- "Synced 2m ago" transparent indicator
+```
+
+---
+
+### Screen 3: Create Contract (Form) — Dual-Currency SOL & $SKR
+*Reference Screen: `8. Create Contract (Form)` (`3856938a40a647c88d8f3c72709a7440`)*
+
+```
+SCREEN: CREATE CONTRACT (FORM) — MULTI-CURRENCY ESCROW
+
+TOP BAR:
+- Back arrow + "New Escrow Contract" + DEVNET pill
+
+FORM FIELDS:
+
+1. WORKER ADDRESS:
+   - Text input with "Paste" button
+   - Live validation card below:
+     - Worker avatar + truncated address
+     - If Seeker Staked: Green shield badge "🛡️ Seeker Attested Worker (250 $SKR Staked)"
+     - Rating: "★ 4.9 (18 jobs)"
+
+2. CURRENCY & PAYMENT AMOUNT (New dual-currency selector):
+   - Segmented Pill Toggle: [ SOL ] | [ $SKR ]
+   - When [ SOL ] is active:
+     - Input field: "Amount (SOL)" e.g. "1.50"
+     - Subtitle: "≈ $210.00 USD"
+     - Wallet balance: "Balance: 4.82 SOL"
+   - When [ $SKR ] is active:
+     - Input field: "Amount ($SKR)" e.g. "500"
+     - Subtitle: "Seeker Ecosystem Utility Token"
+     - Wallet balance: "Balance: 2,500 $SKR"
+
+3. DEADLINE (OPTIONAL):
+   - Date picker field: "Set milestone deadline"
+
+4. TERMS / JOB DESCRIPTION:
+   - Multiline description text area
+   - Caption: "A client-side SHA-256 hash of these terms will be stored on-chain. Text remains private to your device."
+
+TRANSACTION & COST BREAKDOWN:
+- Escrow Deposit: "500 $SKR" (or "1.50 SOL")
+- Vault Account Rent: "~0.002 SOL" (refundable on completion)
+- Platform Fee: "0.00 SOL (0% Free P2P)"
+- Estimated Total: "500 $SKR + ~0.002 SOL gas"
+
+STICKY BOTTOM CTA:
+- Primary button: "Review & Fund Escrow"
+- Caption: "You'll approve this in your wallet app via MWA v2.0."
+```
+
+---
+
+### Screen 4: Contract Detail ($SKR Escrow & Vault ATA Tracking)
+*Reference Screen: `9. Contract Detail (Employer View)` (`1bbaa1c0da054eada1136ef6d22ab0af`)*
+
+```
+SCREEN: CONTRACT DETAIL ($SKR ESCROW IN PROGRESS)
+
+TOP BAR:
+- Back arrow + "ctr_9xKw…492b" in JetBrains Mono + DEVNET pill
+
+ROLE BANNER:
+- "YOU ARE THE EMPLOYER" (Teal banner)
+
+CONTRACT HERO CARD:
+- Status Pill: "IN PROGRESS" (amber with pulsing dot)
+- Large Amount: "500 $SKR" (48pt bold JetBrains Mono) with purple/mint $SKR token glyph
+- Subtitle: "Locked in Program Token Vault ATA"
+- Security note: "Funds are protected by smart contract PDA authority. Irreversible until completed or mutually cancelled."
+
+PARTIES SECTION:
+- Employer (you): Truncated address + "Connected"
+- Worker: Truncated address + "🛡️ Seeker Attested" badge
+
+CONTRACT METADATA:
+- Terms Hash: "e3b0c442…98fc" (with copy button)
+- Vault ATA: "Tokenkeg…Vault" (with copy button)
+- Token Mint: "SKRbvo…ZhW3 ($SKR)"
+
+STATUS TIMELINE:
+- ✅ Contract Created
+- ✅ 500 $SKR Funded into Vault
+- ✅ Worker Accepted Terms
+- ⏳ Awaiting Work Completion (Current active step)
+- ○ Atomic Release & Rating (Next step)
+
+STICKY BOTTOM ACTIONS:
+- Primary button: "Release 500 $SKR & Review" (leads to Settlement Screen)
+- Secondary outline button: "Raise Dispute"
+```
+
+---
+
+### Screen 5: Release & Rate ($SKR Atomic Settlement)
+*Reference Screen: `11. Release & Rate (Settlement)` (`d92c9d4b2af34dd1b1287a9ef536e5f4`)*
+
+```
+SCREEN: RELEASE & RATE ($SKR ATOMIC SETTLEMENT)
+
+TOP BAR:
+- Back arrow + "Complete Contract" + DEVNET pill
+
+SETTLEMENT CONFIRMATION CARD:
+- Header pill: "ATOMIC SETTLEMENT"
+- Large Release Amount: "500 $SKR"
+- Recipient: "→ 7Fki…dEt9 (Worker ATA)"
+- Notice: "500 $SKR will transfer immediately to the worker and your rating will be permanently minted on Solana."
+
+RATING SELECTION:
+- 5 large interactive gold/emerald stars (36px)
+- Dynamic tier label: "★ ★ ★ ★ ★ — Exceptional Quality"
+- Haptic tactile feedback note
+
+WHAT HAPPENS ATOMICALLY (Single Transaction Box):
+1. 500 $SKR transfers from Vault ATA to Worker's ATA
+2. Program closes Vault ATA and refunds rent lamports back to you
+3. An immutable Review PDA is created on Solana
+4. Worker's aggregate reputation score increments
+
+STICKY BOTTOM CTA:
+- Primary button: "Sign & Release 500 $SKR"
+- Caption: "Approved via Mobile Wallet Adapter. Zero platform fees."
+```
