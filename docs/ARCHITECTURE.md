@@ -240,13 +240,31 @@ Intentionally excluded from the first working version. Each is a real candidate 
 - **iOS.** Flutter scaffolds it by default; Solana Mobile Stack doesn't need it and this hackathon doesn't reward it.
 - **Worker identity: display name and avatar photo.** Deliberately choosing pseudonymity for the hackathon build — identity/KYC is a different product concern from "did this person complete verified, paid work." Same reasoning applies to review comments (no text field on `Review`). Revisit both together post-hackathon.
 
-## Future: $SKR Loyalty & Verification Layer ("Seeker Verified")
+## Future: "Seeker Verified" Identity Layer (On Hold)
 
-Beyond $SKR-denominated escrow contracts, there is a natural extension where $SKR staking creates a **trust and loyalty tier system** for ClockIn users:
+> **Status: On Hold.** Requires a physical Solana Seeker device for testing — the Genesis Token is a soulbound NFT minted by real hardware and cannot be simulated on Devnet. This feature is architecturally designed and reserved, but implementation is deferred until real-device testing is possible.
 
-- **"Seeker Verified" Badge:** Workers or employers who stake a minimum threshold of $SKR (e.g. 100 $SKR) receive a visible on-chain verification badge on their profile. This signals commitment to the Solana Mobile ecosystem and reduces counterparty risk — a staked user has skin in the game beyond a single contract.
-- **Prioritized Discovery:** Verified users could receive preferential ranking in worker lookup results, giving stakers a tangible hiring advantage.
-- **Loyalty Rewards:** Long-term stakers who maintain their $SKR position while actively completing contracts could earn protocol incentives — reduced settlement fees, priority dispute resolution, or governance weight in future arbitration votes.
-- **Anti-Sybil Reinforcement:** Staking adds a second economic barrier on top of escrow-linked reputation. Creating a fake "Seeker Verified" profile requires locking real $SKR, making coordinated Sybil attacks prohibitively expensive.
+ClockIn's escrow-linked reviews prevent fake *reviews*, but they don't prevent someone from creating multiple wallets and building parallel reputations. The Solana Seeker's **Genesis Token** solves this at the identity level — it is the only on-chain primitive that proves a wallet belongs to a real human with a real phone, not a bot or duplicate account.
 
-This layer is architecturally separate from the escrow protocol and can be implemented without modifying existing instructions — it reads $SKR token balances or staking positions and surfaces the verification status in the Flutter UI. Implementation is deferred to post-hackathon but the design space is intentionally reserved.
+### How it works
+
+The Seeker phone mints a **soulbound (non-transferable) Genesis Token NFT** into the owner's Seed Vault Wallet during device setup. This NFT is:
+- Cryptographically tied to the device's hardware secure enclave (Seed Vault).
+- Non-transferable — it cannot be sold, copied, or faked.
+- Verifiable on-chain by any program or client via standard Metaplex/SPL token account reads.
+
+### ClockIn integration design
+
+1. **Profile Banner:** When viewing any address (own profile or worker lookup), the app checks if the wallet holds a Genesis Token. If present, a **"Seeker Verified"** banner is displayed prominently on the profile card — visible to employers, workers, and anyone looking up the address.
+2. **Employer Filtering:** Worker lookup results can be filtered to show only Genesis Token holders, giving employers confidence they are hiring a verified, unique human.
+3. **Trust Signal in Contracts:** Contract detail screens display a verification badge next to the counterparty's address if their wallet holds a Genesis Token.
+
+### Future extension: $SKR staking tiers
+
+Beyond Genesis Token verification, $SKR staking could create a **loyalty and trust tier system**:
+
+- **Staking Threshold Badge:** Workers or employers who stake a minimum $SKR amount (e.g. 100 $SKR) receive an additional "Pro" tier on their profile, signaling deeper ecosystem commitment.
+- **Prioritized Discovery:** Staked and verified users could receive preferential ranking in worker lookup results.
+- **Governance Weight:** Long-term stakers who actively complete contracts could earn governance influence in future protocol decisions (dispute arbitration votes, fee parameters).
+
+This layer is architecturally separate from the escrow protocol — it reads on-chain token/NFT state and surfaces verification status in the Flutter UI without modifying any Anchor program instructions.
