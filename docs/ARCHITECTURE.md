@@ -24,7 +24,8 @@ flowchart LR
     subgraph net["Solana Network (Devnet)"]
         RPC["Solana RPC\n(simulate / send tx)"]
         PROG["ClockIn Program\n(Anchor / Rust)"]
-        VAULT["Escrow Vault PDAs\n(SOL locked)"]
+        VAULT_SOL["SOL Vault PDAs\n(native lamports)"]
+        VAULT_SKR["$SKR Token Vault ATAs\n(SPL Token via PDA authority)"]
     end
     DEAL -.->|share contract link/QR| UI
     UI --> VM --> CS
@@ -32,7 +33,8 @@ flowchart LR
     CS <--> DB
     RS <--> DB
     CS -->|via solana pkg| RPC --> PROG
-    PROG <-->|CPI transfer| VAULT
+    PROG <-->|system_program::transfer| VAULT_SOL
+    PROG <-->|anchor_spl::token CPI| VAULT_SKR
     CS -.->|sign request, MWA intent| MWA
     MWA -.->|signature back| CS
 ```
@@ -52,14 +54,14 @@ The key architectural insight — and the project's core novelty — is that **r
 
 ### New: Escrow accounts
 
-- **`EscrowContract`** — PDA seeds: `[b"escrow", contract_id.as_bytes()]`. One per contract. Stores the terms, parties, state machine, and payment details.
+- **`EscrowContract`** — PDA seeds: `[b"escrow", contract_id.as_bytes()]`. One per contract. Stores the terms, parties, state machine, and payment details. Supports both native SOL and SPL Token ($SKR) denominations.
 
 ```
 EscrowContract {
     contract_id: String,       // ≤32 bytes, client-generated unique ID
     employer: Pubkey,          // the party funding the escrow
     worker: Pubkey,            // the party performing the work
-    amount: u64,               // lamports locked in escrow
+    amount: u64,               // lamports (SOL) or base units ($SKR) locked in escrow
     terms_hash: [u8; 32],      // SHA-256 of off-chain terms document (not stored on-chain)
     status: ContractStatus,    // Created | Funded | InProgress | Completed | Disputed | Cancelled
     deadline: i64,             // Unix timestamp — optional deadline for work completion
@@ -68,22 +70,30 @@ EscrowContract {
     completed_at: i64,         // 0 if not yet completed
     rating: u8,                // 0 until completion, 1-5 at settlement
     bump: u8,
+    vault_bump: u8,
+    // --- $SKR Token Support ---
+    is_token: bool,            // false = native SOL escrow, true = SPL Token escrow
+    token_mint: Pubkey,        // Pubkey::default() if SOL, $SKR mint address if token
 }
 ```
 
-- **Vault PDA** — PDA seeds: `[b"vault", contract_id.as_bytes()]`. A system-owned account holding the locked SOL. The program has authority over this PDA and performs CPI transfers to/from it. No custom account data — it's just a lamport holder.
+- **SOL Vault PDA** — PDA seeds: `[b"vault", contract_id.as_bytes()]`. A system-owned account holding locked native SOL lamports. Used when `is_token == false`.
+
+- **Token Vault ATA** — An Associated Token Account (ATA) whose owner/authority is the Vault PDA. Holds locked $SKR tokens. The program signs token transfers via PDA seeds `[b"vault", contract_id.as_bytes(), &[vault_bump]]`. Used when `is_token == true`. Created and closed alongside the contract lifecycle.
 
 ### Contract status state machine
+
+The state machine is identical for both SOL and $SKR contracts. The only difference is which CPI mechanism moves funds: `system_program::transfer` for SOL, `anchor_spl::token::transfer` for $SKR.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Created: create_contract
-    Created --> Funded: fund_contract (employer deposits SOL)
+    Created --> Funded: fund_contract / fund_token_contract
     Funded --> InProgress: accept_contract (worker accepts)
-    InProgress --> Completed: release_and_review (employer releases + rates)
+    InProgress --> Completed: release_and_review / release_and_review_token
     InProgress --> Disputed: raise_dispute (either party)
     Created --> Cancelled: cancel_contract (employer, before funding)
-    Funded --> Cancelled: cancel_contract (employer, worker hasn't accepted)
+    Funded --> Cancelled: cancel_contract / cancel_token_contract
     Completed --> [*]
     Cancelled --> [*]
     Disputed --> Completed: resolve_dispute (future: arbitration)
@@ -137,16 +147,29 @@ stateDiagram-v2
 
 ## Instructions summary
 
+### Native SOL Escrow Instructions
+
 | Instruction | Signer | What it does |
 |---|---|---|
 | `register_worker` | worker | Creates `WorkerProfile` PDA. **Unchanged from current deployed program.** |
-| `create_contract` | employer | Creates `EscrowContract` PDA with status `Created`. |
+| `create_contract` | employer | Creates `EscrowContract` PDA with status `Created`. Sets `is_token = false`. |
 | `fund_contract` | employer | Transfers SOL to Vault PDA, status → `Funded`. |
-| `accept_contract` | worker | Worker accepts, status → `InProgress`. Optionally auto-registers worker. |
+| `create_and_fund` | employer | Convenience: creates and funds in a single transaction. |
+| `accept_contract` | worker | Worker accepts, status → `InProgress`. Works for both SOL and token contracts. |
 | `release_and_review` | employer | Transfers vault SOL → worker, creates `Review`, updates `WorkerProfile`, status → `Completed`. **Atomic.** |
 | `cancel_contract` | employer | Returns vault SOL → employer, status → `Cancelled`. Only if worker hasn't accepted. |
-| `raise_dispute` | employer OR worker | Status → `Disputed`. Records who raised it and when. |
+| `raise_dispute` | employer OR worker | Status → `Disputed`. Works for both SOL and token contracts. |
 | `submit_review` | reviewer | Standalone review (no escrow). **Unchanged from current deployed program.** Kept for backward compatibility but expected to be deprecated in favor of escrow-linked reviews. |
+
+### $SKR Token Escrow Instructions (Dedicated, Parallel)
+
+These instructions mirror the SOL escrow lifecycle but use SPL Token CPI (`anchor_spl::token`) instead of `system_program::transfer`. They leave the existing SOL instructions completely untouched — zero regression risk.
+
+| Instruction | Signer | What it does |
+|---|---|---|
+| `create_and_fund_token` | employer | Creates `EscrowContract` PDA with `is_token = true` and `token_mint = $SKR mint`. Initializes a Vault Token ATA owned by the Vault PDA. Transfers `amount` of $SKR from employer's ATA → vault ATA via SPL Token CPI. Status → `Funded`. |
+| `release_and_review_token` | employer | Vault PDA signs via seeds to transfer $SKR from vault ATA → worker ATA. Closes vault ATA (rent → employer). Creates `Review` PDA, updates `WorkerProfile`. Status → `Completed`. **Atomic.** |
+| `cancel_token_contract` | employer | Returns $SKR from vault ATA → employer ATA. Closes vault ATA. Status → `Cancelled`. Only if worker hasn't accepted. |
 
 > **Design decision: `create_contract` and `fund_contract` are separate instructions.** This lets an employer create a contract, share it with the worker for review, and only lock funds after the worker has seen the terms. Alternatively, `create_and_fund` could be a single instruction for the common case — decide during implementation which UX flow is better and whether to support both.
 
@@ -182,7 +205,8 @@ The versions below are what's actually installed and in use as of this writing �
 |---|---|---|
 | Solana CLI (Agave) | 4.2.2 | `solana` keypair/airdrop/RPC config; `solana program deploy` for devnet |
 | `cargo-build-sbf` + platform-tools | 4.1.0 / v1.54 | compiles the Rust program to the deployable `reputation.so` (SBF bytecode) |
-| `anchor-lang` (crate) | 1.2.0 | the program's only real dependency; pinned in `program/programs/reputation/Cargo.toml` |
+| `anchor-lang` (crate) | 1.2.0 | the program's core dependency; pinned in `program/programs/reputation/Cargo.toml` |
+| `anchor-spl` (crate) | 1.2.0 | SPL Token CPI helpers for $SKR token escrow instructions (`token`, `associated_token` features) |
 | Anchor CLI | 1.2.0 (via `avm`) | intended for `anchor build` / `anchor test` / `anchor deploy` — **but see the Anchor.toml caveat below** |
 | Node / npm | 26 / bundled | for `anchor test`'s TypeScript client |
 
@@ -208,10 +232,21 @@ Intentionally excluded from the first working version. Each is a real candidate 
 
 - **Automated dispute resolution / arbitration DAO** — disputes can be raised and recorded on-chain, but resolution is manual. Building a full arbitration system (mediator selection, evidence submission, voting) is a separate product.
 - **Multi-milestone contracts** — MVP supports single-payment escrow. Phased milestones (release 30% at checkpoint 1, 70% at completion) are a natural extension but significantly more complex state management.
-- **SPL token escrow** — MVP is SOL-only. Supporting USDC/USDT or other SPL tokens requires token account management and a more complex vault design.
+- **Additional SPL tokens beyond $SKR** — the token escrow architecture is generic (accepts any mint), but the MVP UI only surfaces SOL and $SKR. USDC/USDT support is a post-hackathon addition.
 - **On-chain terms storage** — only the hash is stored. Decentralized terms storage (IPFS/Arweave) is a future improvement.
 - **Multi-marketplace aggregation** — importing/reconciling existing reputation from other platforms.
 - **Reviewer reputation / weighted reviews** — weighting a review by how trustworthy the *reviewer* is.
 - **Mainnet deployment and a real key-management story beyond "the user's own wallet app handles it."**
 - **iOS.** Flutter scaffolds it by default; Solana Mobile Stack doesn't need it and this hackathon doesn't reward it.
 - **Worker identity: display name and avatar photo.** Deliberately choosing pseudonymity for the hackathon build — identity/KYC is a different product concern from "did this person complete verified, paid work." Same reasoning applies to review comments (no text field on `Review`). Revisit both together post-hackathon.
+
+## Future: $SKR Loyalty & Verification Layer ("Seeker Verified")
+
+Beyond $SKR-denominated escrow contracts, there is a natural extension where $SKR staking creates a **trust and loyalty tier system** for ClockIn users:
+
+- **"Seeker Verified" Badge:** Workers or employers who stake a minimum threshold of $SKR (e.g. 100 $SKR) receive a visible on-chain verification badge on their profile. This signals commitment to the Solana Mobile ecosystem and reduces counterparty risk — a staked user has skin in the game beyond a single contract.
+- **Prioritized Discovery:** Verified users could receive preferential ranking in worker lookup results, giving stakers a tangible hiring advantage.
+- **Loyalty Rewards:** Long-term stakers who maintain their $SKR position while actively completing contracts could earn protocol incentives — reduced settlement fees, priority dispute resolution, or governance weight in future arbitration votes.
+- **Anti-Sybil Reinforcement:** Staking adds a second economic barrier on top of escrow-linked reputation. Creating a fake "Seeker Verified" profile requires locking real $SKR, making coordinated Sybil attacks prohibitively expensive.
+
+This layer is architecturally separate from the escrow protocol and can be implemented without modifying existing instructions — it reads $SKR token balances or staking positions and surfaces the verification status in the Flutter UI. Implementation is deferred to post-hackathon but the design space is intentionally reserved.
