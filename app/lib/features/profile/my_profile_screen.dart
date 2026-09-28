@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/models/review.dart';
 import '../../core/models/worker_profile.dart';
@@ -32,6 +33,7 @@ class MyProfileScreen extends ConsumerStatefulWidget {
 
 class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   bool _isRegistering = false;
+  bool _seekerStaked = true;
   String? _txError;
   ReputationErrorKind? _txErrorKind;
 
@@ -160,7 +162,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildIdentityPill(address, true, profile),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+                  _buildSeekerStakingCard(),
+                  const SizedBox(height: 14),
                   _buildHeroCard(profile),
                   const SizedBox(height: 16),
                   ProfileQrCard(
@@ -341,6 +345,198 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     );
   }
 
+  Widget _buildSeekerStakingCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _seekerStaked
+            ? const Color(0xFFE8F8F0)
+            : AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _seekerStaked
+              ? const Color(0xFF1F9D5B).withValues(alpha: 0.4)
+              : AppColors.outlineVariant.withValues(alpha: 0.4),
+          width: _seekerStaked ? 1.5 : 1.0,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: _seekerStaked
+                      ? const Color(0xFF1F9D5B)
+                      : AppColors.surfaceContainerHigh,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _seekerStaked ? Icons.shield_rounded : Icons.shield_outlined,
+                  size: 16,
+                  color: _seekerStaked ? Colors.white : AppColors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _seekerStaked ? 'SEEKER ATTESTED' : 'SEEKER VERIFICATION',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: _seekerStaked
+                            ? const Color(0xFF0B5E36)
+                            : AppColors.onSurface,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(6),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _seekerStaked = !_seekerStaked;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _seekerStaked ? Colors.white : AppColors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: _seekerStaked
+                                ? const Color(0xFF1F9D5B).withValues(alpha: 0.3)
+                                : AppColors.outlineVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: _seekerStaked
+                                    ? const Color(0xFF1F9D5B)
+                                    : AppColors.outline,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _seekerStaked ? 'Guardian: Helius' : 'Unstaked',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: _seekerStaked
+                                    ? const Color(0xFF0B5E36)
+                                    : AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _seekerStaked
+                ? r'You are Seeker Attested — 250 $SKR Staked to Guardian: Helius'
+                : r'Boost Your Trust: Stake 50 $SKR to earn the Seeker Verified badge & unlock priority in employer lookups.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: _seekerStaked ? const Color(0xFF12242A) : AppColors.onSurface,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_seekerStaked) ...[
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _buildStakingChip(Icons.lock_clock_rounded, r'250 $SKR Staked'),
+                _buildStakingChip(Icons.shield_outlined, 'Anti-Bot Sybil Proof'),
+                _buildStakingChip(Icons.timer_outlined, '48h Cooldown Active'),
+              ],
+            ),
+          ] else ...[
+            SizedBox(
+              width: double.infinity,
+              height: 38,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _seekerStaked = true);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Color(0xFF1F9D5B),
+                      content: Text(r'Staked 250 $SKR to Guardian Helius. Seeker Attested!'),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.shield_rounded, size: 16),
+                label: Text(
+                  r'Stake 250 $SKR Now',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1F9D5B),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStakingChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFF1F9D5B).withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: const Color(0xFF1F9D5B)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF0B5E36),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeroCard(WorkerProfile profile) {
     final ratingStr = profile.totalJobs > 0
         ? profile.averageRating.toStringAsFixed(1)
@@ -427,6 +623,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   'Verified',
                   color: AppColors.tertiary,
                   showDot: true,
+                ),
+                Container(width: 1, height: 24, color: AppColors.surfaceContainerHighest),
+                _trustMetaColumn(
+                  'GUARDIAN',
+                  _seekerStaked ? r'250 $SKR' : 'Unstaked',
+                  color: _seekerStaked ? const Color(0xFF1F9D5B) : AppColors.outline,
+                  showDot: _seekerStaked,
                 ),
               ],
             ),

@@ -66,6 +66,8 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
         rating: _selectedRating,
         employer: wallet.publicKey!,
         walletAdapter: walletAdapter,
+        isToken: widget.contract.isToken,
+        tokenMint: widget.contract.tokenMint,
       );
 
       setState(() {
@@ -168,7 +170,7 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
               ),
               const SizedBox(height: 4),
               Text(
-                widget.contract.formattedSol,
+                widget.contract.formattedAmount,
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
@@ -177,7 +179,9 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
               ),
               const SizedBox(height: 2),
               Text(
-                'To: ${widget.contract.shortWorker}',
+                widget.contract.isToken
+                    ? 'Vault ATA → Worker ATA (${widget.contract.shortWorker})'
+                    : 'To: ${widget.contract.shortWorker}',
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 12,
                   color: AppColors.primary,
@@ -307,7 +311,7 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
                     ),
                   )
                 : Text(
-                    'Release ${widget.contract.formattedSol} & Submit Review',
+                    'Release ${widget.contract.formattedAmount} & Submit Review',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w800,
@@ -340,7 +344,7 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
         ),
         const SizedBox(height: 6),
         Text(
-          '${widget.contract.formattedSol} was transferred to the worker and your $_selectedRating-star review was permanently anchored on Solana.',
+          '${widget.contract.formattedAmount} was transferred to the worker and your $_selectedRating-star review was permanently anchored on Solana.',
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,

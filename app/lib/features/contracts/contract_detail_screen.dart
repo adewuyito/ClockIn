@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
 import 'contract_share_screen.dart';
 import 'release_and_review_modal.dart';
@@ -61,6 +62,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
   }
 
   Future<void> _handleCancel(EscrowContract contract) async {
+    final currencyName = contract.isToken ? r'$SKR' : 'SOL';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -69,7 +71,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
         ),
         content: Text(
-          'Are you sure you want to cancel this contract? 100% of the locked SOL in the vault will be refunded back to your employer wallet.',
+          'Are you sure you want to cancel this contract? 100% of the locked $currencyName in the vault will be refunded back to your employer wallet.',
           style: GoogleFonts.plusJakartaSans(fontSize: 13.5),
         ),
         actions: [
@@ -109,6 +111,8 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
         contractId: contract.contractId,
         employer: wallet.publicKey!,
         walletAdapter: walletAdapter,
+        isToken: contract.isToken,
+        tokenMint: contract.tokenMint,
       );
 
       if (mounted) {
@@ -284,7 +288,30 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildStatusPill(contract.status),
+                  Row(
+                    children: [
+                      _buildStatusPill(contract.status),
+                      if (contract.isToken) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6750A4).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            r'$SKR TOKEN',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF6750A4),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -310,7 +337,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'ESCROW VALUE LOCKED',
+                contract.isToken ? 'ESCROW TOKENS LOCKED' : 'ESCROW VALUE LOCKED',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
@@ -324,7 +351,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(
-                    contract.formattedSol,
+                    contract.formattedAmount,
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
@@ -333,7 +360,9 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '≈ \$${(contract.amountSol * 140).toStringAsFixed(2)} USD',
+                    contract.isToken
+                        ? 'Seeker SPL Token'
+                        : '≈ \$${(contract.amountSol * 140).toStringAsFixed(2)} USD',
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 13,
                       color: AppColors.onSurfaceVariant,
@@ -456,6 +485,13 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
               _buildAddressRow('Employer', contract.employer, isYou: isEmployer),
               const SizedBox(height: 10),
               _buildAddressRow('Worker', contract.worker, isYou: isWorker),
+              if (contract.isToken) ...[
+                const SizedBox(height: 10),
+                _buildAddressRow(
+                  r'$SKR Mint',
+                  contract.tokenMint ?? NetworkConfig.devnetSkrMint,
+                ),
+              ],
               if (contract.lastTxSignature != null) ...[
                 const SizedBox(height: 10),
                 _buildAddressRow(
@@ -540,7 +576,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
               ),
               icon: const Icon(Icons.verified_rounded),
               label: Text(
-                'Release Payment & Rate Worker',
+                'Release ${contract.formattedAmount} & Rate Worker',
                 style: GoogleFonts.plusJakartaSans(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,

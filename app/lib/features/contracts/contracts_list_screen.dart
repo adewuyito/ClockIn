@@ -275,8 +275,16 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
 
     final totalSol = contracts
         .where((c) =>
-            c.status == ContractStatus.funded ||
-            c.status == ContractStatus.inProgress)
+            !c.isToken &&
+            (c.status == ContractStatus.funded ||
+                c.status == ContractStatus.inProgress))
+        .fold(0.0, (sum, c) => sum + c.amountSol);
+
+    final totalSkr = contracts
+        .where((c) =>
+            c.isToken &&
+            (c.status == ContractStatus.funded ||
+                c.status == ContractStatus.inProgress))
         .fold(0.0, (sum, c) => sum + c.amountSol);
 
     final completedCount =
@@ -393,18 +401,23 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${totalSol.toStringAsFixed(2)} SOL',
+                        totalSkr > 0
+                            ? '${totalSol.toStringAsFixed(1)} SOL'
+                            : '${totalSol.toStringAsFixed(2)} SOL',
                         style: GoogleFonts.jetBrainsMono(
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primaryContainer,
                         ),
                       ),
                       Text(
-                        '≈ \$${(totalSol * 140).toStringAsFixed(0)}',
+                        totalSkr > 0
+                            ? '+ ${totalSkr >= 1000 ? '${(totalSkr / 1000).toStringAsFixed(1)}k' : totalSkr.toStringAsFixed(0)} \$SKR'
+                            : '≈ \$${(totalSol * 140).toStringAsFixed(0)}',
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 10.5,
-                          color: AppColors.onSurfaceVariant,
+                          fontWeight: totalSkr > 0 ? FontWeight.w600 : FontWeight.w400,
+                          color: totalSkr > 0 ? const Color(0xFF6750A4) : AppColors.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -657,6 +670,25 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                         const SizedBox(width: 6),
                         // Status Badge
                         _buildStatusBadge(contract.status),
+                        if (contract.isToken) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6750A4).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              r'$SKR',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF6750A4),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     Text(
@@ -732,15 +764,17 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          contract.formattedSol,
+                          contract.formattedAmount,
                           style: GoogleFonts.jetBrainsMono(
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.onSurface,
+                            color: contract.isToken ? const Color(0xFF6750A4) : AppColors.onSurface,
                           ),
                         ),
                         Text(
-                          '≈ \$${(contract.amountSol * 140).toStringAsFixed(1)} USD',
+                          contract.isToken
+                              ? 'Seeker SPL'
+                              : '≈ \$${(contract.amountSol * 140).toStringAsFixed(1)} USD',
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 10.5,
                             color: AppColors.onSurfaceVariant,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/models/review.dart';
 import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
@@ -119,7 +120,9 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildIdentityBanner(),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
+                        _buildSeekerAttestedCard(),
+                        const SizedBox(height: 14),
                         _buildHeroCard(profile),
                         const SizedBox(height: 20),
                         reviewsAsync.when(
@@ -266,6 +269,139 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
     );
   }
 
+  Widget _buildSeekerAttestedCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F8F0),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF1F9D5B).withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1F9D5B),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.shield_rounded,
+                  size: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'SEEKER ATTESTED',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0B5E36),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: const Color(0xFF1F9D5B).withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF1F9D5B),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Active Guardian',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF0B5E36),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            r'Human-verified via 250 $SKR Guardian Stake (Zero Bot Risk)',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF12242A),
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _buildMetaChip(Icons.lock_clock_rounded, r'250 $SKR Staked'),
+              _buildMetaChip(Icons.hub_rounded, 'Guardian: Helius'),
+              _buildMetaChip(Icons.timer_outlined, '48h Cooldown Active'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetaChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFF1F9D5B).withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: const Color(0xFF1F9D5B)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF0B5E36),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeroCard(WorkerProfile profile) {
     final ratingStr = profile.totalJobs > 0 ? profile.averageRating.toStringAsFixed(1) : null;
     final fullStars = profile.totalJobs > 0 ? profile.averageRating.round() : 0;
@@ -350,6 +486,20 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                         Container(width: 6, height: 6, margin: const EdgeInsets.only(right: 4), decoration: const BoxDecoration(color: AppColors.tertiary, shape: BoxShape.circle)),
                         Text('Verified', style: AppTypography.labelMd.copyWith(color: AppColors.tertiary, fontWeight: FontWeight.w600)),
                       ],
+                    ),
+                  ],
+                ),
+                Container(width: 1, height: 24, color: AppColors.surfaceContainerHighest),
+                Column(
+                  children: [
+                    Text('SETTLED', style: AppTypography.labelSm.copyWith(color: AppColors.outline, letterSpacing: 0.6)),
+                    const SizedBox(height: 2),
+                    Text(
+                      r'SOL & $SKR',
+                      style: AppTypography.labelMd.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
