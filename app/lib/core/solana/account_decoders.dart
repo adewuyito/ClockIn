@@ -232,6 +232,24 @@ class AccountDecoders {
     // vault_bump: u8 (1 byte)
     offset += 1;
 
+    // is_token: bool (1 byte)
+    bool isToken = false;
+    if (offset < bytes.length) {
+      isToken = byteData.getUint8(offset) != 0;
+      offset += 1;
+    }
+
+    // token_mint: Pubkey (32 bytes)
+    String? tokenMint;
+    if (offset + 32 <= bytes.length) {
+      final mintBytes = bytes.sublist(offset, offset + 32);
+      final mintPubkey = Ed25519HDPublicKey(mintBytes).toBase58();
+      if (isToken && mintPubkey != '11111111111111111111111111111111') {
+        tokenMint = mintPubkey;
+      }
+      offset += 32;
+    }
+
     return EscrowContract(
       contractId: contractId,
       employer: employer,
@@ -244,6 +262,8 @@ class AccountDecoders {
       fundedAt: fundedAt,
       completedAt: completedAt,
       rating: rating,
+      isToken: isToken,
+      tokenMint: tokenMint,
       syncedAt: DateTime.now().toUtc(),
     );
   }

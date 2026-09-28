@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:solana/solana.dart';
 import '../models/escrow_contract.dart' as domain;
 import '../solana/contract_service.dart';
+import '../solana/network_config.dart';
 import '../solana/wallet_adapter.dart';
 import 'app_database.dart';
 
@@ -104,7 +105,7 @@ class ContractRepository {
 
   // ==================== ON-CHAIN TRANSACTIONS ====================
 
-  /// Creates and funds an escrow contract, saving immediately to Drift cache.
+  /// Creates and funds an escrow contract (SOL or $SKR SPL token), saving immediately to Drift cache.
   Future<String> createAndFund({
     required String contractId,
     required String workerAddress,
@@ -113,20 +114,39 @@ class ContractRepository {
     DateTime? deadline,
     required Ed25519HDPublicKey employer,
     required WalletAdapter walletAdapter,
+    bool isToken = false,
+    String? tokenMint,
   }) async {
     final termsHash = ContractService.computeTermsHash(termsText);
     final termsHashHex = termsHash.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     final workerPubkey = Ed25519HDPublicKey.fromBase58(workerAddress);
 
-    final signature = await contractService.createAndFund(
-      employer: employer,
-      worker: workerPubkey,
-      contractId: contractId,
-      amountLamports: amountLamports,
-      termsHash: termsHash,
-      deadline: deadline,
-      walletAdapter: walletAdapter,
-    );
+    final String signature;
+    if (isToken) {
+      final mintPubkey = Ed25519HDPublicKey.fromBase58(
+        tokenMint ?? NetworkConfig.devnetSkrMint,
+      );
+      signature = await contractService.createAndFundToken(
+        employer: employer,
+        worker: workerPubkey,
+        contractId: contractId,
+        amountTokenBaseUnits: amountLamports,
+        termsHash: termsHash,
+        deadline: deadline,
+        mint: mintPubkey,
+        walletAdapter: walletAdapter,
+      );
+    } else {
+      signature = await contractService.createAndFund(
+        employer: employer,
+        worker: workerPubkey,
+        contractId: contractId,
+        amountLamports: amountLamports,
+        termsHash: termsHash,
+        deadline: deadline,
+        walletAdapter: walletAdapter,
+      );
+    }
 
     // Save optimistically to Drift
     final now = DateTime.now().toUtc();
@@ -148,6 +168,8 @@ class ContractRepository {
             rating: 0,
             lastTxSignature: Value(signature),
             syncedAt: Value(now),
+            isToken: Value(isToken),
+            tokenMint: Value(tokenMint ?? (isToken ? NetworkConfig.devnetSkrMint : null)),
           ),
         );
 
@@ -187,22 +209,53 @@ class ContractRepository {
   }
 
   /// Employer releases escrow payment to worker and writes verified on-chain review.
+  /// Automatically detects and routes SPL token ($SKR) vs SOL release instructions.
   Future<String> releaseAndReview({
     required String contractId,
     required String workerAddress,
     required int rating,
     required Ed25519HDPublicKey employer,
     required WalletAdapter walletAdapter,
+    bool? isToken,
+    String? tokenMint,
   }) async {
     final workerPubkey = Ed25519HDPublicKey.fromBase58(workerAddress);
 
-    final signature = await contractService.releaseAndReview(
-      employer: employer,
-      worker: workerPubkey,
-      contractId: contractId,
-      rating: rating,
-      walletAdapter: walletAdapter,
-    );
+    // If isToken not explicitly passed, inspect cached contract
+    bool tokenEscrow = isToken ?? false;
+    String? mint = tokenMint;
+    if (isToken == null) {
+      final cached = await (db.select(db.escrowContracts)
+            ..where((tbl) => tbl.contractId.equals(contractId)))
+          .getSingleOrNull();
+      if (cached != null) {
+        tokenEscrow = cached.isToken;
+        mint = cached.tokenMint;
+      }
+    }
+
+    final String signature;
+    if (tokenEscrow) {
+      final mintPubkey = Ed25519HDPublicKey.fromBase58(
+        mint ?? NetworkConfig.devnetSkrMint,
+      );
+      signature = await contractService.releaseAndReviewToken(
+        employer: employer,
+        worker: workerPubkey,
+        contractId: contractId,
+        rating: rating,
+        mint: mintPubkey,
+        walletAdapter: walletAdapter,
+      );
+    } else {
+      signature = await contractService.releaseAndReview(
+        employer: employer,
+        worker: workerPubkey,
+        contractId: contractId,
+        rating: rating,
+        walletAdapter: walletAdapter,
+      );
+    }
 
     final now = DateTime.now().toUtc();
     await (db.update(db.escrowContracts)
@@ -223,17 +276,45 @@ class ContractRepository {
     return signature;
   }
 
-  /// Employer cancels an unaccepted escrow contract and reclaims 100% of vault SOL.
+  /// Employer cancels an unaccepted escrow contract and reclaims 100% of vault funds (SOL or $SKR).
   Future<String> cancelContract({
     required String contractId,
     required Ed25519HDPublicKey employer,
     required WalletAdapter walletAdapter,
+    bool? isToken,
+    String? tokenMint,
   }) async {
-    final signature = await contractService.cancelContract(
-      employer: employer,
-      contractId: contractId,
-      walletAdapter: walletAdapter,
-    );
+    // If isToken not explicitly passed, inspect cached contract
+    bool tokenEscrow = isToken ?? false;
+    String? mint = tokenMint;
+    if (isToken == null) {
+      final cached = await (db.select(db.escrowContracts)
+            ..where((tbl) => tbl.contractId.equals(contractId)))
+          .getSingleOrNull();
+      if (cached != null) {
+        tokenEscrow = cached.isToken;
+        mint = cached.tokenMint;
+      }
+    }
+
+    final String signature;
+    if (tokenEscrow) {
+      final mintPubkey = Ed25519HDPublicKey.fromBase58(
+        mint ?? NetworkConfig.devnetSkrMint,
+      );
+      signature = await contractService.cancelTokenContract(
+        employer: employer,
+        contractId: contractId,
+        mint: mintPubkey,
+        walletAdapter: walletAdapter,
+      );
+    } else {
+      signature = await contractService.cancelContract(
+        employer: employer,
+        contractId: contractId,
+        walletAdapter: walletAdapter,
+      );
+    }
 
     await (db.update(db.escrowContracts)
           ..where((tbl) => tbl.contractId.equals(contractId)))
@@ -307,6 +388,8 @@ class ContractRepository {
             rating: contract.rating,
             lastTxSignature: Value(contract.lastTxSignature),
             syncedAt: Value(DateTime.now().toUtc()),
+            isToken: Value(contract.isToken),
+            tokenMint: Value(contract.tokenMint),
           ),
         );
   }
@@ -335,6 +418,8 @@ class ContractRepository {
       rating: row.rating,
       lastTxSignature: row.lastTxSignature,
       syncedAt: row.syncedAt,
+      isToken: row.isToken,
+      tokenMint: row.tokenMint,
     );
   }
 
@@ -348,6 +433,8 @@ class ContractRepository {
     required double amountSol,
     String? termsText,
     required BigInt deadline,
+    bool isToken = false,
+    String? tokenMint,
   }) async {
     if (id != null) {
       await (db.update(db.draftContracts)..where((tbl) => tbl.id.equals(id))).write(
@@ -357,6 +444,8 @@ class ContractRepository {
           amountSol: Value(amountSol),
           termsText: Value(termsText),
           deadline: Value(deadline),
+          isToken: Value(isToken),
+          tokenMint: Value(tokenMint),
         ),
       );
       return id;
@@ -368,6 +457,8 @@ class ContractRepository {
               amountSol: amountSol,
               termsText: Value(termsText),
               deadline: deadline,
+              isToken: Value(isToken),
+              tokenMint: Value(tokenMint),
             ),
           );
     }

@@ -95,5 +95,49 @@ class NetworkConfig {
       programId: programId,
     );
   }
+
+  /// SPL Token Program ID: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+  static final Ed25519HDPublicKey tokenProgramId =
+      Ed25519HDPublicKey.fromBase58('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+
+  /// SPL Associated Token Account Program ID: ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL
+  static final Ed25519HDPublicKey associatedTokenProgramId =
+      Ed25519HDPublicKey.fromBase58('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+
+  /// Default Devnet $SKR Token Mint (Solana Seeker ecosystem token)
+  static const String devnetSkrMint =
+      'SKRbvo7x6Z9V4GfUoN1n1vJb2kLz8pQmY9u3W1eZhW3';
+
+  /// Parsed Pubkey for devnet $SKR mint
+  static final Ed25519HDPublicKey skrMint =
+      Ed25519HDPublicKey.fromBase58(devnetSkrMint);
+
+  /// Computes the Associated Token Account (ATA) for a wallet/PDA and mint.
+  /// Seeds: [wallet_address, token_program_id, mint_address]
+  static Future<Ed25519HDPublicKey> findAssociatedTokenAddress({
+    required Ed25519HDPublicKey owner,
+    required Ed25519HDPublicKey mint,
+  }) async {
+    return Ed25519HDPublicKey.findProgramAddress(
+      seeds: [
+        owner.bytes,
+        tokenProgramId.bytes,
+        mint.bytes,
+      ],
+      programId: associatedTokenProgramId,
+    );
+  }
+
+  /// Computes the Vault's Associated Token Account (ATA) for a contract and mint.
+  static Future<Ed25519HDPublicKey> findVaultTokenAddress({
+    required String contractId,
+    required Ed25519HDPublicKey mint,
+  }) async {
+    final vaultPda = await findVaultPda(contractId);
+    return findAssociatedTokenAddress(
+      owner: vaultPda,
+      mint: mint,
+    );
+  }
 }
 

@@ -67,6 +67,8 @@ class EscrowContracts extends Table {
   IntColumn get rating => integer()();
   TextColumn get lastTxSignature => text().nullable()();
   DateTimeColumn get syncedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isToken => boolean().withDefault(const Constant(false))();
+  TextColumn get tokenMint => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {contractId};
@@ -81,6 +83,8 @@ class DraftContracts extends Table {
   TextColumn get termsText => text().nullable()();
   Int64Column get deadline => int64()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isToken => boolean().withDefault(const Constant(false))();
+  TextColumn get tokenMint => text().nullable()();
 }
 
 @DriftDatabase(tables: [WorkerProfiles, Reviews, DraftReviews, RecentLookups, EscrowContracts, DraftContracts])
@@ -89,7 +93,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -103,6 +107,12 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 4) {
             await m.createTable(draftContracts);
+          }
+          if (from < 5) {
+            await m.addColumn(escrowContracts, escrowContracts.isToken);
+            await m.addColumn(escrowContracts, escrowContracts.tokenMint);
+            await m.addColumn(draftContracts, draftContracts.isToken);
+            await m.addColumn(draftContracts, draftContracts.tokenMint);
           }
         },
       );

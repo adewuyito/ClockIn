@@ -1641,6 +1641,32 @@ class $EscrowContractsTable extends EscrowContracts
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _isTokenMeta = const VerificationMeta(
+    'isToken',
+  );
+  @override
+  late final GeneratedColumn<bool> isToken = GeneratedColumn<bool>(
+    'is_token',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_token" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _tokenMintMeta = const VerificationMeta(
+    'tokenMint',
+  );
+  @override
+  late final GeneratedColumn<String> tokenMint = GeneratedColumn<String>(
+    'token_mint',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     contractId,
@@ -1657,6 +1683,8 @@ class $EscrowContractsTable extends EscrowContracts
     rating,
     lastTxSignature,
     syncedAt,
+    isToken,
+    tokenMint,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1782,6 +1810,18 @@ class $EscrowContractsTable extends EscrowContracts
         syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
       );
     }
+    if (data.containsKey('is_token')) {
+      context.handle(
+        _isTokenMeta,
+        isToken.isAcceptableOrUnknown(data['is_token']!, _isTokenMeta),
+      );
+    }
+    if (data.containsKey('token_mint')) {
+      context.handle(
+        _tokenMintMeta,
+        tokenMint.isAcceptableOrUnknown(data['token_mint']!, _tokenMintMeta),
+      );
+    }
     return context;
   }
 
@@ -1847,6 +1887,14 @@ class $EscrowContractsTable extends EscrowContracts
         DriftSqlType.dateTime,
         data['${effectivePrefix}synced_at'],
       )!,
+      isToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_token'],
+      )!,
+      tokenMint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}token_mint'],
+      ),
     );
   }
 
@@ -1871,6 +1919,8 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
   final int rating;
   final String? lastTxSignature;
   final DateTime syncedAt;
+  final bool isToken;
+  final String? tokenMint;
   const EscrowContract({
     required this.contractId,
     required this.employer,
@@ -1886,6 +1936,8 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
     required this.rating,
     this.lastTxSignature,
     required this.syncedAt,
+    required this.isToken,
+    this.tokenMint,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1908,6 +1960,10 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
       map['last_tx_signature'] = Variable<String>(lastTxSignature);
     }
     map['synced_at'] = Variable<DateTime>(syncedAt);
+    map['is_token'] = Variable<bool>(isToken);
+    if (!nullToAbsent || tokenMint != null) {
+      map['token_mint'] = Variable<String>(tokenMint);
+    }
     return map;
   }
 
@@ -1931,6 +1987,10 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
           ? const Value.absent()
           : Value(lastTxSignature),
       syncedAt: Value(syncedAt),
+      isToken: Value(isToken),
+      tokenMint: tokenMint == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tokenMint),
     );
   }
 
@@ -1954,6 +2014,8 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
       rating: serializer.fromJson<int>(json['rating']),
       lastTxSignature: serializer.fromJson<String?>(json['lastTxSignature']),
       syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
+      isToken: serializer.fromJson<bool>(json['isToken']),
+      tokenMint: serializer.fromJson<String?>(json['tokenMint']),
     );
   }
   @override
@@ -1974,6 +2036,8 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
       'rating': serializer.toJson<int>(rating),
       'lastTxSignature': serializer.toJson<String?>(lastTxSignature),
       'syncedAt': serializer.toJson<DateTime>(syncedAt),
+      'isToken': serializer.toJson<bool>(isToken),
+      'tokenMint': serializer.toJson<String?>(tokenMint),
     };
   }
 
@@ -1992,6 +2056,8 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
     int? rating,
     Value<String?> lastTxSignature = const Value.absent(),
     DateTime? syncedAt,
+    bool? isToken,
+    Value<String?> tokenMint = const Value.absent(),
   }) => EscrowContract(
     contractId: contractId ?? this.contractId,
     employer: employer ?? this.employer,
@@ -2009,6 +2075,8 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
         ? lastTxSignature.value
         : this.lastTxSignature,
     syncedAt: syncedAt ?? this.syncedAt,
+    isToken: isToken ?? this.isToken,
+    tokenMint: tokenMint.present ? tokenMint.value : this.tokenMint,
   );
   EscrowContract copyWithCompanion(EscrowContractsCompanion data) {
     return EscrowContract(
@@ -2032,6 +2100,8 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
           ? data.lastTxSignature.value
           : this.lastTxSignature,
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+      isToken: data.isToken.present ? data.isToken.value : this.isToken,
+      tokenMint: data.tokenMint.present ? data.tokenMint.value : this.tokenMint,
     );
   }
 
@@ -2051,7 +2121,9 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
           ..write('completedAt: $completedAt, ')
           ..write('rating: $rating, ')
           ..write('lastTxSignature: $lastTxSignature, ')
-          ..write('syncedAt: $syncedAt')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('isToken: $isToken, ')
+          ..write('tokenMint: $tokenMint')
           ..write(')'))
         .toString();
   }
@@ -2072,6 +2144,8 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
     rating,
     lastTxSignature,
     syncedAt,
+    isToken,
+    tokenMint,
   );
   @override
   bool operator ==(Object other) =>
@@ -2090,7 +2164,9 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
           other.completedAt == this.completedAt &&
           other.rating == this.rating &&
           other.lastTxSignature == this.lastTxSignature &&
-          other.syncedAt == this.syncedAt);
+          other.syncedAt == this.syncedAt &&
+          other.isToken == this.isToken &&
+          other.tokenMint == this.tokenMint);
 }
 
 class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
@@ -2108,6 +2184,8 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
   final Value<int> rating;
   final Value<String?> lastTxSignature;
   final Value<DateTime> syncedAt;
+  final Value<bool> isToken;
+  final Value<String?> tokenMint;
   final Value<int> rowid;
   const EscrowContractsCompanion({
     this.contractId = const Value.absent(),
@@ -2124,6 +2202,8 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
     this.rating = const Value.absent(),
     this.lastTxSignature = const Value.absent(),
     this.syncedAt = const Value.absent(),
+    this.isToken = const Value.absent(),
+    this.tokenMint = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   EscrowContractsCompanion.insert({
@@ -2141,6 +2221,8 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
     required int rating,
     this.lastTxSignature = const Value.absent(),
     this.syncedAt = const Value.absent(),
+    this.isToken = const Value.absent(),
+    this.tokenMint = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : contractId = Value(contractId),
        employer = Value(employer),
@@ -2168,6 +2250,8 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
     Expression<int>? rating,
     Expression<String>? lastTxSignature,
     Expression<DateTime>? syncedAt,
+    Expression<bool>? isToken,
+    Expression<String>? tokenMint,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2185,6 +2269,8 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
       if (rating != null) 'rating': rating,
       if (lastTxSignature != null) 'last_tx_signature': lastTxSignature,
       if (syncedAt != null) 'synced_at': syncedAt,
+      if (isToken != null) 'is_token': isToken,
+      if (tokenMint != null) 'token_mint': tokenMint,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2204,6 +2290,8 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
     Value<int>? rating,
     Value<String?>? lastTxSignature,
     Value<DateTime>? syncedAt,
+    Value<bool>? isToken,
+    Value<String?>? tokenMint,
     Value<int>? rowid,
   }) {
     return EscrowContractsCompanion(
@@ -2221,6 +2309,8 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
       rating: rating ?? this.rating,
       lastTxSignature: lastTxSignature ?? this.lastTxSignature,
       syncedAt: syncedAt ?? this.syncedAt,
+      isToken: isToken ?? this.isToken,
+      tokenMint: tokenMint ?? this.tokenMint,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2270,6 +2360,12 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
     if (syncedAt.present) {
       map['synced_at'] = Variable<DateTime>(syncedAt.value);
     }
+    if (isToken.present) {
+      map['is_token'] = Variable<bool>(isToken.value);
+    }
+    if (tokenMint.present) {
+      map['token_mint'] = Variable<String>(tokenMint.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2293,6 +2389,8 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
           ..write('rating: $rating, ')
           ..write('lastTxSignature: $lastTxSignature, ')
           ..write('syncedAt: $syncedAt, ')
+          ..write('isToken: $isToken, ')
+          ..write('tokenMint: $tokenMint, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2385,6 +2483,32 @@ class $DraftContractsTable extends DraftContracts
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _isTokenMeta = const VerificationMeta(
+    'isToken',
+  );
+  @override
+  late final GeneratedColumn<bool> isToken = GeneratedColumn<bool>(
+    'is_token',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_token" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _tokenMintMeta = const VerificationMeta(
+    'tokenMint',
+  );
+  @override
+  late final GeneratedColumn<String> tokenMint = GeneratedColumn<String>(
+    'token_mint',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2394,6 +2518,8 @@ class $DraftContractsTable extends DraftContracts
     termsText,
     deadline,
     createdAt,
+    isToken,
+    tokenMint,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2457,6 +2583,18 @@ class $DraftContractsTable extends DraftContracts
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('is_token')) {
+      context.handle(
+        _isTokenMeta,
+        isToken.isAcceptableOrUnknown(data['is_token']!, _isTokenMeta),
+      );
+    }
+    if (data.containsKey('token_mint')) {
+      context.handle(
+        _tokenMintMeta,
+        tokenMint.isAcceptableOrUnknown(data['token_mint']!, _tokenMintMeta),
+      );
+    }
     return context;
   }
 
@@ -2494,6 +2632,14 @@ class $DraftContractsTable extends DraftContracts
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      isToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_token'],
+      )!,
+      tokenMint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}token_mint'],
+      ),
     );
   }
 
@@ -2511,6 +2657,8 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
   final String? termsText;
   final BigInt deadline;
   final DateTime createdAt;
+  final bool isToken;
+  final String? tokenMint;
   const DraftContract({
     required this.id,
     required this.contractId,
@@ -2519,6 +2667,8 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
     this.termsText,
     required this.deadline,
     required this.createdAt,
+    required this.isToken,
+    this.tokenMint,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2532,6 +2682,10 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
     }
     map['deadline'] = Variable<BigInt>(deadline);
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['is_token'] = Variable<bool>(isToken);
+    if (!nullToAbsent || tokenMint != null) {
+      map['token_mint'] = Variable<String>(tokenMint);
+    }
     return map;
   }
 
@@ -2546,6 +2700,10 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
           : Value(termsText),
       deadline: Value(deadline),
       createdAt: Value(createdAt),
+      isToken: Value(isToken),
+      tokenMint: tokenMint == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tokenMint),
     );
   }
 
@@ -2562,6 +2720,8 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
       termsText: serializer.fromJson<String?>(json['termsText']),
       deadline: serializer.fromJson<BigInt>(json['deadline']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      isToken: serializer.fromJson<bool>(json['isToken']),
+      tokenMint: serializer.fromJson<String?>(json['tokenMint']),
     );
   }
   @override
@@ -2575,6 +2735,8 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
       'termsText': serializer.toJson<String?>(termsText),
       'deadline': serializer.toJson<BigInt>(deadline),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'isToken': serializer.toJson<bool>(isToken),
+      'tokenMint': serializer.toJson<String?>(tokenMint),
     };
   }
 
@@ -2586,6 +2748,8 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
     Value<String?> termsText = const Value.absent(),
     BigInt? deadline,
     DateTime? createdAt,
+    bool? isToken,
+    Value<String?> tokenMint = const Value.absent(),
   }) => DraftContract(
     id: id ?? this.id,
     contractId: contractId ?? this.contractId,
@@ -2594,6 +2758,8 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
     termsText: termsText.present ? termsText.value : this.termsText,
     deadline: deadline ?? this.deadline,
     createdAt: createdAt ?? this.createdAt,
+    isToken: isToken ?? this.isToken,
+    tokenMint: tokenMint.present ? tokenMint.value : this.tokenMint,
   );
   DraftContract copyWithCompanion(DraftContractsCompanion data) {
     return DraftContract(
@@ -2608,6 +2774,8 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
       termsText: data.termsText.present ? data.termsText.value : this.termsText,
       deadline: data.deadline.present ? data.deadline.value : this.deadline,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      isToken: data.isToken.present ? data.isToken.value : this.isToken,
+      tokenMint: data.tokenMint.present ? data.tokenMint.value : this.tokenMint,
     );
   }
 
@@ -2620,7 +2788,9 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
           ..write('amountSol: $amountSol, ')
           ..write('termsText: $termsText, ')
           ..write('deadline: $deadline, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('isToken: $isToken, ')
+          ..write('tokenMint: $tokenMint')
           ..write(')'))
         .toString();
   }
@@ -2634,6 +2804,8 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
     termsText,
     deadline,
     createdAt,
+    isToken,
+    tokenMint,
   );
   @override
   bool operator ==(Object other) =>
@@ -2645,7 +2817,9 @@ class DraftContract extends DataClass implements Insertable<DraftContract> {
           other.amountSol == this.amountSol &&
           other.termsText == this.termsText &&
           other.deadline == this.deadline &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.isToken == this.isToken &&
+          other.tokenMint == this.tokenMint);
 }
 
 class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
@@ -2656,6 +2830,8 @@ class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
   final Value<String?> termsText;
   final Value<BigInt> deadline;
   final Value<DateTime> createdAt;
+  final Value<bool> isToken;
+  final Value<String?> tokenMint;
   const DraftContractsCompanion({
     this.id = const Value.absent(),
     this.contractId = const Value.absent(),
@@ -2664,6 +2840,8 @@ class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
     this.termsText = const Value.absent(),
     this.deadline = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.isToken = const Value.absent(),
+    this.tokenMint = const Value.absent(),
   });
   DraftContractsCompanion.insert({
     this.id = const Value.absent(),
@@ -2673,6 +2851,8 @@ class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
     this.termsText = const Value.absent(),
     required BigInt deadline,
     this.createdAt = const Value.absent(),
+    this.isToken = const Value.absent(),
+    this.tokenMint = const Value.absent(),
   }) : contractId = Value(contractId),
        workerAddress = Value(workerAddress),
        amountSol = Value(amountSol),
@@ -2685,6 +2865,8 @@ class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
     Expression<String>? termsText,
     Expression<BigInt>? deadline,
     Expression<DateTime>? createdAt,
+    Expression<bool>? isToken,
+    Expression<String>? tokenMint,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2694,6 +2876,8 @@ class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
       if (termsText != null) 'terms_text': termsText,
       if (deadline != null) 'deadline': deadline,
       if (createdAt != null) 'created_at': createdAt,
+      if (isToken != null) 'is_token': isToken,
+      if (tokenMint != null) 'token_mint': tokenMint,
     });
   }
 
@@ -2705,6 +2889,8 @@ class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
     Value<String?>? termsText,
     Value<BigInt>? deadline,
     Value<DateTime>? createdAt,
+    Value<bool>? isToken,
+    Value<String?>? tokenMint,
   }) {
     return DraftContractsCompanion(
       id: id ?? this.id,
@@ -2714,6 +2900,8 @@ class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
       termsText: termsText ?? this.termsText,
       deadline: deadline ?? this.deadline,
       createdAt: createdAt ?? this.createdAt,
+      isToken: isToken ?? this.isToken,
+      tokenMint: tokenMint ?? this.tokenMint,
     );
   }
 
@@ -2741,6 +2929,12 @@ class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (isToken.present) {
+      map['is_token'] = Variable<bool>(isToken.value);
+    }
+    if (tokenMint.present) {
+      map['token_mint'] = Variable<String>(tokenMint.value);
+    }
     return map;
   }
 
@@ -2753,7 +2947,9 @@ class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
           ..write('amountSol: $amountSol, ')
           ..write('termsText: $termsText, ')
           ..write('deadline: $deadline, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('isToken: $isToken, ')
+          ..write('tokenMint: $tokenMint')
           ..write(')'))
         .toString();
   }
@@ -3647,6 +3843,8 @@ typedef $$EscrowContractsTableCreateCompanionBuilder =
       required int rating,
       Value<String?> lastTxSignature,
       Value<DateTime> syncedAt,
+      Value<bool> isToken,
+      Value<String?> tokenMint,
       Value<int> rowid,
     });
 typedef $$EscrowContractsTableUpdateCompanionBuilder =
@@ -3665,6 +3863,8 @@ typedef $$EscrowContractsTableUpdateCompanionBuilder =
       Value<int> rating,
       Value<String?> lastTxSignature,
       Value<DateTime> syncedAt,
+      Value<bool> isToken,
+      Value<String?> tokenMint,
       Value<int> rowid,
     });
 
@@ -3744,6 +3944,16 @@ class $$EscrowContractsTableFilterComposer
 
   ColumnFilters<DateTime> get syncedAt => $composableBuilder(
     column: $table.syncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isToken => $composableBuilder(
+    column: $table.isToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tokenMint => $composableBuilder(
+    column: $table.tokenMint,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3826,6 +4036,16 @@ class $$EscrowContractsTableOrderingComposer
     column: $table.syncedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isToken => $composableBuilder(
+    column: $table.isToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tokenMint => $composableBuilder(
+    column: $table.tokenMint,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$EscrowContractsTableAnnotationComposer
@@ -3884,6 +4104,12 @@ class $$EscrowContractsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get syncedAt =>
       $composableBuilder(column: $table.syncedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isToken =>
+      $composableBuilder(column: $table.isToken, builder: (column) => column);
+
+  GeneratedColumn<String> get tokenMint =>
+      $composableBuilder(column: $table.tokenMint, builder: (column) => column);
 }
 
 class $$EscrowContractsTableTableManager
@@ -3937,6 +4163,8 @@ class $$EscrowContractsTableTableManager
                 Value<int> rating = const Value.absent(),
                 Value<String?> lastTxSignature = const Value.absent(),
                 Value<DateTime> syncedAt = const Value.absent(),
+                Value<bool> isToken = const Value.absent(),
+                Value<String?> tokenMint = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EscrowContractsCompanion(
                 contractId: contractId,
@@ -3953,6 +4181,8 @@ class $$EscrowContractsTableTableManager
                 rating: rating,
                 lastTxSignature: lastTxSignature,
                 syncedAt: syncedAt,
+                isToken: isToken,
+                tokenMint: tokenMint,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3971,6 +4201,8 @@ class $$EscrowContractsTableTableManager
                 required int rating,
                 Value<String?> lastTxSignature = const Value.absent(),
                 Value<DateTime> syncedAt = const Value.absent(),
+                Value<bool> isToken = const Value.absent(),
+                Value<String?> tokenMint = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EscrowContractsCompanion.insert(
                 contractId: contractId,
@@ -3987,6 +4219,8 @@ class $$EscrowContractsTableTableManager
                 rating: rating,
                 lastTxSignature: lastTxSignature,
                 syncedAt: syncedAt,
+                isToken: isToken,
+                tokenMint: tokenMint,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4032,6 +4266,8 @@ typedef $$DraftContractsTableCreateCompanionBuilder =
       Value<String?> termsText,
       required BigInt deadline,
       Value<DateTime> createdAt,
+      Value<bool> isToken,
+      Value<String?> tokenMint,
     });
 typedef $$DraftContractsTableUpdateCompanionBuilder =
     DraftContractsCompanion Function({
@@ -4042,6 +4278,8 @@ typedef $$DraftContractsTableUpdateCompanionBuilder =
       Value<String?> termsText,
       Value<BigInt> deadline,
       Value<DateTime> createdAt,
+      Value<bool> isToken,
+      Value<String?> tokenMint,
     });
 
 class $$DraftContractsTableFilterComposer
@@ -4085,6 +4323,16 @@ class $$DraftContractsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isToken => $composableBuilder(
+    column: $table.isToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tokenMint => $composableBuilder(
+    column: $table.tokenMint,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4132,6 +4380,16 @@ class $$DraftContractsTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isToken => $composableBuilder(
+    column: $table.isToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tokenMint => $composableBuilder(
+    column: $table.tokenMint,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DraftContractsTableAnnotationComposer
@@ -4167,6 +4425,12 @@ class $$DraftContractsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isToken =>
+      $composableBuilder(column: $table.isToken, builder: (column) => column);
+
+  GeneratedColumn<String> get tokenMint =>
+      $composableBuilder(column: $table.tokenMint, builder: (column) => column);
 }
 
 class $$DraftContractsTableTableManager
@@ -4209,6 +4473,8 @@ class $$DraftContractsTableTableManager
                 Value<String?> termsText = const Value.absent(),
                 Value<BigInt> deadline = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isToken = const Value.absent(),
+                Value<String?> tokenMint = const Value.absent(),
               }) => DraftContractsCompanion(
                 id: id,
                 contractId: contractId,
@@ -4217,6 +4483,8 @@ class $$DraftContractsTableTableManager
                 termsText: termsText,
                 deadline: deadline,
                 createdAt: createdAt,
+                isToken: isToken,
+                tokenMint: tokenMint,
               ),
           createCompanionCallback:
               ({
@@ -4227,6 +4495,8 @@ class $$DraftContractsTableTableManager
                 Value<String?> termsText = const Value.absent(),
                 required BigInt deadline,
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isToken = const Value.absent(),
+                Value<String?> tokenMint = const Value.absent(),
               }) => DraftContractsCompanion.insert(
                 id: id,
                 contractId: contractId,
@@ -4235,6 +4505,8 @@ class $$DraftContractsTableTableManager
                 termsText: termsText,
                 deadline: deadline,
                 createdAt: createdAt,
+                isToken: isToken,
+                tokenMint: tokenMint,
               ),
           withReferenceMapper: (p0) => p0
               .map(

@@ -79,6 +79,8 @@ class EscrowContract {
   final int rating;
   final String? lastTxSignature;
   final DateTime? syncedAt;
+  final bool isToken;
+  final String? tokenMint;
 
   const EscrowContract({
     required this.contractId,
@@ -95,10 +97,18 @@ class EscrowContract {
     this.rating = 0,
     this.lastTxSignature,
     this.syncedAt,
+    this.isToken = false,
+    this.tokenMint,
   });
 
   /// Amount formatted in SOL (e.g. 1.5).
   double get amountSol => amount.toDouble() / 1e9;
+
+  /// Whether this contract is denominated in $SKR SPL tokens.
+  bool get isSkr => isToken;
+
+  /// Currency symbol ("SOL" or "$SKR").
+  String get currencySymbol => isToken ? r'$SKR' : 'SOL';
 
   /// Formatted SOL string with up to 4 decimals (e.g. "1.5 SOL").
   String get formattedSol {
@@ -107,6 +117,20 @@ class EscrowContract {
       return '${sol.toStringAsFixed(0)} SOL';
     } else {
       return '${sol.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '')} SOL';
+    }
+  }
+
+  /// Formatted amount string with currency symbol (e.g. "500 $SKR" or "1.5 SOL").
+  String get formattedAmount {
+    if (isToken) {
+      final tokenVal = amount.toDouble() / 1e6;
+      if (tokenVal == tokenVal.roundToDouble()) {
+        return '${tokenVal.toStringAsFixed(0)} \$SKR';
+      } else {
+        return '${tokenVal.toStringAsFixed(2)} \$SKR';
+      }
+    } else {
+      return formattedSol;
     }
   }
 
@@ -157,6 +181,8 @@ class EscrowContract {
     int? rating,
     String? lastTxSignature,
     DateTime? syncedAt,
+    bool? isToken,
+    String? tokenMint,
   }) {
     return EscrowContract(
       contractId: contractId ?? this.contractId,
@@ -173,6 +199,8 @@ class EscrowContract {
       rating: rating ?? this.rating,
       lastTxSignature: lastTxSignature ?? this.lastTxSignature,
       syncedAt: syncedAt ?? this.syncedAt,
+      isToken: isToken ?? this.isToken,
+      tokenMint: tokenMint ?? this.tokenMint,
     );
   }
 

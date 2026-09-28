@@ -238,21 +238,170 @@ class ContractService {
     }
   }
 
+  /// Creates and funds an SPL token ($SKR) escrow contract.
+  Future<String> createAndFundToken({
+    required Ed25519HDPublicKey employer,
+    required Ed25519HDPublicKey worker,
+    required String contractId,
+    required BigInt amountTokenBaseUnits,
+    required List<int> termsHash,
+    DateTime? deadline,
+    required Ed25519HDPublicKey mint,
+    required WalletAdapter walletAdapter,
+  }) async {
+    try {
+      final signature = await _signAndSendInstructionsWithRetry(
+        feePayer: employer,
+        walletAdapter: walletAdapter,
+        buildInstructions: () async {
+          final instruction = await ProgramInstructions.createAndFundToken(
+            employer: employer,
+            worker: worker,
+            contractId: contractId,
+            amountTokenBaseUnits: amountTokenBaseUnits,
+            termsHash: termsHash,
+            deadline: deadline,
+            mint: mint,
+          );
+          return [instruction];
+        },
+      );
+
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
+
+  /// Releases escrow token payment to worker and submits on-chain rating.
+  /// Automatically ensures worker has an ATA created idempotently if not already present.
+  Future<String> releaseAndReviewToken({
+    required Ed25519HDPublicKey employer,
+    required Ed25519HDPublicKey worker,
+    required String contractId,
+    required int rating,
+    required Ed25519HDPublicKey mint,
+    required WalletAdapter walletAdapter,
+  }) async {
+    try {
+      final signature = await _signAndSendInstructionsWithRetry(
+        feePayer: employer,
+        walletAdapter: walletAdapter,
+        buildInstructions: () async {
+          final instructions = <Instruction>[];
+
+          // Check if worker ATA exists; if not, prepend idempotent ATA creation
+          final workerAta = await NetworkConfig.findAssociatedTokenAddress(
+            owner: worker,
+            mint: mint,
+          );
+          final ataInfo = await solanaClient.rpcClient.getAccountInfo(
+            workerAta.toBase58(),
+            encoding: Encoding.base64,
+            commitment: Commitment.confirmed,
+          );
+
+          if (ataInfo.value == null) {
+            instructions.add(
+              await ProgramInstructions.createAssociatedTokenAccountIdempotent(
+                fundingAccount: employer,
+                walletAddress: worker,
+                mint: mint,
+              ),
+            );
+          }
+
+          instructions.add(
+            await ProgramInstructions.releaseAndReviewToken(
+              employer: employer,
+              worker: worker,
+              contractId: contractId,
+              rating: rating,
+              mint: mint,
+            ),
+          );
+
+          return instructions;
+        },
+      );
+
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
+
+  /// Employer cancels an unaccepted SPL token escrow contract, reclaiming vault tokens.
+  Future<String> cancelTokenContract({
+    required Ed25519HDPublicKey employer,
+    required String contractId,
+    required Ed25519HDPublicKey mint,
+    required WalletAdapter walletAdapter,
+  }) async {
+    try {
+      final signature = await _signAndSendInstructionsWithRetry(
+        feePayer: employer,
+        walletAdapter: walletAdapter,
+        buildInstructions: () async {
+          final instruction = await ProgramInstructions.cancelTokenContract(
+            employer: employer,
+            contractId: contractId,
+            mint: mint,
+          );
+          return [instruction];
+        },
+      );
+
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
+
   Future<String> _signAndSendWithRetry({
     required Ed25519HDPublicKey feePayer,
     required WalletAdapter walletAdapter,
     required Future<Instruction> Function() buildInstruction,
     int maxAttempts = 2,
+  }) {
+    return _signAndSendInstructionsWithRetry(
+      feePayer: feePayer,
+      walletAdapter: walletAdapter,
+      buildInstructions: () async => [await buildInstruction()],
+      maxAttempts: maxAttempts,
+    );
+  }
+
+  Future<String> _signAndSendInstructionsWithRetry({
+    required Ed25519HDPublicKey feePayer,
+    required WalletAdapter walletAdapter,
+    required Future<List<Instruction>> Function() buildInstructions,
+    int maxAttempts = 2,
   }) async {
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        final instruction = await buildInstruction();
+        final instructions = await buildInstructions();
 
         final latestBlockhash = await solanaClient.rpcClient.getLatestBlockhash(
           commitment: Commitment.confirmed,
         );
 
-        final compiledMessage = Message.only(instruction).compile(
+        final compiledMessage = Message(instructions: instructions).compile(
           recentBlockhash: latestBlockhash.value.blockhash,
           feePayer: feePayer,
         );
@@ -272,6 +421,6 @@ class ContractService {
         }
       }
     }
-    throw StateError('_signAndSendWithRetry exhausted attempts without returning or throwing.');
+    throw StateError('_signAndSendInstructionsWithRetry exhausted attempts without returning or throwing.');
   }
 }
