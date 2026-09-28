@@ -50,12 +50,12 @@ sequenceDiagram
 ```
 
 ### Protocol Instructions
-1. **`create_contract`**: Client defines contract ID, counterparty worker address, amount, terms hash, and deadline (`status: Created`).
-2. **`fund_contract`**: Client deposits SOL from wallet into the programmatic Vault PDA (`status: Funded`).
-3. **`create_and_fund`**: Single-transaction convenience method combining creation and funding.
-4. **`accept_contract`**: Worker reviews terms and commits to the contract (`status: InProgress`).
-5. **`release_and_review`**: **The atomic settlement instruction**. Releases vault SOL to the worker, creates a verified `Review` PDA, updates `WorkerProfile` aggregate score, and sets contract to `Completed`.
-6. **`cancel_contract`**: Reclaims locked vault SOL back to employer if worker has not yet accepted (`status: Cancelled`).
+1. **`create_contract` / `fund_contract` / `create_and_fund`**: Native SOL contract creation and programmatic Vault PDA funding.
+2. **`create_and_fund_token`**: **$SKR SPL Token Escrow**. Initializes token contract, verifies mint, and transfers SPL tokens directly into the Vault's Associated Token Account (ATA).
+3. **`accept_contract`**: Worker reviews terms and commits to the contract (`status: InProgress`).
+4. **`release_and_review`**: **The atomic SOL settlement instruction**. Releases vault SOL to the worker, creates a verified `Review` PDA, updates `WorkerProfile` aggregate score, and sets contract to `Completed`.
+5. **`release_and_review_token`**: **The atomic $SKR settlement instruction**. Transfers locked tokens from Vault ATA to Worker's ATA (with automatic idempotent ATA initialization), closes Vault ATA reclaiming rent lamports to employer, creates permanent `Review` PDA, and updates worker score.
+6. **`cancel_contract` / `cancel_token_contract`**: Reclaims locked vault SOL or $SKR tokens back to employer if worker has not yet accepted.
 7. **`raise_dispute`**: Flags on-chain breach of terms for either party (`status: Disputed`).
 
 ---
@@ -66,8 +66,9 @@ sequenceDiagram
 |---|---|
 | **Program ID** | [`FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9`](https://explorer.solana.com/address/FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9?cluster=devnet) |
 | **Cluster** | Solana Devnet (`https://api.devnet.solana.com`) |
-| **Slot Deployed** | `499476909` (Upgrade Tx: [`4KYwnZ1…`](https://explorer.solana.com/tx/4KYwnZ1B7M2PYVrPZuj67a4P436hP9RnsHwk8EatJGaT2yLJXUJUDeG19c1R5fZQYLxJ9uaARDLUvgWMbx9gDdkp?cluster=devnet)) |
-| **Binary Size** | 293,736 bytes |
+| **Upgrade Tx (Token Escrow)** | [`PfvNF1J2LGhs4t3snPnucmZ5EPtVhdcUS22qnUuV4GBVHM635Mq3XayNWMu4sBp9bv49n2HFcyHkxv1sFPecFTY`](https://explorer.solana.com/tx/PfvNF1J2LGhs4t3snPnucmZ5EPtVhdcUS22qnUuV4GBVHM635Mq3XayNWMu4sBp9bv49n2HFcyHkxv1sFPecFTY?cluster=devnet) |
+| **Devnet $SKR Mint** | [`SKRbvo7x6Z9V4GfUoN1n1vJb2kLz8pQmY9u3W1eZhW3`](https://explorer.solana.com/address/SKRbvo7x6Z9V4GfUoN1n1vJb2kLz8pQmY9u3W1eZhW3?cluster=devnet) |
+| **Smart Contract Tests** | 28 automated integration test cases passing (SOL + $SKR token escrows) |
 | **Sample Escrow Contract** | [`ctr-mu4o1bhi`](https://explorer.solana.com/tx/2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT?cluster=devnet) (Status: `Completed`, 5★ review) |
 
 See [`program/DEPLOYED.md`](program/DEPLOYED.md) for the full on-chain deployment record and live transaction logs.
@@ -151,7 +152,8 @@ ClockIn is currently deployed on **Solana Devnet**. Ensure your mobile wallet is
 
 ## Known Scope & Non-Goals (MVP Honesty)
 
-- **Native SOL Only (for MVP)**: Contracts currently escrow native SOL. SPL tokens (USDC/USDT) and multi-token vaults are roadmapped for Phase 2.
+- **Dual-Currency Support (SOL & $SKR)**: Contracts support both native SOL and the Solana Seeker ecosystem SPL token ($SKR) with parallel, gas-optimized Anchor instructions. Additional SPL tokens (USDC/USDT) are roadmapped for Phase 2.
+- **Seeker Attested Proof-of-Human**: Workers can prove human identity and earn the "Seeker Attested" verification badge by staking 250 $SKR with a 48h unstaking cooldown, providing economic Sybil resistance without biometric surveillance. (Hardware Genesis Token attestation will be integrated once physical Seeker devices ship).
 - **Single-Milestone Delivery**: Escrows represent atomic full-delivery agreements. Multi-stage milestone payouts are roadmapped.
 - **On-Chain Dispute Recording**: Parties can raise disputes on-chain to freeze release. Automated dispute arbitration (e.g. Court DAO / multisig judges) is deferred to future protocol upgrades.
 - **Pseudonymous Public Keys**: ClockIn intentionally associates reputation strictly with cryptographic public keys, avoiding private personally identifiable information (PII) or centralized profile servers.
