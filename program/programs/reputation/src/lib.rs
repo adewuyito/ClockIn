@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
+use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer};
 
 declare_id!("FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9"); // program keypair at program/reputation-keypair.json (gitignored — devnet only, regenerate + update here if lost)
 
@@ -93,6 +95,8 @@ pub mod reputation {
         contract.rating = 0;
         contract.bump = ctx.bumps.escrow_contract;
         contract.vault_bump = 0;
+        contract.is_token = false;
+        contract.token_mint = Pubkey::default();
         Ok(())
     }
 
@@ -150,6 +154,8 @@ pub mod reputation {
         contract.rating = 0;
         contract.bump = ctx.bumps.escrow_contract;
         contract.vault_bump = ctx.bumps.vault;
+        contract.is_token = false;
+        contract.token_mint = Pubkey::default();
 
         let vault = &mut ctx.accounts.vault;
         vault.bump = ctx.bumps.vault;
@@ -184,6 +190,7 @@ pub mod reputation {
         require!((1..=5).contains(&rating), ReputationError::InvalidRating);
 
         let contract = &mut ctx.accounts.escrow_contract;
+        require!(!contract.is_token, ReputationError::TokenContract);
         require!(contract.status == ContractStatus::InProgress, ReputationError::InvalidContractStatus);
         require!(contract.worker == ctx.accounts.worker.key(), ReputationError::WorkerMismatch);
         require!(ctx.accounts.worker_profile.worker == ctx.accounts.worker.key(), ReputationError::WorkerMismatch);
@@ -240,6 +247,7 @@ pub mod reputation {
     /// Employer cancels a funded contract before worker accepts. Reclaims all vault funds.
     pub fn cancel_contract(ctx: Context<CancelContract>, _contract_id: String) -> Result<()> {
         let contract = &mut ctx.accounts.escrow_contract;
+        require!(!contract.is_token, ReputationError::TokenContract);
         require!(contract.status == ContractStatus::Funded, ReputationError::InvalidContractStatus);
 
         // Vault is closed to employer via `close = employer`, refunding both the escrow amount and vault rent!
@@ -258,6 +266,182 @@ pub mod reputation {
         );
 
         contract.status = ContractStatus::Disputed;
+        Ok(())
+    }
+
+    // =========================================================================
+    // SPL TOKEN ($SKR) ESCROW PROTOCOL INSTRUCTIONS
+    // =========================================================================
+
+    /// Employer creates and funds an SPL token ($SKR) escrow contract in a single transaction.
+    pub fn create_and_fund_token(
+        ctx: Context<CreateAndFundTokenContract>,
+        contract_id: String,
+        worker: Pubkey,
+        amount: u64,
+        terms_hash: [u8; 32],
+        deadline: i64,
+    ) -> Result<()> {
+        require!(contract_id.len() <= MAX_CONTRACT_ID_LEN, ReputationError::ContractIdTooLong);
+        require!(amount > 0, ReputationError::ZeroAmount);
+        require!(ctx.accounts.employer.key() != worker, ReputationError::SelfContract);
+        if deadline > 0 {
+            require!(deadline > Clock::get()?.unix_timestamp, ReputationError::InvalidDeadline);
+        }
+
+        let contract = &mut ctx.accounts.escrow_contract;
+        contract.contract_id = contract_id;
+        contract.employer = ctx.accounts.employer.key();
+        contract.worker = worker;
+        contract.amount = amount;
+        contract.terms_hash = terms_hash;
+        contract.status = ContractStatus::Funded;
+        contract.deadline = deadline;
+        contract.created_at = Clock::get()?.unix_timestamp;
+        contract.funded_at = Clock::get()?.unix_timestamp;
+        contract.completed_at = 0;
+        contract.rating = 0;
+        contract.bump = ctx.bumps.escrow_contract;
+        contract.vault_bump = ctx.bumps.vault;
+        contract.is_token = true;
+        contract.token_mint = ctx.accounts.mint.key();
+
+        let vault = &mut ctx.accounts.vault;
+        vault.bump = ctx.bumps.vault;
+
+        // Transfer SPL tokens from employer ATA to vault ATA
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.employer_token_account.to_account_info(),
+            to: ctx.accounts.vault_token_account.to_account_info(),
+            authority: ctx.accounts.employer.to_account_info(),
+        };
+        token::transfer(
+            CpiContext::new(ctx.accounts.token_program.key(), cpi_accounts),
+            amount,
+        )?;
+        Ok(())
+    }
+
+    /// Employer releases escrow token payment to worker and writes verified on-chain review atomically.
+    pub fn release_and_review_token(
+        ctx: Context<ReleaseAndReviewToken>,
+        contract_id: String,
+        rating: u8,
+    ) -> Result<()> {
+        require!((1..=5).contains(&rating), ReputationError::InvalidRating);
+
+        let contract = &mut ctx.accounts.escrow_contract;
+        require!(contract.status == ContractStatus::InProgress, ReputationError::InvalidContractStatus);
+        require!(contract.is_token, ReputationError::NotTokenContract);
+        require!(contract.worker == ctx.accounts.worker.key(), ReputationError::WorkerMismatch);
+        require!(ctx.accounts.worker_profile.worker == ctx.accounts.worker.key(), ReputationError::WorkerMismatch);
+
+        let amount = contract.amount;
+        let contract_id_bytes = contract_id.as_bytes();
+        let vault_bump = contract.vault_bump;
+        let seeds = &[
+            b"vault",
+            contract_id_bytes,
+            &[vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        // 1. Transfer SPL tokens from Vault ATA to Worker ATA
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.vault_token_account.to_account_info(),
+            to: ctx.accounts.worker_token_account.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.key(),
+            cpi_accounts,
+            signer_seeds,
+        );
+        token::transfer(cpi_ctx, amount)?;
+
+        // 2. Close the Vault ATA, refunding rent lamports to the employer
+        let close_accounts = CloseAccount {
+            account: ctx.accounts.vault_token_account.to_account_info(),
+            destination: ctx.accounts.employer.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        let close_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.key(),
+            close_accounts,
+            signer_seeds,
+        );
+        token::close_account(close_ctx)?;
+
+        // 3. Initialize the immutable Review PDA
+        let review = &mut ctx.accounts.review;
+        review.worker = ctx.accounts.worker.key();
+        review.reviewer = ctx.accounts.employer.key();
+        review.job_id = contract_id;
+        review.rating = rating;
+        review.timestamp = Clock::get()?.unix_timestamp;
+        review.bump = ctx.bumps.review;
+
+        // 4. Update worker profile aggregated reputation
+        let profile = &mut ctx.accounts.worker_profile;
+        profile.total_jobs = profile
+            .total_jobs
+            .checked_add(1)
+            .ok_or(ReputationError::Overflow)?;
+        profile.rating_sum = profile
+            .rating_sum
+            .checked_add(rating as u64)
+            .ok_or(ReputationError::Overflow)?;
+
+        // 5. Update contract status to Completed
+        contract.status = ContractStatus::Completed;
+        contract.completed_at = Clock::get()?.unix_timestamp;
+        contract.rating = rating;
+        Ok(())
+    }
+
+    /// Employer cancels a funded token contract before worker accepts. Reclaims all vault tokens.
+    pub fn cancel_token_contract(ctx: Context<CancelTokenContract>, _contract_id: String) -> Result<()> {
+        let contract = &mut ctx.accounts.escrow_contract;
+        require!(contract.status == ContractStatus::Funded, ReputationError::InvalidContractStatus);
+        require!(contract.is_token, ReputationError::NotTokenContract);
+
+        let amount = contract.amount;
+        let contract_id_bytes = _contract_id.as_bytes();
+        let vault_bump = contract.vault_bump;
+        let seeds = &[
+            b"vault",
+            contract_id_bytes,
+            &[vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        // 1. Return all SPL tokens from Vault ATA to employer ATA
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.vault_token_account.to_account_info(),
+            to: ctx.accounts.employer_token_account.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.key(),
+            cpi_accounts,
+            signer_seeds,
+        );
+        token::transfer(cpi_ctx, amount)?;
+
+        // 2. Close the Vault ATA, refunding rent lamports to the employer
+        let close_accounts = CloseAccount {
+            account: ctx.accounts.vault_token_account.to_account_info(),
+            destination: ctx.accounts.employer.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        let close_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.key(),
+            close_accounts,
+            signer_seeds,
+        );
+        token::close_account(close_ctx)?;
+
+        contract.status = ContractStatus::Cancelled;
         Ok(())
     }
 }
@@ -309,7 +493,7 @@ pub struct EscrowContract {
     pub contract_id: String,       // 4 + MAX_CONTRACT_ID_LEN
     pub employer: Pubkey,          // 32
     pub worker: Pubkey,            // 32
-    pub amount: u64,               // 8 (lamports)
+    pub amount: u64,               // 8 (lamports or token base units)
     pub terms_hash: [u8; 32],      // 32 (SHA-256)
     pub status: ContractStatus,    // 1
     pub deadline: i64,             // 8
@@ -319,6 +503,8 @@ pub struct EscrowContract {
     pub rating: u8,                // 1
     pub bump: u8,                  // 1
     pub vault_bump: u8,            // 1
+    pub is_token: bool,            // 1 (false = SOL, true = SPL Token)
+    pub token_mint: Pubkey,        // 32 (Pubkey::default() if SOL, mint address if token)
 }
 
 impl EscrowContract {
@@ -335,7 +521,9 @@ impl EscrowContract {
         + 8
         + 1
         + 1
-        + 1;
+        + 1
+        + 1
+        + 32;
 }
 
 /// PDA seeds: [b"vault", contract_id.as_bytes()]
@@ -386,6 +574,12 @@ pub enum ReputationError {
     UnauthorizedParticipant,
     #[msg("Worker account does not match the contract recipient.")]
     WorkerMismatch,
+    #[msg("Invalid token mint.")]
+    MintMismatch,
+    #[msg("Contract is not an SPL token escrow.")]
+    NotTokenContract,
+    #[msg("Contract is an SPL token escrow. Use token instructions.")]
+    TokenContract,
 }
 
 // =============================================================================
@@ -577,4 +771,136 @@ pub struct RaiseDispute<'info> {
         bump = escrow_contract.bump,
     )]
     pub escrow_contract: Account<'info, EscrowContract>,
+}
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
+pub struct CreateAndFundTokenContract<'info> {
+    #[account(mut)]
+    pub employer: Signer<'info>,
+    pub mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        constraint = employer_token_account.mint == mint.key() @ ReputationError::MintMismatch,
+        constraint = employer_token_account.owner == employer.key() @ ReputationError::UnauthorizedEmployer,
+    )]
+    pub employer_token_account: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = employer,
+        space = EscrowContract::SPACE,
+        seeds = [b"escrow", contract_id.as_bytes()],
+        bump,
+    )]
+    pub escrow_contract: Account<'info, EscrowContract>,
+    #[account(
+        init,
+        payer = employer,
+        space = EscrowVault::SPACE,
+        seeds = [b"vault", contract_id.as_bytes()],
+        bump,
+    )]
+    pub vault: Account<'info, EscrowVault>,
+    #[account(
+        init,
+        payer = employer,
+        associated_token::mint = mint,
+        associated_token::authority = vault,
+    )]
+    pub vault_token_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
+pub struct ReleaseAndReviewToken<'info> {
+    #[account(mut)]
+    pub employer: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"escrow", contract_id.as_bytes()],
+        bump = escrow_contract.bump,
+        has_one = employer @ ReputationError::UnauthorizedEmployer,
+        constraint = escrow_contract.is_token @ ReputationError::NotTokenContract,
+        constraint = escrow_contract.token_mint == mint.key() @ ReputationError::MintMismatch,
+    )]
+    pub escrow_contract: Account<'info, EscrowContract>,
+    pub mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        close = employer,
+        seeds = [b"vault", contract_id.as_bytes()],
+        bump = escrow_contract.vault_bump,
+    )]
+    pub vault: Account<'info, EscrowVault>,
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = vault,
+    )]
+    pub vault_token_account: Account<'info, TokenAccount>,
+    /// CHECK: Recipient of the escrowed tokens and subject of review; validated against escrow_contract.worker
+    #[account(mut)]
+    pub worker: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = worker_token_account.mint == mint.key() @ ReputationError::MintMismatch,
+        constraint = worker_token_account.owner == worker.key() @ ReputationError::WorkerMismatch,
+    )]
+    pub worker_token_account: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        seeds = [b"worker", worker.key().as_ref()],
+        bump = worker_profile.bump,
+    )]
+    pub worker_profile: Account<'info, WorkerProfile>,
+    #[account(
+        init,
+        payer = employer,
+        space = Review::SPACE,
+        seeds = [b"review", worker.key().as_ref(), contract_id.as_bytes()],
+        bump,
+    )]
+    pub review: Account<'info, Review>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
+pub struct CancelTokenContract<'info> {
+    #[account(mut)]
+    pub employer: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"escrow", contract_id.as_bytes()],
+        bump = escrow_contract.bump,
+        has_one = employer @ ReputationError::UnauthorizedEmployer,
+        constraint = escrow_contract.is_token @ ReputationError::NotTokenContract,
+        constraint = escrow_contract.token_mint == mint.key() @ ReputationError::MintMismatch,
+    )]
+    pub escrow_contract: Account<'info, EscrowContract>,
+    pub mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        close = employer,
+        seeds = [b"vault", contract_id.as_bytes()],
+        bump = escrow_contract.vault_bump,
+    )]
+    pub vault: Account<'info, EscrowVault>,
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = vault,
+    )]
+    pub vault_token_account: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        constraint = employer_token_account.mint == mint.key() @ ReputationError::MintMismatch,
+        constraint = employer_token_account.owner == employer.key() @ ReputationError::UnauthorizedEmployer,
+    )]
+    pub employer_token_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
 }
