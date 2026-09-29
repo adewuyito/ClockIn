@@ -87,13 +87,34 @@ class DraftContracts extends Table {
   TextColumn get tokenMint => text().nullable()();
 }
 
-@DriftDatabase(tables: [WorkerProfiles, Reviews, DraftReviews, RecentLookups, EscrowContracts, DraftContracts])
+/// Local cache for Seeker Attestation and Guardian staking status.
+class SeekerAttestations extends Table {
+  TextColumn get address => text()();
+  BoolColumn get isAttested => boolean()();
+  RealColumn get stakedAmount => real().withDefault(const Constant(0.0))();
+  TextColumn get guardianName => text().withDefault(const Constant('Helius'))();
+  BoolColumn get cooldownActive => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get syncedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {address};
+}
+
+@DriftDatabase(tables: [
+  WorkerProfiles,
+  Reviews,
+  DraftReviews,
+  RecentLookups,
+  EscrowContracts,
+  DraftContracts,
+  SeekerAttestations,
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -113,6 +134,9 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(escrowContracts, escrowContracts.tokenMint);
             await m.addColumn(draftContracts, draftContracts.isToken);
             await m.addColumn(draftContracts, draftContracts.tokenMint);
+          }
+          if (from < 6) {
+            await m.createTable(seekerAttestations);
           }
         },
       );

@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solana/solana.dart';
-import '../database/app_database.dart' hide WorkerProfile, Review, EscrowContract;
+import '../database/app_database.dart' hide WorkerProfile, Review, EscrowContract, SeekerAttestation;
 import '../database/reputation_repository.dart';
 import '../database/contract_repository.dart';
+import '../database/attestation_repository.dart';
 import '../models/escrow_contract.dart';
 import '../models/review.dart';
+import '../models/seeker_attestation.dart';
 import '../models/worker_profile.dart';
 import '../solana/network_config.dart';
 import '../solana/reputation_service.dart';
@@ -57,6 +59,13 @@ final contractRepositoryProvider = Provider<ContractRepository>((ref) {
   final db = ref.watch(databaseProvider);
   final contractService = ref.watch(contractServiceProvider);
   return ContractRepository(db: db, contractService: contractService);
+});
+
+/// Repository coordinating Seeker Attestation (Guardian stake & $SKR verification) and Drift cache.
+final attestationRepositoryProvider = Provider<AttestationRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  final contractService = ref.watch(contractServiceProvider);
+  return AttestationRepository(db: db, contractService: contractService);
 });
 
 // ==================== WALLET STATE MANAGEMENT ====================
@@ -238,6 +247,22 @@ final walletBalanceProvider = FutureProvider<int?>((ref) async {
     commitment: Commitment.confirmed,
   );
   return result.value;
+});
+
+/// The connected wallet's real devnet $SKR token balance (UI units).
+final walletSkrBalanceProvider = FutureProvider<double>((ref) async {
+  final wallet = ref.watch(walletStateProvider);
+  if (!wallet.isConnected || wallet.address == null) return 0.0;
+
+  final contractService = ref.watch(contractServiceProvider);
+  return contractService.getSkrBalance(wallet.address!);
+});
+
+/// Reactive stream of a worker's Seeker Attestation (Guardian stake & $SKR verification).
+final seekerAttestationProvider =
+    StreamProvider.family<SeekerAttestation, String>((ref, address) {
+  final repo = ref.watch(attestationRepositoryProvider);
+  return repo.watchAttestation(address);
 });
 
 /// A snapshot of real network facts for the Settings screen's diagnostics

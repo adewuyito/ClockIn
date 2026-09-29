@@ -2955,6 +2955,443 @@ class DraftContractsCompanion extends UpdateCompanion<DraftContract> {
   }
 }
 
+class $SeekerAttestationsTable extends SeekerAttestations
+    with TableInfo<$SeekerAttestationsTable, SeekerAttestation> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SeekerAttestationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _addressMeta = const VerificationMeta(
+    'address',
+  );
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+    'address',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isAttestedMeta = const VerificationMeta(
+    'isAttested',
+  );
+  @override
+  late final GeneratedColumn<bool> isAttested = GeneratedColumn<bool>(
+    'is_attested',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_attested" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _stakedAmountMeta = const VerificationMeta(
+    'stakedAmount',
+  );
+  @override
+  late final GeneratedColumn<double> stakedAmount = GeneratedColumn<double>(
+    'staked_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _guardianNameMeta = const VerificationMeta(
+    'guardianName',
+  );
+  @override
+  late final GeneratedColumn<String> guardianName = GeneratedColumn<String>(
+    'guardian_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Helius'),
+  );
+  static const VerificationMeta _cooldownActiveMeta = const VerificationMeta(
+    'cooldownActive',
+  );
+  @override
+  late final GeneratedColumn<bool> cooldownActive = GeneratedColumn<bool>(
+    'cooldown_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("cooldown_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _syncedAtMeta = const VerificationMeta(
+    'syncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> syncedAt = GeneratedColumn<DateTime>(
+    'synced_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    address,
+    isAttested,
+    stakedAmount,
+    guardianName,
+    cooldownActive,
+    syncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'seeker_attestations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SeekerAttestation> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('address')) {
+      context.handle(
+        _addressMeta,
+        address.isAcceptableOrUnknown(data['address']!, _addressMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_addressMeta);
+    }
+    if (data.containsKey('is_attested')) {
+      context.handle(
+        _isAttestedMeta,
+        isAttested.isAcceptableOrUnknown(data['is_attested']!, _isAttestedMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_isAttestedMeta);
+    }
+    if (data.containsKey('staked_amount')) {
+      context.handle(
+        _stakedAmountMeta,
+        stakedAmount.isAcceptableOrUnknown(
+          data['staked_amount']!,
+          _stakedAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('guardian_name')) {
+      context.handle(
+        _guardianNameMeta,
+        guardianName.isAcceptableOrUnknown(
+          data['guardian_name']!,
+          _guardianNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cooldown_active')) {
+      context.handle(
+        _cooldownActiveMeta,
+        cooldownActive.isAcceptableOrUnknown(
+          data['cooldown_active']!,
+          _cooldownActiveMeta,
+        ),
+      );
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(
+        _syncedAtMeta,
+        syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {address};
+  @override
+  SeekerAttestation map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SeekerAttestation(
+      address: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}address'],
+      )!,
+      isAttested: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_attested'],
+      )!,
+      stakedAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}staked_amount'],
+      )!,
+      guardianName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}guardian_name'],
+      )!,
+      cooldownActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}cooldown_active'],
+      )!,
+      syncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}synced_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SeekerAttestationsTable createAlias(String alias) {
+    return $SeekerAttestationsTable(attachedDatabase, alias);
+  }
+}
+
+class SeekerAttestation extends DataClass
+    implements Insertable<SeekerAttestation> {
+  final String address;
+  final bool isAttested;
+  final double stakedAmount;
+  final String guardianName;
+  final bool cooldownActive;
+  final DateTime syncedAt;
+  const SeekerAttestation({
+    required this.address,
+    required this.isAttested,
+    required this.stakedAmount,
+    required this.guardianName,
+    required this.cooldownActive,
+    required this.syncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['address'] = Variable<String>(address);
+    map['is_attested'] = Variable<bool>(isAttested);
+    map['staked_amount'] = Variable<double>(stakedAmount);
+    map['guardian_name'] = Variable<String>(guardianName);
+    map['cooldown_active'] = Variable<bool>(cooldownActive);
+    map['synced_at'] = Variable<DateTime>(syncedAt);
+    return map;
+  }
+
+  SeekerAttestationsCompanion toCompanion(bool nullToAbsent) {
+    return SeekerAttestationsCompanion(
+      address: Value(address),
+      isAttested: Value(isAttested),
+      stakedAmount: Value(stakedAmount),
+      guardianName: Value(guardianName),
+      cooldownActive: Value(cooldownActive),
+      syncedAt: Value(syncedAt),
+    );
+  }
+
+  factory SeekerAttestation.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SeekerAttestation(
+      address: serializer.fromJson<String>(json['address']),
+      isAttested: serializer.fromJson<bool>(json['isAttested']),
+      stakedAmount: serializer.fromJson<double>(json['stakedAmount']),
+      guardianName: serializer.fromJson<String>(json['guardianName']),
+      cooldownActive: serializer.fromJson<bool>(json['cooldownActive']),
+      syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'address': serializer.toJson<String>(address),
+      'isAttested': serializer.toJson<bool>(isAttested),
+      'stakedAmount': serializer.toJson<double>(stakedAmount),
+      'guardianName': serializer.toJson<String>(guardianName),
+      'cooldownActive': serializer.toJson<bool>(cooldownActive),
+      'syncedAt': serializer.toJson<DateTime>(syncedAt),
+    };
+  }
+
+  SeekerAttestation copyWith({
+    String? address,
+    bool? isAttested,
+    double? stakedAmount,
+    String? guardianName,
+    bool? cooldownActive,
+    DateTime? syncedAt,
+  }) => SeekerAttestation(
+    address: address ?? this.address,
+    isAttested: isAttested ?? this.isAttested,
+    stakedAmount: stakedAmount ?? this.stakedAmount,
+    guardianName: guardianName ?? this.guardianName,
+    cooldownActive: cooldownActive ?? this.cooldownActive,
+    syncedAt: syncedAt ?? this.syncedAt,
+  );
+  SeekerAttestation copyWithCompanion(SeekerAttestationsCompanion data) {
+    return SeekerAttestation(
+      address: data.address.present ? data.address.value : this.address,
+      isAttested: data.isAttested.present
+          ? data.isAttested.value
+          : this.isAttested,
+      stakedAmount: data.stakedAmount.present
+          ? data.stakedAmount.value
+          : this.stakedAmount,
+      guardianName: data.guardianName.present
+          ? data.guardianName.value
+          : this.guardianName,
+      cooldownActive: data.cooldownActive.present
+          ? data.cooldownActive.value
+          : this.cooldownActive,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SeekerAttestation(')
+          ..write('address: $address, ')
+          ..write('isAttested: $isAttested, ')
+          ..write('stakedAmount: $stakedAmount, ')
+          ..write('guardianName: $guardianName, ')
+          ..write('cooldownActive: $cooldownActive, ')
+          ..write('syncedAt: $syncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    address,
+    isAttested,
+    stakedAmount,
+    guardianName,
+    cooldownActive,
+    syncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SeekerAttestation &&
+          other.address == this.address &&
+          other.isAttested == this.isAttested &&
+          other.stakedAmount == this.stakedAmount &&
+          other.guardianName == this.guardianName &&
+          other.cooldownActive == this.cooldownActive &&
+          other.syncedAt == this.syncedAt);
+}
+
+class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
+  final Value<String> address;
+  final Value<bool> isAttested;
+  final Value<double> stakedAmount;
+  final Value<String> guardianName;
+  final Value<bool> cooldownActive;
+  final Value<DateTime> syncedAt;
+  final Value<int> rowid;
+  const SeekerAttestationsCompanion({
+    this.address = const Value.absent(),
+    this.isAttested = const Value.absent(),
+    this.stakedAmount = const Value.absent(),
+    this.guardianName = const Value.absent(),
+    this.cooldownActive = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SeekerAttestationsCompanion.insert({
+    required String address,
+    required bool isAttested,
+    this.stakedAmount = const Value.absent(),
+    this.guardianName = const Value.absent(),
+    this.cooldownActive = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : address = Value(address),
+       isAttested = Value(isAttested);
+  static Insertable<SeekerAttestation> custom({
+    Expression<String>? address,
+    Expression<bool>? isAttested,
+    Expression<double>? stakedAmount,
+    Expression<String>? guardianName,
+    Expression<bool>? cooldownActive,
+    Expression<DateTime>? syncedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (address != null) 'address': address,
+      if (isAttested != null) 'is_attested': isAttested,
+      if (stakedAmount != null) 'staked_amount': stakedAmount,
+      if (guardianName != null) 'guardian_name': guardianName,
+      if (cooldownActive != null) 'cooldown_active': cooldownActive,
+      if (syncedAt != null) 'synced_at': syncedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SeekerAttestationsCompanion copyWith({
+    Value<String>? address,
+    Value<bool>? isAttested,
+    Value<double>? stakedAmount,
+    Value<String>? guardianName,
+    Value<bool>? cooldownActive,
+    Value<DateTime>? syncedAt,
+    Value<int>? rowid,
+  }) {
+    return SeekerAttestationsCompanion(
+      address: address ?? this.address,
+      isAttested: isAttested ?? this.isAttested,
+      stakedAmount: stakedAmount ?? this.stakedAmount,
+      guardianName: guardianName ?? this.guardianName,
+      cooldownActive: cooldownActive ?? this.cooldownActive,
+      syncedAt: syncedAt ?? this.syncedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
+    if (isAttested.present) {
+      map['is_attested'] = Variable<bool>(isAttested.value);
+    }
+    if (stakedAmount.present) {
+      map['staked_amount'] = Variable<double>(stakedAmount.value);
+    }
+    if (guardianName.present) {
+      map['guardian_name'] = Variable<String>(guardianName.value);
+    }
+    if (cooldownActive.present) {
+      map['cooldown_active'] = Variable<bool>(cooldownActive.value);
+    }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<DateTime>(syncedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SeekerAttestationsCompanion(')
+          ..write('address: $address, ')
+          ..write('isAttested: $isAttested, ')
+          ..write('stakedAmount: $stakedAmount, ')
+          ..write('guardianName: $guardianName, ')
+          ..write('cooldownActive: $cooldownActive, ')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2966,6 +3403,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $DraftContractsTable draftContracts = $DraftContractsTable(this);
+  late final $SeekerAttestationsTable seekerAttestations =
+      $SeekerAttestationsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2977,6 +3416,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     recentLookups,
     escrowContracts,
     draftContracts,
+    seekerAttestations,
   ];
 }
 
@@ -4542,6 +4982,257 @@ typedef $$DraftContractsTableProcessedTableManager =
       DraftContract,
       PrefetchHooks Function()
     >;
+typedef $$SeekerAttestationsTableCreateCompanionBuilder =
+    SeekerAttestationsCompanion Function({
+      required String address,
+      required bool isAttested,
+      Value<double> stakedAmount,
+      Value<String> guardianName,
+      Value<bool> cooldownActive,
+      Value<DateTime> syncedAt,
+      Value<int> rowid,
+    });
+typedef $$SeekerAttestationsTableUpdateCompanionBuilder =
+    SeekerAttestationsCompanion Function({
+      Value<String> address,
+      Value<bool> isAttested,
+      Value<double> stakedAmount,
+      Value<String> guardianName,
+      Value<bool> cooldownActive,
+      Value<DateTime> syncedAt,
+      Value<int> rowid,
+    });
+
+class $$SeekerAttestationsTableFilterComposer
+    extends Composer<_$AppDatabase, $SeekerAttestationsTable> {
+  $$SeekerAttestationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isAttested => $composableBuilder(
+    column: $table.isAttested,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get stakedAmount => $composableBuilder(
+    column: $table.stakedAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get guardianName => $composableBuilder(
+    column: $table.guardianName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get cooldownActive => $composableBuilder(
+    column: $table.cooldownActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SeekerAttestationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SeekerAttestationsTable> {
+  $$SeekerAttestationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isAttested => $composableBuilder(
+    column: $table.isAttested,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get stakedAmount => $composableBuilder(
+    column: $table.stakedAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get guardianName => $composableBuilder(
+    column: $table.guardianName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get cooldownActive => $composableBuilder(
+    column: $table.cooldownActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SeekerAttestationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SeekerAttestationsTable> {
+  $$SeekerAttestationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
+
+  GeneratedColumn<bool> get isAttested => $composableBuilder(
+    column: $table.isAttested,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get stakedAmount => $composableBuilder(
+    column: $table.stakedAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get guardianName => $composableBuilder(
+    column: $table.guardianName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get cooldownActive => $composableBuilder(
+    column: $table.cooldownActive,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get syncedAt =>
+      $composableBuilder(column: $table.syncedAt, builder: (column) => column);
+}
+
+class $$SeekerAttestationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SeekerAttestationsTable,
+          SeekerAttestation,
+          $$SeekerAttestationsTableFilterComposer,
+          $$SeekerAttestationsTableOrderingComposer,
+          $$SeekerAttestationsTableAnnotationComposer,
+          $$SeekerAttestationsTableCreateCompanionBuilder,
+          $$SeekerAttestationsTableUpdateCompanionBuilder,
+          (
+            SeekerAttestation,
+            BaseReferences<
+              _$AppDatabase,
+              $SeekerAttestationsTable,
+              SeekerAttestation
+            >,
+          ),
+          SeekerAttestation,
+          PrefetchHooks Function()
+        > {
+  $$SeekerAttestationsTableTableManager(
+    _$AppDatabase db,
+    $SeekerAttestationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SeekerAttestationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SeekerAttestationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SeekerAttestationsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> address = const Value.absent(),
+                Value<bool> isAttested = const Value.absent(),
+                Value<double> stakedAmount = const Value.absent(),
+                Value<String> guardianName = const Value.absent(),
+                Value<bool> cooldownActive = const Value.absent(),
+                Value<DateTime> syncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SeekerAttestationsCompanion(
+                address: address,
+                isAttested: isAttested,
+                stakedAmount: stakedAmount,
+                guardianName: guardianName,
+                cooldownActive: cooldownActive,
+                syncedAt: syncedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String address,
+                required bool isAttested,
+                Value<double> stakedAmount = const Value.absent(),
+                Value<String> guardianName = const Value.absent(),
+                Value<bool> cooldownActive = const Value.absent(),
+                Value<DateTime> syncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SeekerAttestationsCompanion.insert(
+                address: address,
+                isAttested: isAttested,
+                stakedAmount: stakedAmount,
+                guardianName: guardianName,
+                cooldownActive: cooldownActive,
+                syncedAt: syncedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SeekerAttestationsTable, SeekerAttestation>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SeekerAttestationsTable,
+                    SeekerAttestation
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SeekerAttestationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SeekerAttestationsTable,
+      SeekerAttestation,
+      $$SeekerAttestationsTableFilterComposer,
+      $$SeekerAttestationsTableOrderingComposer,
+      $$SeekerAttestationsTableAnnotationComposer,
+      $$SeekerAttestationsTableCreateCompanionBuilder,
+      $$SeekerAttestationsTableUpdateCompanionBuilder,
+      (
+        SeekerAttestation,
+        BaseReferences<
+          _$AppDatabase,
+          $SeekerAttestationsTable,
+          SeekerAttestation
+        >,
+      ),
+      SeekerAttestation,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4558,4 +5249,6 @@ class $AppDatabaseManager {
       $$EscrowContractsTableTableManager(_db, _db.escrowContracts);
   $$DraftContractsTableTableManager get draftContracts =>
       $$DraftContractsTableTableManager(_db, _db.draftContracts);
+  $$SeekerAttestationsTableTableManager get seekerAttestations =>
+      $$SeekerAttestationsTableTableManager(_db, _db.seekerAttestations);
 }

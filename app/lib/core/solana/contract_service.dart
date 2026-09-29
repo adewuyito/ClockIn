@@ -423,4 +423,30 @@ class ContractService {
     }
     throw StateError('_signAndSendInstructionsWithRetry exhausted attempts without returning or throwing.');
   }
+
+  /// Fetches the live $SKR token balance for a wallet address from Solana Devnet RPC.
+  /// Returns 0.0 if the Associated Token Account does not exist or has zero balance.
+  Future<double> getSkrBalance(String address) async {
+    try {
+      final owner = Ed25519HDPublicKey.fromBase58(address);
+      final mint = NetworkConfig.skrMint;
+      final ata = await NetworkConfig.findAssociatedTokenAddress(
+        owner: owner,
+        mint: mint,
+      );
+
+      final res = await solanaClient.rpcClient.getTokenAccountBalance(
+        ata.toBase58(),
+        commitment: Commitment.confirmed,
+      );
+      final uiStr = res.value.uiAmountString;
+      if (uiStr != null) {
+        return double.tryParse(uiStr) ?? 0.0;
+      }
+      return 0.0;
+    } catch (_) {
+      // ATA doesn't exist yet or has no balance
+      return 0.0;
+    }
+  }
 }
