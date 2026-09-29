@@ -191,4 +191,13 @@ void main() {
       expect(ix.accounts[0].isSigner, isTrue);
     });
   });
+
+  group(r'Devnet $SKR Faucet', () {
+    test('Devnet faucet keypair instantiates from 32-byte seed with expected pubkey', () async {
+      final keypair = await Ed25519HDKeyPair.fromPrivateKeyBytes(
+        privateKey: NetworkConfig.devnetSkrFaucetPrivateKey,
+      );
+      expect(keypair.publicKey.toBase58(), equals('GpCkbpkeXxX5sdFJF9joMmgqMs1P5uyVFHZxvvuDcoz'));
+    });
+  });
 }

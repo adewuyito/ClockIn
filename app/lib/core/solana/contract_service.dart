@@ -456,8 +456,11 @@ class ContractService {
     double amount = 500.0,
   }) async {
     try {
+      final privateKeyBytes = NetworkConfig.devnetSkrFaucetPrivateKey.length == 64
+          ? NetworkConfig.devnetSkrFaucetPrivateKey.sublist(0, 32)
+          : NetworkConfig.devnetSkrFaucetPrivateKey;
       final faucetKey = await Ed25519HDKeyPair.fromPrivateKeyBytes(
-        privateKey: NetworkConfig.devnetSkrFaucetPrivateKey,
+        privateKey: privateKeyBytes,
       );
       final mint = NetworkConfig.skrMint;
       final recipientAta = await NetworkConfig.findAssociatedTokenAddress(

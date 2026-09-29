@@ -36,6 +36,7 @@ class SeekerStakingSheet extends ConsumerStatefulWidget {
 class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
   bool _isClaiming = false;
   bool _isStaking = false;
+  bool _isError = false;
   String? _statusMessage;
   String? _txSignature;
 
@@ -184,14 +185,18 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: _isStaking || _isClaiming
-                    ? AppColors.primaryContainer.withValues(alpha: 0.15)
-                    : const Color(0xFFE8F8F0),
+                color: _isError
+                    ? const Color(0xFFFDE8E8)
+                    : (_isStaking || _isClaiming
+                        ? AppColors.primaryContainer.withValues(alpha: 0.15)
+                        : const Color(0xFFE8F8F0)),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: _isStaking || _isClaiming
-                      ? AppColors.primary.withValues(alpha: 0.3)
-                      : const Color(0xFF1F9D5B).withValues(alpha: 0.4),
+                  color: _isError
+                      ? const Color(0xFFF87171)
+                      : (_isStaking || _isClaiming
+                          ? AppColors.primary.withValues(alpha: 0.3)
+                          : const Color(0xFF1F9D5B).withValues(alpha: 0.4)),
                 ),
               ),
               child: Row(
@@ -202,6 +207,8 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                       height: 14,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
+                  else if (_isError)
+                    const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFDC2626))
                   else
                     const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF1F9D5B)),
                   const SizedBox(width: 10),
@@ -214,12 +221,14 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w600,
-                            color: _isStaking || _isClaiming
-                                ? AppColors.onSurface
-                                : const Color(0xFF0B5E36),
+                            color: _isError
+                                ? const Color(0xFF991B1B)
+                                : (_isStaking || _isClaiming
+                                    ? AppColors.onSurface
+                                    : const Color(0xFF0B5E36)),
                           ),
                         ),
-                        if (_txSignature != null) ...[
+                        if (_txSignature != null && !_isError) ...[
                           const SizedBox(height: 2),
                           Text(
                             'Tx: ${_txSignature!.substring(0, 14)}…',
@@ -280,6 +289,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                         HapticFeedback.mediumImpact();
                         setState(() {
                           _isClaiming = true;
+                          _isError = false;
                           _statusMessage = 'Minting 500 \$SKR on Solana Devnet...';
                         });
 
@@ -296,6 +306,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                           if (mounted) {
                             setState(() {
                               _isClaiming = false;
+                              _isError = false;
                               _txSignature = sig;
                               _statusMessage = 'Claimed 500 \$SKR! Ready to stake.';
                             });
@@ -304,7 +315,8 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                           if (mounted) {
                             setState(() {
                               _isClaiming = false;
-                              _statusMessage = 'Faucet claim failed: $e';
+                              _isError = true;
+                              _statusMessage = 'Faucet claim failed: ${_formatError(e)}';
                             });
                           }
                         }
@@ -345,6 +357,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                         HapticFeedback.mediumImpact();
                         setState(() {
                           _isStaking = true;
+                          _isError = false;
                           _statusMessage = 'Opening Phantom / Solflare to approve stake...';
                         });
 
@@ -366,6 +379,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                           if (mounted) {
                             setState(() {
                               _isStaking = false;
+                              _isError = false;
                               _txSignature = sig;
                               _statusMessage = 'Successfully staked 250 \$SKR! Seeker Attested.';
                             });
@@ -387,12 +401,13 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                           if (mounted) {
                             setState(() {
                               _isStaking = false;
-                              _statusMessage = 'Staking transaction failed or cancelled.';
+                              _isError = true;
+                              _statusMessage = 'Staking failed: ${_formatError(e)}';
                             });
                             messenger.showSnackBar(
                               SnackBar(
                                 backgroundColor: AppColors.error,
-                                content: Text('Staking error: $e'),
+                                content: Text('Staking error: ${_formatError(e)}'),
                               ),
                             );
                           }
@@ -470,5 +485,19 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
         ),
       ],
     );
+  }
+
+  static String _formatError(Object error) {
+    var str = error.toString();
+    if (str.startsWith('ReputationException(')) {
+      final match = RegExp(r'ReputationException\([^:]*:\s*(.*)\)').firstMatch(str);
+      if (match != null && match.group(1) != null) {
+        str = match.group(1)!;
+      }
+    }
+    if (str.startsWith('Exception: ')) {
+      str = str.substring('Exception: '.length);
+    }
+    return str;
   }
 }
