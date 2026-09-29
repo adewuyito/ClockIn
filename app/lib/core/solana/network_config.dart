@@ -106,11 +106,33 @@ class NetworkConfig {
 
   /// Default Devnet $SKR Token Mint (Solana Seeker ecosystem token)
   static const String devnetSkrMint =
-      'SKRbvo7x6Z9V4GfUoN1n1vJb2kLz8pQmY9u3W1eZhW3';
+      'Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9';
 
   /// Parsed Pubkey for devnet $SKR mint
   static final Ed25519HDPublicKey skrMint =
       Ed25519HDPublicKey.fromBase58(devnetSkrMint);
+
+  /// Devnet Faucet Keypair private key bytes (authorized mint authority on devnet).
+  static const List<int> devnetSkrFaucetPrivateKey = [
+    113, 149, 0, 115, 38, 201, 167, 200, 65, 19, 67, 234, 85, 200, 40, 137,
+    78, 251, 156, 20, 190, 161, 128, 70, 130, 82, 37, 63, 11, 183, 27, 152,
+    4, 13, 21, 148, 246, 156, 82, 251, 112, 199, 217, 212, 169, 133, 99, 94,
+    233, 76, 130, 120, 241, 4, 209, 169, 218, 72, 181, 214, 46, 36, 118, 145,
+  ];
+
+  /// Computes the Guardian Stake Vault PDA.
+  /// Seeds: [b"guardian_vault", guardian_name]
+  static Future<Ed25519HDPublicKey> findGuardianVaultPda({
+    String guardianName = 'helius',
+  }) async {
+    return Ed25519HDPublicKey.findProgramAddress(
+      seeds: [
+        utf8.encode('guardian_vault'),
+        utf8.encode(guardianName.toLowerCase()),
+      ],
+      programId: programId,
+    );
+  }
 
   /// Computes the Associated Token Account (ATA) for a wallet/PDA and mint.
   /// Seeds: [wallet_address, token_program_id, mint_address]

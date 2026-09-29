@@ -449,4 +449,128 @@ class ContractService {
       return 0.0;
     }
   }
+
+  /// Faucet: Mints devnet $SKR tokens directly to a recipient wallet on Solana Devnet.
+  Future<String> airdropDevnetSkr({
+    required Ed25519HDPublicKey recipient,
+    double amount = 500.0,
+  }) async {
+    try {
+      final faucetKey = await Ed25519HDKeyPair.fromPrivateKeyBytes(
+        privateKey: NetworkConfig.devnetSkrFaucetPrivateKey,
+      );
+      final mint = NetworkConfig.skrMint;
+      final recipientAta = await NetworkConfig.findAssociatedTokenAddress(
+        owner: recipient,
+        mint: mint,
+      );
+
+      final instructions = <Instruction>[];
+
+      // Check if recipient ATA exists; if not, prepend create ATA instruction
+      final ataInfo = await solanaClient.rpcClient.getAccountInfo(
+        recipientAta.toBase58(),
+        encoding: Encoding.base64,
+        commitment: Commitment.confirmed,
+      );
+
+      if (ataInfo.value == null) {
+        instructions.add(
+          await ProgramInstructions.createAssociatedTokenAccountIdempotent(
+            fundingAccount: faucetKey.publicKey,
+            walletAddress: recipient,
+            mint: mint,
+          ),
+        );
+      }
+
+      instructions.add(
+        TokenInstruction.mintTo(
+          mint: mint,
+          destination: recipientAta,
+          authority: faucetKey.publicKey,
+          amount: (amount * 1e6).round(),
+        ),
+      );
+
+      final signature = await solanaClient.sendAndConfirmTransaction(
+        message: Message(instructions: instructions),
+        signers: [faucetKey],
+        commitment: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
+
+  /// Staking: Transfers 250 $SKR from connected wallet to Guardian Stake Vault PDA on-chain.
+  /// Routes through Mobile Wallet Adapter (MWA) for Phantom/Solflare approval.
+  Future<String> stakeSkrToGuardian({
+    required Ed25519HDPublicKey wallet,
+    required WalletAdapter walletAdapter,
+    double amount = 250.0,
+    String guardianName = 'Helius',
+  }) async {
+    try {
+      final mint = NetworkConfig.skrMint;
+      final userAta = await NetworkConfig.findAssociatedTokenAddress(
+        owner: wallet,
+        mint: mint,
+      );
+      final guardianVaultPda = await NetworkConfig.findGuardianVaultPda(
+        guardianName: guardianName,
+      );
+      final guardianVaultAta = await NetworkConfig.findAssociatedTokenAddress(
+        owner: guardianVaultPda,
+        mint: mint,
+      );
+
+      final signature = await _signAndSendInstructionsWithRetry(
+        feePayer: wallet,
+        walletAdapter: walletAdapter,
+        buildInstructions: () async {
+          final instructions = <Instruction>[];
+
+          // Ensure guardian vault ATA exists
+          final vaultAtaInfo = await solanaClient.rpcClient.getAccountInfo(
+            guardianVaultAta.toBase58(),
+            encoding: Encoding.base64,
+            commitment: Commitment.confirmed,
+          );
+          if (vaultAtaInfo.value == null) {
+            instructions.add(
+              await ProgramInstructions.createAssociatedTokenAccountIdempotent(
+                fundingAccount: wallet,
+                walletAddress: guardianVaultPda,
+                mint: mint,
+              ),
+            );
+          }
+
+          // Transfer $SKR from user ATA to Guardian Vault ATA
+          instructions.add(
+            TokenInstruction.transfer(
+              amount: (amount * 1e6).round(),
+              source: userAta,
+              destination: guardianVaultAta,
+              owner: wallet,
+            ),
+          );
+
+          return instructions;
+        },
+      );
+
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
 }

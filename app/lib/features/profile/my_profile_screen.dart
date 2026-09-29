@@ -12,6 +12,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_header.dart';
 import '../../core/widgets/profile_qr_sheet.dart';
+import 'seeker_staking_sheet.dart';
 
 /// Screen 2: My Profile (Loaded, Not Registered, Loading Skeleton, Empty Reviews).
 ///
@@ -417,24 +418,46 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                         HapticFeedback.selectionClick();
                         final repo = ref.read(attestationRepositoryProvider);
                         if (isAttested) {
-                          await repo.unstakeDevnetSkr(address: address);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Unstaked \$SKR. Profile marked unverified for testing.'),
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text(
+                                r'Unstake $SKR?',
+                                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
                               ),
-                            );
+                              content: Text(
+                                'Unstaking will initiate a 48-hour cooldown and remove your verified Seeker Attestation badge.',
+                                style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(false),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.error,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: () => Navigator.of(ctx).pop(true),
+                                  child: const Text('Unstake'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await repo.unstakeDevnetSkr(address: address);
+                            ref.invalidate(seekerAttestationProvider(address));
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Unstaked \$SKR. Profile marked unverified for testing.'),
+                                ),
+                              );
+                            }
                           }
                         } else {
-                          await repo.stakeDevnetSkr(address: address);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                backgroundColor: Color(0xFF1F9D5B),
-                                content: Text('Staked 250 \$SKR to Guardian Helius. Seeker Attested!'),
-                              ),
-                            );
-                          }
+                          SeekerStakingSheet.show(context, address: address);
                         }
                       },
                       child: Container(
@@ -509,18 +532,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               width: double.infinity,
               height: 38,
               child: ElevatedButton.icon(
-                onPressed: () async {
+                onPressed: () {
                   HapticFeedback.lightImpact();
-                  final repo = ref.read(attestationRepositoryProvider);
-                  await repo.stakeDevnetSkr(address: address);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        backgroundColor: Color(0xFF1F9D5B),
-                        content: Text(r'Staked 250 $SKR to Guardian Helius. Seeker Attested!'),
-                      ),
-                    );
-                  }
+                  SeekerStakingSheet.show(context, address: address);
                 },
                 icon: const Icon(Icons.shield_rounded, size: 16),
                 label: Text(
