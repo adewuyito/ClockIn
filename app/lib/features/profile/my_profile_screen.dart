@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/models/review.dart';
+import '../../core/models/seeker_attestation.dart';
 import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/reputation_errors.dart';
@@ -33,7 +34,6 @@ class MyProfileScreen extends ConsumerStatefulWidget {
 
 class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   bool _isRegistering = false;
-  bool _seekerStaked = true;
   String? _txError;
   ReputationErrorKind? _txErrorKind;
 
@@ -113,6 +113,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
     final address = wallet.address!;
     final reviewsAsync = ref.watch(workerReviewsProvider(address));
+    final attestationAsync = ref.watch(seekerAttestationProvider(address));
 
     return Scaffold(
       appBar: AppHeader(
@@ -122,9 +123,11 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           final repo = ref.read(reputationRepositoryProvider);
+          final attestationRepo = ref.read(attestationRepositoryProvider);
           await Future.wait([
             repo.refreshWorkerProfile(address),
             repo.refreshWorkerReviews(address),
+            attestationRepo.getAttestation(address),
           ]);
         },
         child: SingleChildScrollView(
@@ -158,14 +161,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                 return _buildNotRegisteredCard(address);
               }
 
+              final attestation = attestationAsync.valueOrNull ??
+                  SeekerAttestation(
+                    address: address,
+                    isAttested: false,
+                    syncedAt: DateTime.now(),
+                  );
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildIdentityPill(address, true, profile),
                   const SizedBox(height: 14),
-                  _buildSeekerStakingCard(),
+                  _buildSeekerStakingCard(address, attestation),
                   const SizedBox(height: 14),
-                  _buildHeroCard(profile),
+                  _buildHeroCard(profile, attestation),
                   const SizedBox(height: 16),
                   ProfileQrCard(
                     address: address,
@@ -345,20 +355,25 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     );
   }
 
-  Widget _buildSeekerStakingCard() {
+  Widget _buildSeekerStakingCard(String address, SeekerAttestation attestation) {
+    final isAttested = attestation.isAttested;
+    final stakeDisplay = attestation.stakedAmount >= 1.0
+        ? '${attestation.stakedAmount.toStringAsFixed(0)} \$SKR'
+        : r'250 $SKR';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _seekerStaked
+        color: isAttested
             ? const Color(0xFFE8F8F0)
             : AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _seekerStaked
+          color: isAttested
               ? const Color(0xFF1F9D5B).withValues(alpha: 0.4)
               : AppColors.outlineVariant.withValues(alpha: 0.4),
-          width: _seekerStaked ? 1.5 : 1.0,
+          width: isAttested ? 1.5 : 1.0,
         ),
       ),
       child: Column(
@@ -369,15 +384,15 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: _seekerStaked
+                  color: isAttested
                       ? const Color(0xFF1F9D5B)
                       : AppColors.surfaceContainerHigh,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  _seekerStaked ? Icons.shield_rounded : Icons.shield_outlined,
+                  isAttested ? Icons.shield_rounded : Icons.shield_outlined,
                   size: 16,
-                  color: _seekerStaked ? Colors.white : AppColors.onSurfaceVariant,
+                  color: isAttested ? Colors.white : AppColors.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 10),
@@ -386,11 +401,11 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      _seekerStaked ? 'SEEKER ATTESTED' : 'SEEKER VERIFICATION',
+                      isAttested ? 'SEEKER ATTESTED' : 'SEEKER VERIFICATION',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: _seekerStaked
+                        color: isAttested
                             ? const Color(0xFF0B5E36)
                             : AppColors.onSurface,
                         letterSpacing: 0.8,
@@ -398,19 +413,37 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     ),
                     InkWell(
                       borderRadius: BorderRadius.circular(6),
-                      onTap: () {
+                      onTap: () async {
                         HapticFeedback.selectionClick();
-                        setState(() {
-                          _seekerStaked = !_seekerStaked;
-                        });
+                        final repo = ref.read(attestationRepositoryProvider);
+                        if (isAttested) {
+                          await repo.unstakeDevnetSkr(address: address);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Unstaked \$SKR. Profile marked unverified for testing.'),
+                              ),
+                            );
+                          }
+                        } else {
+                          await repo.stakeDevnetSkr(address: address);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                backgroundColor: Color(0xFF1F9D5B),
+                                content: Text('Staked 250 \$SKR to Guardian Helius. Seeker Attested!'),
+                              ),
+                            );
+                          }
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
-                          color: _seekerStaked ? Colors.white : AppColors.surfaceContainerLow,
+                          color: isAttested ? Colors.white : AppColors.surfaceContainerLow,
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: _seekerStaked
+                            color: isAttested
                                 ? const Color(0xFF1F9D5B).withValues(alpha: 0.3)
                                 : AppColors.outlineVariant.withValues(alpha: 0.5),
                           ),
@@ -422,7 +455,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               width: 6,
                               height: 6,
                               decoration: BoxDecoration(
-                                color: _seekerStaked
+                                color: isAttested
                                     ? const Color(0xFF1F9D5B)
                                     : AppColors.outline,
                                 shape: BoxShape.circle,
@@ -430,11 +463,11 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              _seekerStaked ? 'Guardian: Helius' : 'Unstaked',
+                              isAttested ? 'Guardian: ${attestation.guardianName}' : 'Unstaked',
                               style: GoogleFonts.jetBrainsMono(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
-                                color: _seekerStaked
+                                color: isAttested
                                     ? const Color(0xFF0B5E36)
                                     : AppColors.onSurfaceVariant,
                               ),
@@ -450,23 +483,23 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            _seekerStaked
-                ? r'You are Seeker Attested — 250 $SKR Staked to Guardian: Helius'
-                : r'Boost Your Trust: Stake 50 $SKR to earn the Seeker Verified badge & unlock priority in employer lookups.',
+            isAttested
+                ? 'You are Seeker Attested — $stakeDisplay Staked to Guardian: ${attestation.guardianName}'
+                : r'Boost Your Trust: Stake 250 $SKR to earn the Seeker Verified badge & unlock priority in employer lookups.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: _seekerStaked ? const Color(0xFF12242A) : AppColors.onSurface,
+              color: isAttested ? const Color(0xFF12242A) : AppColors.onSurface,
               height: 1.35,
             ),
           ),
           const SizedBox(height: 12),
-          if (_seekerStaked) ...[
+          if (isAttested) ...[
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
-                _buildStakingChip(Icons.lock_clock_rounded, r'250 $SKR Staked'),
+                _buildStakingChip(Icons.lock_clock_rounded, '$stakeDisplay Staked'),
                 _buildStakingChip(Icons.shield_outlined, 'Anti-Bot Sybil Proof'),
                 _buildStakingChip(Icons.timer_outlined, '48h Cooldown Active'),
               ],
@@ -476,15 +509,18 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               width: double.infinity,
               height: 38,
               child: ElevatedButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   HapticFeedback.lightImpact();
-                  setState(() => _seekerStaked = true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      backgroundColor: Color(0xFF1F9D5B),
-                      content: Text(r'Staked 250 $SKR to Guardian Helius. Seeker Attested!'),
-                    ),
-                  );
+                  final repo = ref.read(attestationRepositoryProvider);
+                  await repo.stakeDevnetSkr(address: address);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: Color(0xFF1F9D5B),
+                        content: Text(r'Staked 250 $SKR to Guardian Helius. Seeker Attested!'),
+                      ),
+                    );
+                  }
                 },
                 icon: const Icon(Icons.shield_rounded, size: 16),
                 label: Text(
@@ -537,7 +573,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     );
   }
 
-  Widget _buildHeroCard(WorkerProfile profile) {
+  Widget _buildHeroCard(WorkerProfile profile, SeekerAttestation attestation) {
     final ratingStr = profile.totalJobs > 0
         ? profile.averageRating.toStringAsFixed(1)
         : null;
@@ -627,9 +663,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                 Container(width: 1, height: 24, color: AppColors.surfaceContainerHighest),
                 _trustMetaColumn(
                   'GUARDIAN',
-                  _seekerStaked ? r'250 $SKR' : 'Unstaked',
-                  color: _seekerStaked ? const Color(0xFF1F9D5B) : AppColors.outline,
-                  showDot: _seekerStaked,
+                  attestation.isAttested
+                      ? (attestation.stakedAmount >= 1.0
+                          ? '${attestation.stakedAmount.toStringAsFixed(0)} \$SKR'
+                          : r'250 $SKR')
+                      : 'Unstaked',
+                  color: attestation.isAttested ? const Color(0xFF1F9D5B) : AppColors.outline,
+                  showDot: attestation.isAttested,
                 ),
               ],
             ),

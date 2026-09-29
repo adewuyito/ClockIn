@@ -570,6 +570,44 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                   '${workerAddress.substring(0, 6)}…${workerAddress.substring(workerAddress.length - 6)}',
                   isMono: true,
                 ),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final att = ref.watch(seekerAttestationProvider(workerAddress)).valueOrNull;
+                    if (att != null && att.isAttested) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F8F0),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.shield_rounded, size: 12, color: Color(0xFF1F9D5B)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Seeker Attested • ${att.guardianName}',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF0B5E36),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
                 const Divider(height: 16, color: AppColors.surfaceContainerHigh),
                 _buildReviewItem(
                   'Terms',
@@ -943,6 +981,69 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                   ],
                 ),
               ),
+            ),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _workerController,
+              builder: (context, value, _) {
+                final address = value.text.trim();
+                bool isValid = false;
+                try {
+                  Ed25519HDPublicKey.fromBase58(address);
+                  isValid = true;
+                } catch (_) {
+                  isValid = false;
+                }
+                if (!isValid) return const SizedBox.shrink();
+
+                return Consumer(
+                  builder: (context, ref, _) {
+                    final attestationAsync = ref.watch(seekerAttestationProvider(address));
+                    final attestation = attestationAsync.valueOrNull;
+                    final isAttested = attestation?.isAttested ?? false;
+                    final stakedAmt = (attestation?.stakedAmount ?? 0) >= 1.0
+                        ? '${attestation!.stakedAmount.toStringAsFixed(0)} \$SKR'
+                        : r'250 $SKR';
+
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isAttested ? const Color(0xFFE8F8F0) : AppColors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isAttested
+                                ? const Color(0xFF1F9D5B).withValues(alpha: 0.3)
+                                : AppColors.outlineVariant.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isAttested ? Icons.shield_rounded : Icons.shield_outlined,
+                              size: 16,
+                              color: isAttested ? const Color(0xFF1F9D5B) : AppColors.outline,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                isAttested
+                                    ? 'Seeker Attested Worker • $stakedAmt Staked (${attestation?.guardianName ?? "Guardian"})'
+                                    : r'Unverified Worker • No active $SKR stake detected',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: isAttested ? const Color(0xFF0B5E36) : AppColors.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
             const SizedBox(height: 18),
 

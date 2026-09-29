@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/models/review.dart';
+import '../../core/models/seeker_attestation.dart';
 import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
@@ -81,6 +82,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(workerProfileProvider(widget.address));
     final reviewsAsync = ref.watch(workerReviewsProvider(widget.address));
+    final attestationAsync = ref.watch(seekerAttestationProvider(widget.address));
     final isRegistered = profileAsync.valueOrNull != null;
 
     return Scaffold(
@@ -116,14 +118,21 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                     // frame yet), a dedicated empty-state card instead.
                     if (profile == null) return _buildNotRegisteredCard();
 
+                    final attestation = attestationAsync.valueOrNull ??
+                        SeekerAttestation(
+                          address: widget.address,
+                          isAttested: false,
+                          syncedAt: DateTime.now(),
+                        );
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildIdentityBanner(),
                         const SizedBox(height: 14),
-                        _buildSeekerAttestedCard(),
+                        _buildSeekerAttestedCard(attestation),
                         const SizedBox(height: 14),
-                        _buildHeroCard(profile),
+                        _buildHeroCard(profile, attestation),
                         const SizedBox(height: 20),
                         reviewsAsync.when(
                           loading: () => const Padding(
@@ -269,16 +278,25 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
     );
   }
 
-  Widget _buildSeekerAttestedCard() {
+  Widget _buildSeekerAttestedCard(SeekerAttestation attestation) {
+    final isAttested = attestation.isAttested;
+    final stakeDisplay = attestation.stakedAmount >= 1.0
+        ? '${attestation.stakedAmount.toStringAsFixed(0)} \$SKR'
+        : r'250 $SKR';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F8F0),
+        color: isAttested
+            ? const Color(0xFFE8F8F0)
+            : AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF1F9D5B).withValues(alpha: 0.4),
-          width: 1.5,
+          color: isAttested
+              ? const Color(0xFF1F9D5B).withValues(alpha: 0.4)
+              : AppColors.outlineVariant.withValues(alpha: 0.4),
+          width: isAttested ? 1.5 : 1.0,
         ),
       ),
       child: Column(
@@ -288,14 +306,16 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1F9D5B),
+                decoration: BoxDecoration(
+                  color: isAttested
+                      ? const Color(0xFF1F9D5B)
+                      : AppColors.surfaceContainerHigh,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.shield_rounded,
+                child: Icon(
+                  isAttested ? Icons.shield_rounded : Icons.shield_outlined,
                   size: 16,
-                  color: Colors.white,
+                  color: isAttested ? Colors.white : AppColors.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 10),
@@ -304,21 +324,25 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'SEEKER ATTESTED',
+                      isAttested ? 'SEEKER ATTESTED' : 'NOT SEEKER ATTESTED',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0B5E36),
+                        color: isAttested
+                            ? const Color(0xFF0B5E36)
+                            : AppColors.onSurfaceVariant,
                         letterSpacing: 0.8,
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isAttested ? Colors.white : AppColors.surfaceContainerLow,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: const Color(0xFF1F9D5B).withValues(alpha: 0.3),
+                          color: isAttested
+                              ? const Color(0xFF1F9D5B).withValues(alpha: 0.3)
+                              : AppColors.outlineVariant.withValues(alpha: 0.4),
                         ),
                       ),
                       child: Row(
@@ -327,18 +351,22 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                           Container(
                             width: 6,
                             height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF1F9D5B),
+                            decoration: BoxDecoration(
+                              color: isAttested
+                                  ? const Color(0xFF1F9D5B)
+                                  : AppColors.outline,
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Active Guardian',
+                            isAttested ? 'Guardian: ${attestation.guardianName}' : 'Unverified Stake',
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0B5E36),
+                              color: isAttested
+                                  ? const Color(0xFF0B5E36)
+                                  : AppColors.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -351,24 +379,28 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            r'Human-verified via 250 $SKR Guardian Stake (Zero Bot Risk)',
+            isAttested
+                ? 'Human-verified via $stakeDisplay Guardian Stake (Zero Bot Risk)'
+                : r'No active $SKR stake detected. Worker reputation is unverified for Sybil protection.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF12242A),
+              color: isAttested ? const Color(0xFF12242A) : AppColors.onSurfaceVariant,
               height: 1.3,
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _buildMetaChip(Icons.lock_clock_rounded, r'250 $SKR Staked'),
-              _buildMetaChip(Icons.hub_rounded, 'Guardian: Helius'),
-              _buildMetaChip(Icons.timer_outlined, '48h Cooldown Active'),
-            ],
-          ),
+          if (isAttested) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _buildMetaChip(Icons.lock_clock_rounded, '$stakeDisplay Staked'),
+                _buildMetaChip(Icons.hub_rounded, 'Guardian: ${attestation.guardianName}'),
+                _buildMetaChip(Icons.timer_outlined, '48h Cooldown Active'),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -402,7 +434,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
     );
   }
 
-  Widget _buildHeroCard(WorkerProfile profile) {
+  Widget _buildHeroCard(WorkerProfile profile, SeekerAttestation attestation) {
     final ratingStr = profile.totalJobs > 0 ? profile.averageRating.toStringAsFixed(1) : null;
     final fullStars = profile.totalJobs > 0 ? profile.averageRating.round() : 0;
 
@@ -492,14 +524,23 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                 Container(width: 1, height: 24, color: AppColors.surfaceContainerHighest),
                 Column(
                   children: [
-                    Text('SETTLED', style: AppTypography.labelSm.copyWith(color: AppColors.outline, letterSpacing: 0.6)),
+                    Text('GUARDIAN', style: AppTypography.labelSm.copyWith(color: AppColors.outline, letterSpacing: 0.6)),
                     const SizedBox(height: 2),
-                    Text(
-                      r'SOL & $SKR',
-                      style: AppTypography.labelMd.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (attestation.isAttested)
+                          Container(width: 6, height: 6, margin: const EdgeInsets.only(right: 4), decoration: const BoxDecoration(color: Color(0xFF1F9D5B), shape: BoxShape.circle)),
+                        Text(
+                          attestation.isAttested
+                              ? (attestation.stakedAmount >= 1.0 ? '${attestation.stakedAmount.toStringAsFixed(0)} \$SKR' : r'250 $SKR')
+                              : 'Unstaked',
+                          style: AppTypography.labelMd.copyWith(
+                            color: attestation.isAttested ? const Color(0xFF1F9D5B) : AppColors.outline,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -514,6 +555,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                 final repo = ref.read(reputationRepositoryProvider);
                 repo.refreshWorkerProfile(widget.address);
                 repo.refreshWorkerReviews(widget.address);
+                ref.read(attestationRepositoryProvider).getAttestation(widget.address, forceRefresh: true);
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
