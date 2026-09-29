@@ -239,33 +239,64 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
 
         // Atomic settlement note
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
+            color: widget.contract.isToken
+                ? const Color(0xFFF3EDF7)
+                : AppColors.primaryContainer.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: AppColors.primaryContainer.withValues(alpha: 0.15),
+              color: widget.contract.isToken
+                  ? const Color(0xFF6750A4).withValues(alpha: 0.25)
+                  : AppColors.primaryContainer.withValues(alpha: 0.15),
             ),
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.flash_on_rounded,
-                size: 18,
-                color: AppColors.primaryContainer,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Payment and verified reputation review are written atomically in one Solana transaction block. Non-reversible.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11.5,
-                    color: AppColors.primary,
-                    height: 1.4,
+              Row(
+                children: [
+                  Icon(
+                    Icons.flash_on_rounded,
+                    size: 18,
+                    color: widget.contract.isToken
+                        ? const Color(0xFF6750A4)
+                        : AppColors.primary,
                   ),
-                ),
+                  const SizedBox(width: 6),
+                  Text(
+                    widget.contract.isToken
+                        ? r'ATOMIC $SKR SETTLEMENT (1 TX BLOCK)'
+                        : 'ATOMIC ESCROW SETTLEMENT (1 TX BLOCK)',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: widget.contract.isToken
+                          ? const Color(0xFF6750A4)
+                          : AppColors.primary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 10),
+              if (widget.contract.isToken) ...[
+                _buildAtomicStep('1', '${widget.contract.formattedAmount} transfers from Vault ATA to Worker ATA'),
+                const SizedBox(height: 5),
+                _buildAtomicStep('2', 'Program closes Vault ATA and refunds rent lamports to you'),
+                const SizedBox(height: 5),
+                _buildAtomicStep('3', 'Immutable Review PDA is minted on Solana'),
+                const SizedBox(height: 5),
+                _buildAtomicStep('4', "Worker's aggregate reputation score increments"),
+              ] else ...[
+                _buildAtomicStep('1', '${widget.contract.formattedAmount} transfers from Vault PDA to Worker'),
+                const SizedBox(height: 5),
+                _buildAtomicStep('2', 'Vault PDA rent lamports automatically refund to you'),
+                const SizedBox(height: 5),
+                _buildAtomicStep('3', 'Immutable Review PDA is minted on Solana'),
+                const SizedBox(height: 5),
+                _buildAtomicStep('4', "Worker's aggregate reputation score increments"),
+              ],
             ],
           ),
         ),
@@ -445,6 +476,47 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAtomicStep(String number, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          margin: const EdgeInsets.only(top: 2, right: 8),
+          decoration: BoxDecoration(
+            color: widget.contract.isToken
+                ? const Color(0xFF6750A4).withValues(alpha: 0.15)
+                : AppColors.primary.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: widget.contract.isToken
+                    ? const Color(0xFF6750A4)
+                    : AppColors.primary,
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              color: AppColors.onSurface,
+              height: 1.35,
             ),
           ),
         ),

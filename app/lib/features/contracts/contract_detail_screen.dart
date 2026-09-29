@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:solana/solana.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/network_config.dart';
@@ -484,14 +485,85 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
               const SizedBox(height: 12),
               _buildAddressRow('Employer', contract.employer, isYou: isEmployer),
               const SizedBox(height: 10),
-              _buildAddressRow('Worker', contract.worker, isYou: isWorker),
+              Consumer(
+                builder: (context, ref, _) {
+                  final attestation = ref.watch(seekerAttestationProvider(contract.worker)).valueOrNull;
+                  final isAttested = attestation?.isAttested ?? false;
+                  return _buildAddressRow(
+                    'Worker',
+                    contract.worker,
+                    isYou: isWorker,
+                    trailingBadge: isAttested
+                        ? Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F8F0),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: const Color(0xFF1F9D5B).withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.shield_rounded, size: 11, color: Color(0xFF1F9D5B)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Seeker Attested',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF0B5E36),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : null,
+                  );
+                },
+              ),
               if (contract.isToken) ...[
                 const SizedBox(height: 10),
                 _buildAddressRow(
                   r'$SKR Mint',
                   contract.tokenMint ?? NetworkConfig.devnetSkrMint,
                 ),
+                FutureBuilder<Ed25519HDPublicKey>(
+                  future: NetworkConfig.findVaultTokenAddress(
+                    contractId: contract.contractId,
+                    mint: contract.tokenMint != null
+                        ? Ed25519HDPublicKey.fromBase58(contract.tokenMint!)
+                        : NetworkConfig.skrMint,
+                  ),
+                  builder: (context, snapshot) {
+                    final vaultAta = snapshot.data?.toBase58();
+                    if (vaultAta == null) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: _buildAddressRow(
+                        'Vault Token ATA',
+                        vaultAta,
+                      ),
+                    );
+                  },
+                ),
               ],
+              FutureBuilder<Ed25519HDPublicKey>(
+                future: NetworkConfig.findVaultPda(contract.contractId),
+                builder: (context, snapshot) {
+                  final vaultPda = snapshot.data?.toBase58();
+                  if (vaultPda == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: _buildAddressRow(
+                      contract.isToken ? 'Vault PDA Authority' : 'Escrow Vault PDA',
+                      vaultPda,
+                    ),
+                  );
+                },
+              ),
               if (contract.lastTxSignature != null) ...[
                 const SizedBox(height: 10),
                 _buildAddressRow(
@@ -771,7 +843,13 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
     );
   }
 
-  Widget _buildAddressRow(String label, String address, {bool isYou = false, bool isTx = false}) {
+  Widget _buildAddressRow(
+    String label,
+    String address, {
+    bool isYou = false,
+    bool isTx = false,
+    Widget? trailingBadge,
+  }) {
     final short = address.length > 12
         ? '${address.substring(0, 6)}…${address.substring(address.length - 6)}'
         : address;
@@ -806,6 +884,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
                 ),
               ),
             ],
+            ?trailingBadge,
           ],
         ),
         Row(

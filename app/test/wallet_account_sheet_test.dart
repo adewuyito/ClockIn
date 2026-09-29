@@ -36,6 +36,7 @@ void main() {
         overrides: [
           walletStateProvider.overrideWith((ref) => notifier),
           walletBalanceProvider.overrideWith((ref) => Future.value(1500000000)), // 1.5 SOL
+          walletSkrBalanceProvider.overrideWith((ref) => Future.value(500.0)), // 500 $SKR
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -71,6 +72,10 @@ void main() {
 
     // WalletAccountSheet must be open
     expect(find.text('Connected Wallet'), findsOneWidget);
+    expect(find.text('Devnet Balance'), findsOneWidget);
+    expect(find.text('1.500 SOL'), findsOneWidget);
+    expect(find.text(r'$SKR Token Balance'), findsOneWidget);
+    expect(find.text(r'500.0 $SKR'), findsOneWidget);
     expect(find.text('Disconnect Wallet'), findsOneWidget);
 
     // Tap "Disconnect Wallet"

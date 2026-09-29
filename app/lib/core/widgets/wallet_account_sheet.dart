@@ -216,6 +216,112 @@ class WalletAccountSheet extends ConsumerWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          r'$SKR Token Balance',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12.5,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6750A4).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'SPL',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF6750A4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ref.watch(walletSkrBalanceProvider).when(
+                      data: (skr) => Text(
+                        '${skr >= 1.0 ? skr.toStringAsFixed(1) : skr.toStringAsFixed(0)} \$SKR',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF6750A4),
+                        ),
+                      ),
+                      loading: () => const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      error: (_, _) => const Text(r'0 $SKR'),
+                    ),
+                  ],
+                ),
+                if (address.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Divider(height: 1, color: AppColors.outlineVariant),
+                  const SizedBox(height: 10),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final attestation = ref.watch(seekerAttestationProvider(address)).valueOrNull;
+                      final isAttested = attestation?.isAttested ?? false;
+                      final stakedAmt = (attestation?.stakedAmount ?? 0) >= 1.0
+                          ? '${attestation!.stakedAmount.toStringAsFixed(0)} \$SKR'
+                          : r'250 $SKR';
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                isAttested ? Icons.shield_rounded : Icons.shield_outlined,
+                                size: 16,
+                                color: isAttested ? const Color(0xFF1F9D5B) : AppColors.outline,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Seeker Attestation',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12.5,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isAttested ? const Color(0xFFE8F8F0) : AppColors.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isAttested
+                                    ? const Color(0xFF1F9D5B).withValues(alpha: 0.3)
+                                    : AppColors.outlineVariant.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Text(
+                              isAttested ? 'Attested • $stakedAmt' : 'Unverified Stake',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: isAttested ? const Color(0xFF0B5E36) : AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
