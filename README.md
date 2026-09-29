@@ -67,8 +67,9 @@ sequenceDiagram
 | **Program ID** | [`FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9`](https://explorer.solana.com/address/FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9?cluster=devnet) |
 | **Cluster** | Solana Devnet (`https://api.devnet.solana.com`) |
 | **Upgrade Tx (Token Escrow)** | [`PfvNF1J2LGhs4t3snPnucmZ5EPtVhdcUS22qnUuV4GBVHM635Mq3XayNWMu4sBp9bv49n2HFcyHkxv1sFPecFTY`](https://explorer.solana.com/tx/PfvNF1J2LGhs4t3snPnucmZ5EPtVhdcUS22qnUuV4GBVHM635Mq3XayNWMu4sBp9bv49n2HFcyHkxv1sFPecFTY?cluster=devnet) |
-| **Devnet $SKR Mint** | [`SKRbvo7x6Z9V4GfUoN1n1vJb2kLz8pQmY9u3W1eZhW3`](https://explorer.solana.com/address/SKRbvo7x6Z9V4GfUoN1n1vJb2kLz8pQmY9u3W1eZhW3?cluster=devnet) |
-| **Smart Contract Tests** | 28 automated integration test cases passing (SOL + $SKR token escrows) |
+| **Devnet $SKR Mint** | [`Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9`](https://explorer.solana.com/address/Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9?cluster=devnet) |
+| **Smart Contract Tests** | 28 automated Anchor integration test cases passing (SOL + $SKR token escrows) |
+| **Flutter Test Suite** | 38 automated unit, widget, and Drift SQLite tests passing |
 | **Sample Escrow Contract** | [`ctr-mu4o1bhi`](https://explorer.solana.com/tx/2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT?cluster=devnet) (Status: `Completed`, 5★ review) |
 
 See [`program/DEPLOYED.md`](program/DEPLOYED.md) for the full on-chain deployment record and live transaction logs.
@@ -132,7 +133,7 @@ anchor test --skip-build --validator legacy
 cd app
 flutter pub get
 
-# Run test suite (17 tests including Drift SQLite in-memory tests)
+# Run test suite (38 tests including Drift SQLite in-memory tests)
 flutter test
 
 # Run app on connected Android device
