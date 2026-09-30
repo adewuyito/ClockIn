@@ -9,6 +9,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
 import 'contract_share_screen.dart';
+import 'dispute_resolution_screen.dart';
 import 'release_and_review_modal.dart';
 
 class ContractDetailScreen extends ConsumerStatefulWidget {
@@ -184,6 +185,11 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Dispute raised on Solana.')),
+        );
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DisputeResolutionScreen(contractId: contract.contractId),
+          ),
         );
       }
     } catch (e) {
@@ -375,6 +381,12 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
           ),
         ),
         const SizedBox(height: 14),
+
+        // Dispute Alert Banner
+        if (contract.status == ContractStatus.disputed) ...[
+          _buildDisputeBanner(context, contract),
+          const SizedBox(height: 14),
+        ],
 
         // Variable Timeline & Deadline Card
         _buildTimelineCard(contract),
@@ -707,8 +719,132 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
           ),
         ],
 
+        // Dispute Resolution Action: If Disputed
+        if (contract.status == ContractStatus.disputed) ...[
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => DisputeResolutionScreen(
+                      contractId: contract.contractId,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFBA1A1A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.gavel_rounded),
+              label: Text(
+                'View Arbitration & Case Details',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+        ],
+
         const SizedBox(height: 32),
       ],
+    );
+  }
+
+  Widget _buildDisputeBanner(BuildContext context, EscrowContract contract) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDE8E8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFBA1A1A), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.gavel_rounded, size: 20, color: Color(0xFFBA1A1A)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'DISPUTE ACTIVE • VAULT FROZEN',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFBA1A1A),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFBA1A1A),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'ARBITRATION',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Escrow funds are programmatically frozen in the Solana Vault PDA. Seeker Guardian jurors are currently reviewing terms & evidence.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              color: const Color(0xFF7A1C1C),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => DisputeResolutionScreen(contractId: contract.contractId),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFBA1A1A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.shield_outlined, size: 16),
+              label: Text(
+                'Open Dispute Case & Evidence',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -756,16 +892,26 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
             isDone: isInProgress,
             isCurrent: contract.status == ContractStatus.inProgress,
           ),
-          _buildStepConnector(isDone: isCompleted),
-          _buildStepRow(
-            stepNumber: '3',
-            title: 'Settlement & Verified Rating',
-            subtitle: contract.status == ContractStatus.completed
-                ? 'Released payment and anchored ${contract.rating}-star review'
-                : 'Awaiting employer review and release',
-            isDone: isCompleted,
-            isCurrent: false,
-          ),
+          _buildStepConnector(isDone: isCompleted || contract.status == ContractStatus.disputed),
+          if (contract.status == ContractStatus.disputed)
+            _buildStepRow(
+              stepNumber: '!',
+              title: 'Disputed on Solana',
+              subtitle: 'Vault funds frozen • Awaiting juror ruling',
+              isDone: false,
+              isCurrent: true,
+              isError: true,
+            )
+          else
+            _buildStepRow(
+              stepNumber: '3',
+              title: 'Settlement & Verified Rating',
+              subtitle: contract.status == ContractStatus.completed
+                  ? 'Released payment and anchored ${contract.rating}-star review'
+                  : 'Awaiting employer review and release',
+              isDone: isCompleted,
+              isCurrent: false,
+            ),
         ],
       ),
     );
@@ -777,6 +923,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
     required String subtitle,
     required bool isDone,
     required bool isCurrent,
+    bool isError = false,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -785,24 +932,28 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
           width: 24,
           height: 24,
           decoration: BoxDecoration(
-            color: isDone
-                ? AppColors.success
-                : isCurrent
-                    ? AppColors.primaryContainer
-                    : AppColors.surfaceContainerHigh,
+            color: isError
+                ? const Color(0xFFBA1A1A)
+                : isDone
+                    ? AppColors.success
+                    : isCurrent
+                        ? AppColors.primaryContainer
+                        : AppColors.surfaceContainerHigh,
             shape: BoxShape.circle,
           ),
           child: Center(
-            child: isDone
-                ? const Icon(Icons.check, size: 14, color: Colors.white)
-                : Text(
-                    stepNumber,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: isCurrent ? Colors.white : AppColors.outline,
-                    ),
-                  ),
+            child: isError
+                ? const Icon(Icons.gavel_rounded, size: 12, color: Colors.white)
+                : isDone
+                    ? const Icon(Icons.check, size: 14, color: Colors.white)
+                    : Text(
+                        stepNumber,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isCurrent ? Colors.white : AppColors.outline,
+                        ),
+                      ),
           ),
         ),
         const SizedBox(width: 12),
