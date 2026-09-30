@@ -26,36 +26,29 @@ class AttestationRepository {
           ..where((t) => t.address.equals(address)))
         .getSingleOrNull();
 
-    // 2. Fetch live $SKR balance from Solana RPC
-    double rpcBalance = 0.0;
-    try {
-      rpcBalance = await contractService.getSkrBalance(address);
-    } catch (_) {
-      rpcBalance = 0.0;
-    }
 
     final cachedStake = cached?.stakedAmount ?? 0.0;
     final cachedAttested = cached?.isAttested ?? false;
 
-    // Attested if active cached Guardian stake is present, or if uncached address holds threshold tokens
-    final isAttested = (cachedAttested && cachedStake >= minimumStakeThreshold) ||
-        (cached == null && rpcBalance >= minimumStakeThreshold);
+    // Attested ONLY if active cached Guardian stake is present and >= threshold.
+    // Simply holding liquid $SKR tokens in a wallet does NOT grant Seeker Attestation.
+    final isAttested = cachedAttested && cachedStake >= minimumStakeThreshold;
+    final effectiveStake = isAttested ? cachedStake : 0.0;
 
-    final effectiveStake = cachedStake > 0
-        ? cachedStake
-        : (isAttested ? (rpcBalance > 0 ? rpcBalance : minimumStakeThreshold) : 0.0);
-
-    // 3. Upsert to Drift database
-    await db.into(db.seekerAttestations).insertOnConflictUpdate(
-          SeekerAttestationsCompanion.insert(
-            address: address,
-            isAttested: isAttested,
-            stakedAmount: Value(effectiveStake),
-            guardianName: Value(cached?.guardianName ?? 'Helius'),
-            cooldownActive: Value(isAttested),
-            syncedAt: Value(DateTime.now()),
-          ),
-        );
+    // 3. Upsert to Drift database if not present or changed
+    if (cached == null || cached.isAttested != isAttested || cached.stakedAmount != effectiveStake) {
+      await db.into(db.seekerAttestations).insertOnConflictUpdate(
+            SeekerAttestationsCompanion.insert(
+              address: address,
+              isAttested: isAttested,
+              stakedAmount: Value(effectiveStake),
+              guardianName: Value(cached?.guardianName ?? 'Helius'),
+              cooldownActive: Value(isAttested),
+              txSignature: Value(cached?.txSignature),
+              syncedAt: Value(DateTime.now()),
+            ),
+          );
+    }
 
     return SeekerAttestation(
       address: address,
@@ -121,6 +114,7 @@ class AttestationRepository {
             stakedAmount: Value(amount),
             guardianName: Value(guardianName),
             cooldownActive: const Value(true),
+            txSignature: Value(signature),
             syncedAt: Value(DateTime.now()),
           ),
         );

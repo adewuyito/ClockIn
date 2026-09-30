@@ -3025,6 +3025,17 @@ class $SeekerAttestationsTable extends SeekerAttestations
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _txSignatureMeta = const VerificationMeta(
+    'txSignature',
+  );
+  @override
+  late final GeneratedColumn<String> txSignature = GeneratedColumn<String>(
+    'tx_signature',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncedAtMeta = const VerificationMeta(
     'syncedAt',
   );
@@ -3044,6 +3055,7 @@ class $SeekerAttestationsTable extends SeekerAttestations
     stakedAmount,
     guardianName,
     cooldownActive,
+    txSignature,
     syncedAt,
   ];
   @override
@@ -3101,6 +3113,15 @@ class $SeekerAttestationsTable extends SeekerAttestations
         ),
       );
     }
+    if (data.containsKey('tx_signature')) {
+      context.handle(
+        _txSignatureMeta,
+        txSignature.isAcceptableOrUnknown(
+          data['tx_signature']!,
+          _txSignatureMeta,
+        ),
+      );
+    }
     if (data.containsKey('synced_at')) {
       context.handle(
         _syncedAtMeta,
@@ -3136,6 +3157,10 @@ class $SeekerAttestationsTable extends SeekerAttestations
         DriftSqlType.bool,
         data['${effectivePrefix}cooldown_active'],
       )!,
+      txSignature: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tx_signature'],
+      ),
       syncedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}synced_at'],
@@ -3156,6 +3181,7 @@ class SeekerAttestation extends DataClass
   final double stakedAmount;
   final String guardianName;
   final bool cooldownActive;
+  final String? txSignature;
   final DateTime syncedAt;
   const SeekerAttestation({
     required this.address,
@@ -3163,6 +3189,7 @@ class SeekerAttestation extends DataClass
     required this.stakedAmount,
     required this.guardianName,
     required this.cooldownActive,
+    this.txSignature,
     required this.syncedAt,
   });
   @override
@@ -3173,6 +3200,9 @@ class SeekerAttestation extends DataClass
     map['staked_amount'] = Variable<double>(stakedAmount);
     map['guardian_name'] = Variable<String>(guardianName);
     map['cooldown_active'] = Variable<bool>(cooldownActive);
+    if (!nullToAbsent || txSignature != null) {
+      map['tx_signature'] = Variable<String>(txSignature);
+    }
     map['synced_at'] = Variable<DateTime>(syncedAt);
     return map;
   }
@@ -3184,6 +3214,9 @@ class SeekerAttestation extends DataClass
       stakedAmount: Value(stakedAmount),
       guardianName: Value(guardianName),
       cooldownActive: Value(cooldownActive),
+      txSignature: txSignature == null && nullToAbsent
+          ? const Value.absent()
+          : Value(txSignature),
       syncedAt: Value(syncedAt),
     );
   }
@@ -3199,6 +3232,7 @@ class SeekerAttestation extends DataClass
       stakedAmount: serializer.fromJson<double>(json['stakedAmount']),
       guardianName: serializer.fromJson<String>(json['guardianName']),
       cooldownActive: serializer.fromJson<bool>(json['cooldownActive']),
+      txSignature: serializer.fromJson<String?>(json['txSignature']),
       syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
     );
   }
@@ -3211,6 +3245,7 @@ class SeekerAttestation extends DataClass
       'stakedAmount': serializer.toJson<double>(stakedAmount),
       'guardianName': serializer.toJson<String>(guardianName),
       'cooldownActive': serializer.toJson<bool>(cooldownActive),
+      'txSignature': serializer.toJson<String?>(txSignature),
       'syncedAt': serializer.toJson<DateTime>(syncedAt),
     };
   }
@@ -3221,6 +3256,7 @@ class SeekerAttestation extends DataClass
     double? stakedAmount,
     String? guardianName,
     bool? cooldownActive,
+    Value<String?> txSignature = const Value.absent(),
     DateTime? syncedAt,
   }) => SeekerAttestation(
     address: address ?? this.address,
@@ -3228,6 +3264,7 @@ class SeekerAttestation extends DataClass
     stakedAmount: stakedAmount ?? this.stakedAmount,
     guardianName: guardianName ?? this.guardianName,
     cooldownActive: cooldownActive ?? this.cooldownActive,
+    txSignature: txSignature.present ? txSignature.value : this.txSignature,
     syncedAt: syncedAt ?? this.syncedAt,
   );
   SeekerAttestation copyWithCompanion(SeekerAttestationsCompanion data) {
@@ -3245,6 +3282,9 @@ class SeekerAttestation extends DataClass
       cooldownActive: data.cooldownActive.present
           ? data.cooldownActive.value
           : this.cooldownActive,
+      txSignature: data.txSignature.present
+          ? data.txSignature.value
+          : this.txSignature,
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
     );
   }
@@ -3257,6 +3297,7 @@ class SeekerAttestation extends DataClass
           ..write('stakedAmount: $stakedAmount, ')
           ..write('guardianName: $guardianName, ')
           ..write('cooldownActive: $cooldownActive, ')
+          ..write('txSignature: $txSignature, ')
           ..write('syncedAt: $syncedAt')
           ..write(')'))
         .toString();
@@ -3269,6 +3310,7 @@ class SeekerAttestation extends DataClass
     stakedAmount,
     guardianName,
     cooldownActive,
+    txSignature,
     syncedAt,
   );
   @override
@@ -3280,6 +3322,7 @@ class SeekerAttestation extends DataClass
           other.stakedAmount == this.stakedAmount &&
           other.guardianName == this.guardianName &&
           other.cooldownActive == this.cooldownActive &&
+          other.txSignature == this.txSignature &&
           other.syncedAt == this.syncedAt);
 }
 
@@ -3289,6 +3332,7 @@ class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
   final Value<double> stakedAmount;
   final Value<String> guardianName;
   final Value<bool> cooldownActive;
+  final Value<String?> txSignature;
   final Value<DateTime> syncedAt;
   final Value<int> rowid;
   const SeekerAttestationsCompanion({
@@ -3297,6 +3341,7 @@ class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
     this.stakedAmount = const Value.absent(),
     this.guardianName = const Value.absent(),
     this.cooldownActive = const Value.absent(),
+    this.txSignature = const Value.absent(),
     this.syncedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -3306,6 +3351,7 @@ class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
     this.stakedAmount = const Value.absent(),
     this.guardianName = const Value.absent(),
     this.cooldownActive = const Value.absent(),
+    this.txSignature = const Value.absent(),
     this.syncedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : address = Value(address),
@@ -3316,6 +3362,7 @@ class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
     Expression<double>? stakedAmount,
     Expression<String>? guardianName,
     Expression<bool>? cooldownActive,
+    Expression<String>? txSignature,
     Expression<DateTime>? syncedAt,
     Expression<int>? rowid,
   }) {
@@ -3325,6 +3372,7 @@ class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
       if (stakedAmount != null) 'staked_amount': stakedAmount,
       if (guardianName != null) 'guardian_name': guardianName,
       if (cooldownActive != null) 'cooldown_active': cooldownActive,
+      if (txSignature != null) 'tx_signature': txSignature,
       if (syncedAt != null) 'synced_at': syncedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -3336,6 +3384,7 @@ class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
     Value<double>? stakedAmount,
     Value<String>? guardianName,
     Value<bool>? cooldownActive,
+    Value<String?>? txSignature,
     Value<DateTime>? syncedAt,
     Value<int>? rowid,
   }) {
@@ -3345,6 +3394,7 @@ class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
       stakedAmount: stakedAmount ?? this.stakedAmount,
       guardianName: guardianName ?? this.guardianName,
       cooldownActive: cooldownActive ?? this.cooldownActive,
+      txSignature: txSignature ?? this.txSignature,
       syncedAt: syncedAt ?? this.syncedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -3368,6 +3418,9 @@ class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
     if (cooldownActive.present) {
       map['cooldown_active'] = Variable<bool>(cooldownActive.value);
     }
+    if (txSignature.present) {
+      map['tx_signature'] = Variable<String>(txSignature.value);
+    }
     if (syncedAt.present) {
       map['synced_at'] = Variable<DateTime>(syncedAt.value);
     }
@@ -3385,6 +3438,7 @@ class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
           ..write('stakedAmount: $stakedAmount, ')
           ..write('guardianName: $guardianName, ')
           ..write('cooldownActive: $cooldownActive, ')
+          ..write('txSignature: $txSignature, ')
           ..write('syncedAt: $syncedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -4989,6 +5043,7 @@ typedef $$SeekerAttestationsTableCreateCompanionBuilder =
       Value<double> stakedAmount,
       Value<String> guardianName,
       Value<bool> cooldownActive,
+      Value<String?> txSignature,
       Value<DateTime> syncedAt,
       Value<int> rowid,
     });
@@ -4999,6 +5054,7 @@ typedef $$SeekerAttestationsTableUpdateCompanionBuilder =
       Value<double> stakedAmount,
       Value<String> guardianName,
       Value<bool> cooldownActive,
+      Value<String?> txSignature,
       Value<DateTime> syncedAt,
       Value<int> rowid,
     });
@@ -5034,6 +5090,11 @@ class $$SeekerAttestationsTableFilterComposer
 
   ColumnFilters<bool> get cooldownActive => $composableBuilder(
     column: $table.cooldownActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get txSignature => $composableBuilder(
+    column: $table.txSignature,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5077,6 +5138,11 @@ class $$SeekerAttestationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get txSignature => $composableBuilder(
+    column: $table.txSignature,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get syncedAt => $composableBuilder(
     column: $table.syncedAt,
     builder: (column) => ColumnOrderings(column),
@@ -5112,6 +5178,11 @@ class $$SeekerAttestationsTableAnnotationComposer
 
   GeneratedColumn<bool> get cooldownActive => $composableBuilder(
     column: $table.cooldownActive,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get txSignature => $composableBuilder(
+    column: $table.txSignature,
     builder: (column) => column,
   );
 
@@ -5164,6 +5235,7 @@ class $$SeekerAttestationsTableTableManager
                 Value<double> stakedAmount = const Value.absent(),
                 Value<String> guardianName = const Value.absent(),
                 Value<bool> cooldownActive = const Value.absent(),
+                Value<String?> txSignature = const Value.absent(),
                 Value<DateTime> syncedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SeekerAttestationsCompanion(
@@ -5172,6 +5244,7 @@ class $$SeekerAttestationsTableTableManager
                 stakedAmount: stakedAmount,
                 guardianName: guardianName,
                 cooldownActive: cooldownActive,
+                txSignature: txSignature,
                 syncedAt: syncedAt,
                 rowid: rowid,
               ),
@@ -5182,6 +5255,7 @@ class $$SeekerAttestationsTableTableManager
                 Value<double> stakedAmount = const Value.absent(),
                 Value<String> guardianName = const Value.absent(),
                 Value<bool> cooldownActive = const Value.absent(),
+                Value<String?> txSignature = const Value.absent(),
                 Value<DateTime> syncedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SeekerAttestationsCompanion.insert(
@@ -5190,6 +5264,7 @@ class $$SeekerAttestationsTableTableManager
                 stakedAmount: stakedAmount,
                 guardianName: guardianName,
                 cooldownActive: cooldownActive,
+                txSignature: txSignature,
                 syncedAt: syncedAt,
                 rowid: rowid,
               ),

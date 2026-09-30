@@ -43,20 +43,20 @@ void main() {
       expect(attestation.stakedAmount, 0.0);
     });
 
-    test('address with >= 250 SKR on-chain is automatically attested and cached', () async {
+    test('address holding liquid SKR without staking is NOT attested', () async {
       fakeContractService.fakeSkrBalance = 350.0;
       final attestation = await repo.getAttestation(testAddress);
 
-      expect(attestation.isAttested, isTrue);
-      expect(attestation.stakedAmount, 350.0);
-      expect(attestation.guardianName, 'Helius');
+      // Liquid balance does NOT grant attestation without active locked stake
+      expect(attestation.isAttested, isFalse);
+      expect(attestation.stakedAmount, 0.0);
 
-      // Verify it was persisted to Drift SQLite
+      // Verify it is cached as un-attested in Drift SQLite
       final cachedRows = await db.select(db.seekerAttestations).get();
       expect(cachedRows.length, 1);
       expect(cachedRows.first.address, testAddress);
-      expect(cachedRows.first.isAttested, isTrue);
-      expect(cachedRows.first.stakedAmount, 350.0);
+      expect(cachedRows.first.isAttested, isFalse);
+      expect(cachedRows.first.stakedAmount, 0.0);
     });
 
     test('stakeDevnetSkr updates Drift and sets active guardian stake', () async {

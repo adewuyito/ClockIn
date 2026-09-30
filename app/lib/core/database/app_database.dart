@@ -94,6 +94,7 @@ class SeekerAttestations extends Table {
   RealColumn get stakedAmount => real().withDefault(const Constant(0.0))();
   TextColumn get guardianName => text().withDefault(const Constant('Helius'))();
   BoolColumn get cooldownActive => boolean().withDefault(const Constant(false))();
+  TextColumn get txSignature => text().nullable()();
   DateTimeColumn get syncedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
@@ -114,7 +115,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -136,6 +137,10 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(draftContracts, draftContracts.tokenMint);
           }
           if (from < 6) {
+            await m.createTable(seekerAttestations);
+          }
+          if (from < 7) {
+            await m.deleteTable('seeker_attestations');
             await m.createTable(seekerAttestations);
           }
         },
