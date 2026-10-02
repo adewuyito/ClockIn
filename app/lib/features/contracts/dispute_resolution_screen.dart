@@ -7,6 +7,7 @@ import 'package:solana/solana.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/network_config.dart';
+import '../../core/solana/program_instructions.dart';
 import '../../core/theme/app_colors.dart';
 
 /// Screen 12: Dispute Resolution & Arbitration Case
@@ -25,6 +26,7 @@ class DisputeResolutionScreen extends ConsumerStatefulWidget {
 
 class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScreen> {
   final List<String> _additionalEvidence = [];
+  bool _isResolving = false;
 
   void _showAddEvidenceDialog() {
     final textController = TextEditingController();
@@ -82,7 +84,211 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
     );
   }
 
+  Future<void> _handleResolveDispute(
+    BuildContext modalContext,
+    EscrowContract contract,
+    DisputeResolution resolution,
+  ) async {
+    final wallet = ref.read(walletStateProvider);
+    final walletAdapter = ref.read(walletAdapterProvider);
+    final contractRepo = ref.read(contractRepositoryProvider);
+
+    if (!wallet.isConnected || wallet.publicKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please connect your Solana wallet first.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final userAddress = wallet.publicKey!.toBase58();
+    final isEmployer = contract.isEmployer(userAddress);
+    final isWorker = contract.isWorker(userAddress);
+
+    if (!isEmployer && !isWorker) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only contract participants can execute an amicable settlement.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (resolution == DisputeResolution.releaseToWorker && !isEmployer) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only the employer can unilaterally release escrow to the worker.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    if (resolution == DisputeResolution.refundToEmployer && !isWorker) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only the worker can unilaterally forfeit and refund to the employer.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(modalContext).pop();
+
+    final confirmed = await _showConfirmationDialog(contract, resolution);
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isResolving = true);
+
+    try {
+      await contractRepo.resolveDispute(
+        contract: contract,
+        caller: wallet.publicKey!,
+        resolution: resolution,
+        walletAdapter: walletAdapter,
+      );
+
+      if (mounted) {
+        final actionText = resolution == DisputeResolution.releaseToWorker
+            ? 'Escrow released to worker'
+            : resolution == DisputeResolution.refundToEmployer
+                ? 'Escrow refunded to employer'
+                : '50/50 split settlement executed';
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Dispute resolved on Solana • $actionText'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Settlement failed: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isResolving = false);
+      }
+    }
+  }
+
+  Future<bool?> _showConfirmationDialog(
+    EscrowContract contract,
+    DisputeResolution resolution,
+  ) {
+    String title;
+    String description;
+    String confirmLabel;
+    Color actionColor;
+    IconData icon;
+
+    final unit = contract.isToken ? r'$SKR' : 'SOL';
+    final amountVal = contract.isToken ? contract.amountToken : contract.amountSol;
+
+    switch (resolution) {
+      case DisputeResolution.releaseToWorker:
+        title = 'Release Escrow to Worker?';
+        description =
+            'You are acknowledging completion and releasing the full $amountVal $unit escrow directly to the worker (${contract.shortWorker}).\n\nThis will mark the contract as completed on Solana.';
+        confirmLabel = 'Sign & Release to Worker';
+        actionColor = AppColors.success;
+        icon = Icons.check_circle_outline_rounded;
+        break;
+      case DisputeResolution.refundToEmployer:
+        title = 'Refund Escrow to Employer?';
+        description =
+            'You are agreeing to forfeit your claim and return the full $amountVal $unit escrow back to the employer (${contract.shortEmployer}).\n\nThis will cancel the contract on Solana.';
+        confirmLabel = 'Sign & Refund to Employer';
+        actionColor = AppColors.warning;
+        icon = Icons.replay_rounded;
+        break;
+      case DisputeResolution.split5050:
+        final half = amountVal / 2;
+        title = 'Execute 50/50 Compromise?';
+        description =
+            'You are proposing a mutual 50/50 amicable split on Solana:\n\n'
+            '• Worker receives $half $unit\n'
+            '• Employer receives $half $unit (+ rent lamports)\n\n'
+            'This binding settlement will mark the contract completed.';
+        confirmLabel = 'Sign & Split 50/50';
+        actionColor = AppColors.primary;
+        icon = Icons.pie_chart_outline_rounded;
+        break;
+    }
+
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(icon, color: actionColor, size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          description,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            color: AppColors.onSurfaceVariant,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: AppColors.outline,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: actionColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              confirmLabel,
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSettlementModal(EscrowContract contract) {
+    final wallet = ref.read(walletStateProvider);
+    final userAddress = wallet.publicKey?.toBase58();
+    final isEmployer = contract.isEmployer(userAddress);
+    final isWorker = contract.isWorker(userAddress);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surfaceContainerLowest,
@@ -130,7 +336,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                         ),
                       ),
                       Text(
-                        'Resolve dispute mutually without waiting for juror quorum.',
+                        'Resolve dispute mutually on Solana without waiting for juror quorum.',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           color: AppColors.onSurfaceVariant,
@@ -144,41 +350,36 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
             const SizedBox(height: 20),
             _buildSettlementOption(
               title: 'Release Escrow to Worker',
-              subtitle: 'Employer acknowledges milestone completion and releases ${contract.formattedAmount}.',
+              subtitle: isEmployer
+                  ? 'Employer acknowledges milestone completion and releases ${contract.formattedAmount}.'
+                  : 'Employer only: Releases ${contract.formattedAmount} to worker.',
+              badge: isEmployer ? null : 'Employer Only',
               icon: Icons.check_circle_outline_rounded,
               color: AppColors.success,
-              onTap: () {
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Settlement proposal sent to counterparty on-chain.')),
-                );
-              },
+              isEnabled: isEmployer,
+              onTap: () => _handleResolveDispute(ctx, contract, DisputeResolution.releaseToWorker),
             ),
             const SizedBox(height: 10),
             _buildSettlementOption(
               title: 'Refund Escrow to Employer',
-              subtitle: 'Worker agrees to forfeit claim and return funds to employer vault.',
+              subtitle: isWorker
+                  ? 'Worker agrees to forfeit claim and return funds to employer vault.'
+                  : 'Worker only: Forfeits claim and refunds ${contract.formattedAmount} to employer.',
+              badge: isWorker ? null : 'Worker Only',
               icon: Icons.replay_rounded,
               color: AppColors.warning,
-              onTap: () {
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Refund settlement proposed to employer.')),
-                );
-              },
+              isEnabled: isWorker,
+              onTap: () => _handleResolveDispute(ctx, contract, DisputeResolution.refundToEmployer),
             ),
             const SizedBox(height: 10),
             _buildSettlementOption(
               title: 'Split 50% / 50% Compromise',
               subtitle: 'Both parties agree to split the escrow deposit equally.',
+              badge: (isEmployer || isWorker) ? 'Either Party' : null,
               icon: Icons.pie_chart_outline_rounded,
               color: AppColors.primary,
-              onTap: () {
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('50/50 split settlement proposed.')),
-                );
-              },
+              isEnabled: isEmployer || isWorker,
+              onTap: () => _handleResolveDispute(ctx, contract, DisputeResolution.split5050),
             ),
           ],
         ),
@@ -192,45 +393,72 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    String? badge,
+    bool isEnabled = true,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.onSurface,
+    return Opacity(
+      opacity: isEnabled ? 1.0 : 0.45,
+      child: InkWell(
+        onTap: isEnabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                        if (badge != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              badge,
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.outline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11.5,
-                      color: AppColors.onSurfaceVariant,
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.outline),
-          ],
+              const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.outline),
+            ],
+          ),
         ),
       ),
     );
@@ -732,7 +960,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton.icon(
-                  onPressed: () => _showSettlementModal(contract),
+                  onPressed: _isResolving ? null : () => _showSettlementModal(contract),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -740,9 +968,18 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: const Icon(Icons.handshake_outlined, size: 18),
+                  icon: _isResolving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.handshake_outlined, size: 18),
                   label: Text(
-                    'Propose Amicable Settlement',
+                    _isResolving ? 'Resolving on Solana…' : 'Propose Amicable Settlement',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,

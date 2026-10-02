@@ -366,6 +366,144 @@ describe("escrow protocol", () => {
       const contract = await program.account.escrowContract.fetch(escrowPda);
       expect(contract.status).to.deep.equal({ disputed: {} });
     });
+
+    it("employer can resolve active dispute by releasing escrow to worker", async () => {
+      const [escrowPda] = findEscrowPda(contractId);
+      const [vaultPda] = findVaultPda(contractId);
+
+      const workerBalanceBefore = await provider.connection.getBalance(worker.publicKey);
+
+      await program.methods
+        .resolveDispute(contractId, { releaseToWorker: {} })
+        .accountsPartial({
+          caller: employer.publicKey,
+          escrowContract: escrowPda,
+          vault: vaultPda,
+          worker: worker.publicKey,
+          employer: employer.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([employer])
+        .rpc();
+
+      const workerBalanceAfter = await provider.connection.getBalance(worker.publicKey);
+      expect(workerBalanceAfter).to.equal(workerBalanceBefore + 1 * LAMPORTS_PER_SOL);
+
+      const contract = await program.account.escrowContract.fetch(escrowPda);
+      expect(contract.status).to.deep.equal({ completed: {} });
+    });
+
+    it("worker can resolve active dispute by refunding escrow to employer", async () => {
+      const refundContractId = "ctr-dispute-refund-405";
+      const [escrowPda] = findEscrowPda(refundContractId);
+      const [vaultPda] = findVaultPda(refundContractId);
+
+      await program.methods
+        .createAndFund(refundContractId, worker.publicKey, depositAmount, termsHash, new anchor.BN(0))
+        .accountsPartial({
+          employer: employer.publicKey,
+          escrowContract: escrowPda,
+          vault: vaultPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([employer])
+        .rpc();
+
+      await program.methods
+        .acceptContract(refundContractId)
+        .accountsPartial({
+          worker: worker.publicKey,
+          escrowContract: escrowPda,
+        })
+        .signers([worker])
+        .rpc();
+
+      await program.methods
+        .raiseDispute(refundContractId)
+        .accountsPartial({
+          caller: employer.publicKey,
+          escrowContract: escrowPda,
+        })
+        .signers([employer])
+        .rpc();
+
+      const employerBalanceBefore = await provider.connection.getBalance(employer.publicKey);
+
+      await program.methods
+        .resolveDispute(refundContractId, { refundToEmployer: {} })
+        .accountsPartial({
+          caller: worker.publicKey,
+          escrowContract: escrowPda,
+          vault: vaultPda,
+          worker: worker.publicKey,
+          employer: employer.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([worker])
+        .rpc();
+
+      const employerBalanceAfter = await provider.connection.getBalance(employer.publicKey);
+      expect(employerBalanceAfter).to.be.greaterThan(employerBalanceBefore + 0.99 * LAMPORTS_PER_SOL);
+
+      const contract = await program.account.escrowContract.fetch(escrowPda);
+      expect(contract.status).to.deep.equal({ cancelled: {} });
+    });
+
+    it("either party can resolve dispute via 50/50 compromise split", async () => {
+      const splitContractId = "ctr-dispute-split-406";
+      const [escrowPda] = findEscrowPda(splitContractId);
+      const [vaultPda] = findVaultPda(splitContractId);
+
+      await program.methods
+        .createAndFund(splitContractId, worker.publicKey, depositAmount, termsHash, new anchor.BN(0))
+        .accountsPartial({
+          employer: employer.publicKey,
+          escrowContract: escrowPda,
+          vault: vaultPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([employer])
+        .rpc();
+
+      await program.methods
+        .acceptContract(splitContractId)
+        .accountsPartial({
+          worker: worker.publicKey,
+          escrowContract: escrowPda,
+        })
+        .signers([worker])
+        .rpc();
+
+      await program.methods
+        .raiseDispute(splitContractId)
+        .accountsPartial({
+          caller: worker.publicKey,
+          escrowContract: escrowPda,
+        })
+        .signers([worker])
+        .rpc();
+
+      const workerBalanceBefore = await provider.connection.getBalance(worker.publicKey);
+
+      await program.methods
+        .resolveDispute(splitContractId, { split5050: {} })
+        .accountsPartial({
+          caller: employer.publicKey,
+          escrowContract: escrowPda,
+          vault: vaultPda,
+          worker: worker.publicKey,
+          employer: employer.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([employer])
+        .rpc();
+
+      const workerBalanceAfter = await provider.connection.getBalance(worker.publicKey);
+      expect(workerBalanceAfter).to.equal(workerBalanceBefore + 0.5 * LAMPORTS_PER_SOL);
+
+      const contract = await program.account.escrowContract.fetch(escrowPda);
+      expect(contract.status).to.deep.equal({ completed: {} });
+    });
   });
 
   describe("Security & Guardrails", () => {

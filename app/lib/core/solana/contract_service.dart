@@ -238,6 +238,122 @@ class ContractService {
     }
   }
 
+  /// Resolves an active dispute on a native SOL escrow contract.
+  Future<String> resolveDispute({
+    required Ed25519HDPublicKey caller,
+    required Ed25519HDPublicKey employer,
+    required Ed25519HDPublicKey worker,
+    required String contractId,
+    required DisputeResolution resolution,
+    required WalletAdapter walletAdapter,
+  }) async {
+    try {
+      final signature = await _signAndSendWithRetry(
+        feePayer: caller,
+        walletAdapter: walletAdapter,
+        buildInstruction: () => ProgramInstructions.resolveDispute(
+          caller: caller,
+          employer: employer,
+          worker: worker,
+          contractId: contractId,
+          resolution: resolution,
+        ),
+      );
+
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
+
+  /// Resolves an active dispute on an SPL token ($SKR) escrow contract.
+  Future<String> resolveTokenDispute({
+    required Ed25519HDPublicKey caller,
+    required Ed25519HDPublicKey employer,
+    required Ed25519HDPublicKey worker,
+    required Ed25519HDPublicKey mint,
+    required String contractId,
+    required DisputeResolution resolution,
+    required WalletAdapter walletAdapter,
+  }) async {
+    try {
+      final signature = await _signAndSendInstructionsWithRetry(
+        feePayer: caller,
+        walletAdapter: walletAdapter,
+        buildInstructions: () async {
+          final instructions = <Instruction>[];
+
+          // Check if worker ATA exists; if not, prepend idempotent ATA creation
+          final workerAta = await NetworkConfig.findAssociatedTokenAddress(
+            owner: worker,
+            mint: mint,
+          );
+          final workerAtaInfo = await solanaClient.rpcClient.getAccountInfo(
+            workerAta.toBase58(),
+            encoding: Encoding.base64,
+            commitment: Commitment.confirmed,
+          );
+          if (workerAtaInfo.value == null) {
+            instructions.add(
+              await ProgramInstructions.createAssociatedTokenAccountIdempotent(
+                fundingAccount: caller,
+                walletAddress: worker,
+                mint: mint,
+              ),
+            );
+          }
+
+          // Check if employer ATA exists; if not, prepend idempotent ATA creation
+          final employerAta = await NetworkConfig.findAssociatedTokenAddress(
+            owner: employer,
+            mint: mint,
+          );
+          final employerAtaInfo = await solanaClient.rpcClient.getAccountInfo(
+            employerAta.toBase58(),
+            encoding: Encoding.base64,
+            commitment: Commitment.confirmed,
+          );
+          if (employerAtaInfo.value == null) {
+            instructions.add(
+              await ProgramInstructions.createAssociatedTokenAccountIdempotent(
+                fundingAccount: caller,
+                walletAddress: employer,
+                mint: mint,
+              ),
+            );
+          }
+
+          instructions.add(
+            await ProgramInstructions.resolveTokenDispute(
+              caller: caller,
+              employer: employer,
+              worker: worker,
+              mint: mint,
+              contractId: contractId,
+              resolution: resolution,
+            ),
+          );
+
+          return instructions;
+        },
+      );
+
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
+
   /// Creates and funds an SPL token ($SKR) escrow contract.
   Future<String> createAndFundToken({
     required Ed25519HDPublicKey employer,

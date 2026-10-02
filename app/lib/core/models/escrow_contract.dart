@@ -114,6 +114,9 @@ class EscrowContract {
   /// Amount formatted in SOL (e.g. 1.5).
   double get amountSol => amount.toDouble() / 1e9;
 
+  /// Amount formatted in SPL tokens (e.g. 500.0).
+  double get amountToken => amount.toDouble() / 1e6;
+
   /// Whether this contract is denominated in $SKR SPL tokens.
   bool get isSkr => isToken;
 

@@ -3,6 +3,7 @@ import 'package:solana/solana.dart';
 import '../models/escrow_contract.dart' as domain;
 import '../solana/contract_service.dart';
 import '../solana/network_config.dart';
+import '../solana/program_instructions.dart';
 import '../solana/wallet_adapter.dart';
 import 'app_database.dart';
 
@@ -364,6 +365,53 @@ class ContractRepository {
 
     // ignore: unawaited_futures
     refreshContract(contractId);
+
+    return signature;
+  }
+
+  /// Resolves an active dispute on Solana (either SOL or token).
+  Future<String> resolveDispute({
+    required domain.EscrowContract contract,
+    required Ed25519HDPublicKey caller,
+    required DisputeResolution resolution,
+    required WalletAdapter walletAdapter,
+  }) async {
+    final signature = contract.isToken
+        ? await contractService.resolveTokenDispute(
+            caller: caller,
+            employer: Ed25519HDPublicKey.fromBase58(contract.employer),
+            worker: Ed25519HDPublicKey.fromBase58(contract.worker),
+            mint: Ed25519HDPublicKey.fromBase58(contract.tokenMint ?? NetworkConfig.devnetSkrMint),
+            contractId: contract.contractId,
+            resolution: resolution,
+            walletAdapter: walletAdapter,
+          )
+        : await contractService.resolveDispute(
+            caller: caller,
+            employer: Ed25519HDPublicKey.fromBase58(contract.employer),
+            worker: Ed25519HDPublicKey.fromBase58(contract.worker),
+            contractId: contract.contractId,
+            resolution: resolution,
+            walletAdapter: walletAdapter,
+          );
+
+    final finalStatus = resolution == DisputeResolution.refundToEmployer
+        ? domain.ContractStatus.cancelled
+        : domain.ContractStatus.completed;
+
+    await (db.update(db.escrowContracts)
+          ..where((tbl) => tbl.contractId.equals(contract.contractId)))
+        .write(
+      EscrowContractsCompanion(
+        status: Value(finalStatus.name),
+        lastTxSignature: Value(signature),
+        syncedAt: Value(DateTime.now().toUtc()),
+        completedAt: Value(BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000)),
+      ),
+    );
+
+    // ignore: unawaited_futures
+    refreshContract(contract.contractId);
 
     return signature;
   }

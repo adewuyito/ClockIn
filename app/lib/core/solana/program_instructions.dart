@@ -72,6 +72,18 @@ class ProgramInstructions {
     164, 206, 114, 109, 35, 64, 101, 152
   ];
 
+  /// Anchor instruction discriminator for resolve_dispute:
+  /// sha256("global:resolve_dispute")[0..8]
+  static const List<int> resolveDisputeDiscriminator = [
+    231, 6, 202, 6, 96, 103, 12, 230
+  ];
+
+  /// Anchor instruction discriminator for resolve_token_dispute:
+  /// sha256("global:resolve_token_dispute")[0..8]
+  static const List<int> resolveTokenDisputeDiscriminator = [
+    42, 3, 244, 169, 158, 178, 251, 10
+  ];
+
   /// Builds a `register_worker` instruction.
   /// Accounts:
   /// 0. [writable, signer] worker
@@ -636,5 +648,116 @@ class ProgramInstructions {
       ],
       data: ByteArray([1]), // 1 = CreateIdempotent
     );
+  }
+
+  /// Builds a `resolve_dispute` instruction for native SOL escrows.
+  static Future<Instruction> resolveDispute({
+    required Ed25519HDPublicKey caller,
+    required Ed25519HDPublicKey employer,
+    required Ed25519HDPublicKey worker,
+    required String contractId,
+    required DisputeResolution resolution,
+  }) async {
+    final escrowPda = await NetworkConfig.findEscrowPda(contractId);
+    final vaultPda = await NetworkConfig.findVaultPda(contractId);
+    final contractIdBytes = utf8.encode(contractId);
+
+    final totalLen = 8 + 4 + contractIdBytes.length + 1;
+    final byteData = ByteData(totalLen);
+    final uint8List = byteData.buffer.asUint8List();
+
+    uint8List.setRange(0, 8, resolveDisputeDiscriminator);
+    int offset = 8;
+    byteData.setUint32(offset, contractIdBytes.length, Endian.little);
+    offset += 4;
+    uint8List.setRange(offset, offset + contractIdBytes.length, contractIdBytes);
+    offset += contractIdBytes.length;
+    uint8List[offset] = resolution.value;
+
+    return Instruction(
+      programId: NetworkConfig.programId,
+      accounts: [
+        AccountMeta.writeable(pubKey: caller, isSigner: true),
+        AccountMeta.writeable(pubKey: escrowPda, isSigner: false),
+        AccountMeta.writeable(pubKey: vaultPda, isSigner: false),
+        AccountMeta.writeable(pubKey: worker, isSigner: false),
+        AccountMeta.writeable(pubKey: employer, isSigner: false),
+        AccountMeta.readonly(pubKey: systemProgramId, isSigner: false),
+      ],
+      data: ByteArray(uint8List),
+    );
+  }
+
+  /// Builds a `resolve_token_dispute` instruction for SPL token ($SKR) escrows.
+  static Future<Instruction> resolveTokenDispute({
+    required Ed25519HDPublicKey caller,
+    required Ed25519HDPublicKey employer,
+    required Ed25519HDPublicKey worker,
+    required Ed25519HDPublicKey mint,
+    required String contractId,
+    required DisputeResolution resolution,
+  }) async {
+    final escrowPda = await NetworkConfig.findEscrowPda(contractId);
+    final vaultPda = await NetworkConfig.findVaultPda(contractId);
+    final vaultTokenAta = await NetworkConfig.findVaultTokenAddress(
+      contractId: contractId,
+      mint: mint,
+    );
+    final workerTokenAta = await NetworkConfig.findAssociatedTokenAddress(
+      owner: worker,
+      mint: mint,
+    );
+    final employerTokenAta = await NetworkConfig.findAssociatedTokenAddress(
+      owner: employer,
+      mint: mint,
+    );
+    final contractIdBytes = utf8.encode(contractId);
+
+    final totalLen = 8 + 4 + contractIdBytes.length + 1;
+    final byteData = ByteData(totalLen);
+    final uint8List = byteData.buffer.asUint8List();
+
+    uint8List.setRange(0, 8, resolveTokenDisputeDiscriminator);
+    int offset = 8;
+    byteData.setUint32(offset, contractIdBytes.length, Endian.little);
+    offset += 4;
+    uint8List.setRange(offset, offset + contractIdBytes.length, contractIdBytes);
+    offset += contractIdBytes.length;
+    uint8List[offset] = resolution.value;
+
+    return Instruction(
+      programId: NetworkConfig.programId,
+      accounts: [
+        AccountMeta.writeable(pubKey: caller, isSigner: true),
+        AccountMeta.writeable(pubKey: escrowPda, isSigner: false),
+        AccountMeta.readonly(pubKey: mint, isSigner: false),
+        AccountMeta.writeable(pubKey: vaultPda, isSigner: false),
+        AccountMeta.writeable(pubKey: vaultTokenAta, isSigner: false),
+        AccountMeta.writeable(pubKey: worker, isSigner: false),
+        AccountMeta.writeable(pubKey: workerTokenAta, isSigner: false),
+        AccountMeta.writeable(pubKey: employer, isSigner: false),
+        AccountMeta.writeable(pubKey: employerTokenAta, isSigner: false),
+        AccountMeta.readonly(pubKey: NetworkConfig.tokenProgramId, isSigner: false),
+      ],
+      data: ByteArray(uint8List),
+    );
+  }
+}
+
+/// Dispute resolution outcomes supported on Solana.
+enum DisputeResolution {
+  releaseToWorker,
+  refundToEmployer,
+  split5050;
+
+  int get value {
+    switch (this) {
+      case DisputeResolution.releaseToWorker:
+        return 0;
+      case DisputeResolution.refundToEmployer:
+        return 1;
+      case DisputeResolution.split5050:
+        return 2;
+    }
   }
 }

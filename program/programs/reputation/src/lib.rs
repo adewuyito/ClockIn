@@ -269,6 +269,90 @@ pub mod reputation {
         Ok(())
     }
 
+    /// Resolves an active dispute on a native SOL escrow contract via mutual or unilateral settlement.
+    pub fn resolve_dispute(
+        ctx: Context<ResolveDispute>,
+        _contract_id: String,
+        resolution: DisputeResolution,
+    ) -> Result<()> {
+        let contract = &mut ctx.accounts.escrow_contract;
+        require!(contract.status == ContractStatus::Disputed, ReputationError::InvalidContractStatus);
+        require!(!contract.is_token, ReputationError::TokenContract);
+
+        let caller = ctx.accounts.caller.key();
+        require!(
+            caller == contract.employer || caller == contract.worker,
+            ReputationError::UnauthorizedParticipant
+        );
+        require!(contract.employer == ctx.accounts.employer.key(), ReputationError::UnauthorizedEmployer);
+        require!(contract.worker == ctx.accounts.worker.key(), ReputationError::WorkerMismatch);
+
+        match resolution {
+            DisputeResolution::ReleaseToWorker => {
+                require!(caller == contract.employer, ReputationError::UnauthorizedEmployer);
+            },
+            DisputeResolution::RefundToEmployer => {
+                require!(caller == contract.worker, ReputationError::WorkerMismatch);
+            },
+            DisputeResolution::Split5050 => {
+                require!(caller == contract.employer || caller == contract.worker, ReputationError::UnauthorizedParticipant);
+            },
+        }
+
+        let amount = contract.amount;
+
+        match resolution {
+            DisputeResolution::ReleaseToWorker => {
+                **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = ctx
+                    .accounts
+                    .vault
+                    .to_account_info()
+                    .lamports()
+                    .checked_sub(amount)
+                    .ok_or(ReputationError::Overflow)?;
+
+                **ctx.accounts.worker.to_account_info().try_borrow_mut_lamports()? = ctx
+                    .accounts
+                    .worker
+                    .to_account_info()
+                    .lamports()
+                    .checked_add(amount)
+                    .ok_or(ReputationError::Overflow)?;
+
+                contract.status = ContractStatus::Completed;
+                contract.completed_at = Clock::get()?.unix_timestamp;
+            },
+            DisputeResolution::RefundToEmployer => {
+                // Entire vault balance (amount + rent) automatically returned to employer via `close = employer` on vault
+                contract.status = ContractStatus::Cancelled;
+            },
+            DisputeResolution::Split5050 => {
+                let worker_amount = amount / 2;
+                **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = ctx
+                    .accounts
+                    .vault
+                    .to_account_info()
+                    .lamports()
+                    .checked_sub(worker_amount)
+                    .ok_or(ReputationError::Overflow)?;
+
+                **ctx.accounts.worker.to_account_info().try_borrow_mut_lamports()? = ctx
+                    .accounts
+                    .worker
+                    .to_account_info()
+                    .lamports()
+                    .checked_add(worker_amount)
+                    .ok_or(ReputationError::Overflow)?;
+
+                // Remaining vault balance (employer_amount + rent) returned to employer via `close = employer` on vault
+                contract.status = ContractStatus::Completed;
+                contract.completed_at = Clock::get()?.unix_timestamp;
+            },
+        }
+
+        Ok(())
+    }
+
     // =========================================================================
     // SPL TOKEN ($SKR) ESCROW PROTOCOL INSTRUCTIONS
     // =========================================================================
@@ -444,6 +528,112 @@ pub mod reputation {
         contract.status = ContractStatus::Cancelled;
         Ok(())
     }
+
+    /// Resolves an active dispute on an SPL token ($SKR) escrow contract via mutual or unilateral settlement.
+    pub fn resolve_token_dispute(
+        ctx: Context<ResolveTokenDispute>,
+        _contract_id: String,
+        resolution: DisputeResolution,
+    ) -> Result<()> {
+        let contract = &mut ctx.accounts.escrow_contract;
+        require!(contract.status == ContractStatus::Disputed, ReputationError::InvalidContractStatus);
+        require!(contract.is_token, ReputationError::NotTokenContract);
+
+        let caller = ctx.accounts.caller.key();
+        require!(
+            caller == contract.employer || caller == contract.worker,
+            ReputationError::UnauthorizedParticipant
+        );
+        require!(contract.employer == ctx.accounts.employer.key(), ReputationError::UnauthorizedEmployer);
+        require!(contract.worker == ctx.accounts.worker.key(), ReputationError::WorkerMismatch);
+
+        match resolution {
+            DisputeResolution::ReleaseToWorker => {
+                require!(caller == contract.employer, ReputationError::UnauthorizedEmployer);
+            },
+            DisputeResolution::RefundToEmployer => {
+                require!(caller == contract.worker, ReputationError::WorkerMismatch);
+            },
+            DisputeResolution::Split5050 => {
+                require!(caller == contract.employer || caller == contract.worker, ReputationError::UnauthorizedParticipant);
+            },
+        }
+
+        let amount = contract.amount;
+        let contract_id_bytes = _contract_id.as_bytes();
+        let vault_bump = contract.vault_bump;
+        let seeds = &[
+            b"vault",
+            contract_id_bytes,
+            &[vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        match resolution {
+            DisputeResolution::ReleaseToWorker => {
+                let cpi_accounts = Transfer {
+                    from: ctx.accounts.vault_token_account.to_account_info(),
+                    to: ctx.accounts.worker_token_account.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                };
+                token::transfer(
+                    CpiContext::new_with_signer(ctx.accounts.token_program.key(), cpi_accounts, signer_seeds),
+                    amount,
+                )?;
+                contract.status = ContractStatus::Completed;
+                contract.completed_at = Clock::get()?.unix_timestamp;
+            },
+            DisputeResolution::RefundToEmployer => {
+                let cpi_accounts = Transfer {
+                    from: ctx.accounts.vault_token_account.to_account_info(),
+                    to: ctx.accounts.employer_token_account.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                };
+                token::transfer(
+                    CpiContext::new_with_signer(ctx.accounts.token_program.key(), cpi_accounts, signer_seeds),
+                    amount,
+                )?;
+                contract.status = ContractStatus::Cancelled;
+            },
+            DisputeResolution::Split5050 => {
+                let worker_amount = amount / 2;
+                let employer_amount = amount - worker_amount;
+
+                let cpi_worker = Transfer {
+                    from: ctx.accounts.vault_token_account.to_account_info(),
+                    to: ctx.accounts.worker_token_account.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                };
+                token::transfer(
+                    CpiContext::new_with_signer(ctx.accounts.token_program.key(), cpi_worker, signer_seeds),
+                    worker_amount,
+                )?;
+
+                let cpi_employer = Transfer {
+                    from: ctx.accounts.vault_token_account.to_account_info(),
+                    to: ctx.accounts.employer_token_account.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                };
+                token::transfer(
+                    CpiContext::new_with_signer(ctx.accounts.token_program.key(), cpi_employer, signer_seeds),
+                    employer_amount,
+                )?;
+
+                contract.status = ContractStatus::Completed;
+                contract.completed_at = Clock::get()?.unix_timestamp;
+            },
+        }
+
+        // Close the Vault ATA, refunding rent lamports to employer
+        let close_accounts = CloseAccount {
+            account: ctx.accounts.vault_token_account.to_account_info(),
+            destination: ctx.accounts.employer.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        token::close_account(CpiContext::new_with_signer(ctx.accounts.token_program.key(), close_accounts, signer_seeds))?;
+
+        Ok(())
+    }
 }
 
 // =============================================================================
@@ -485,6 +675,13 @@ pub enum ContractStatus {
     Completed,
     Disputed,
     Cancelled,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum DisputeResolution {
+    ReleaseToWorker,
+    RefundToEmployer,
+    Split5050,
 }
 
 /// PDA seeds: [b"escrow", contract_id.as_bytes()]
@@ -775,6 +972,35 @@ pub struct RaiseDispute<'info> {
 
 #[derive(Accounts)]
 #[instruction(contract_id: String)]
+pub struct ResolveDispute<'info> {
+    #[account(mut)]
+    pub caller: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"escrow", contract_id.as_bytes()],
+        bump = escrow_contract.bump,
+        has_one = employer @ ReputationError::UnauthorizedEmployer,
+        has_one = worker @ ReputationError::WorkerMismatch,
+    )]
+    pub escrow_contract: Account<'info, EscrowContract>,
+    #[account(
+        mut,
+        close = employer,
+        seeds = [b"vault", contract_id.as_bytes()],
+        bump = escrow_contract.vault_bump,
+    )]
+    pub vault: Account<'info, EscrowVault>,
+    /// CHECK: Worker receives payment on Release or Split.
+    #[account(mut)]
+    pub worker: UncheckedAccount<'info>,
+    /// CHECK: Employer receives refund or split.
+    #[account(mut)]
+    pub employer: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
 pub struct CreateAndFundTokenContract<'info> {
     #[account(mut)]
     pub employer: Signer<'info>,
@@ -904,3 +1130,54 @@ pub struct CancelTokenContract<'info> {
     pub employer_token_account: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
+pub struct ResolveTokenDispute<'info> {
+    #[account(mut)]
+    pub caller: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"escrow", contract_id.as_bytes()],
+        bump = escrow_contract.bump,
+        has_one = employer @ ReputationError::UnauthorizedEmployer,
+        has_one = worker @ ReputationError::WorkerMismatch,
+        constraint = escrow_contract.is_token @ ReputationError::NotTokenContract,
+        constraint = escrow_contract.token_mint == mint.key() @ ReputationError::MintMismatch,
+    )]
+    pub escrow_contract: Account<'info, EscrowContract>,
+    pub mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        close = employer,
+        seeds = [b"vault", contract_id.as_bytes()],
+        bump = escrow_contract.vault_bump,
+    )]
+    pub vault: Account<'info, EscrowVault>,
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = vault,
+    )]
+    pub vault_token_account: Account<'info, TokenAccount>,
+    /// CHECK: Worker receives tokens on Release or Split. Validated by has_one.
+    #[account(mut)]
+    pub worker: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = worker_token_account.mint == mint.key() @ ReputationError::MintMismatch,
+        constraint = worker_token_account.owner == worker.key() @ ReputationError::WorkerMismatch,
+    )]
+    pub worker_token_account: Account<'info, TokenAccount>,
+    /// CHECK: Employer receives tokens on Refund or Split, and rent refund. Validated by has_one.
+    #[account(mut)]
+    pub employer: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = employer_token_account.mint == mint.key() @ ReputationError::MintMismatch,
+        constraint = employer_token_account.owner == employer.key() @ ReputationError::UnauthorizedEmployer,
+    )]
+    pub employer_token_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
