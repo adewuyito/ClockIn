@@ -788,7 +788,7 @@ class ProgramInstructions {
     final contractIdBytes = utf8.encode(contractId);
     final totalLen = 8 + 4 + contractIdBytes.length + (32 * 3);
     final byteData = ByteData(totalLen);
-    final uint8List = Uint8List(totalLen);
+    final uint8List = byteData.buffer.asUint8List();
 
     uint8List.setRange(0, 8, initializeDisputeCaseDiscriminator);
     int offset = 8;
@@ -828,7 +828,7 @@ class ProgramInstructions {
     final contractIdBytes = utf8.encode(contractId);
     final totalLen = 8 + 4 + contractIdBytes.length + 1;
     final byteData = ByteData(totalLen);
-    final uint8List = Uint8List(totalLen);
+    final uint8List = byteData.buffer.asUint8List();
 
     uint8List.setRange(0, 8, castJurorVoteDiscriminator);
     int offset = 8;
@@ -870,7 +870,7 @@ class ProgramInstructions {
     final contractIdBytes = utf8.encode(contractId);
     final totalLen = 8 + 4 + contractIdBytes.length;
     final byteData = ByteData(totalLen);
-    final uint8List = Uint8List(totalLen);
+    final uint8List = byteData.buffer.asUint8List();
 
     uint8List.setRange(0, 8, executeDisputeRulingDiscriminator);
     int offset = 8;
@@ -932,7 +932,7 @@ class ProgramInstructions {
     final contractIdBytes = utf8.encode(contractId);
     final totalLen = 8 + 4 + contractIdBytes.length;
     final byteData = ByteData(totalLen);
-    final uint8List = Uint8List(totalLen);
+    final uint8List = byteData.buffer.asUint8List();
 
     uint8List.setRange(0, 8, executeTokenDisputeRulingDiscriminator);
     int offset = 8;
