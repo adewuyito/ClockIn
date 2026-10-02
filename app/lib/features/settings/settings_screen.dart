@@ -81,8 +81,6 @@ class SettingsScreen extends ConsumerWidget {
               _buildConnectedWalletSection(context, ref, wallet, balanceAsync),
               const SizedBox(height: 20),
             ],
-            _buildSecuritySection(context),
-            const SizedBox(height: 20),
             _buildDiagnosticsSection(diagnosticsAsync),
             const SizedBox(height: 20),
             _buildVersionStamp(),
@@ -225,6 +223,42 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(width: 4),
                     const Icon(Icons.signal_cellular_alt_rounded, size: 16, color: AppColors.tertiary),
                   ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.developer_board_rounded, size: 18, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('ANCHOR PROGRAM ID',
+                          style: AppTypography.labelSm.copyWith(color: AppColors.outline)),
+                      Text(
+                        NetworkConfig.programIdString,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.labelMd.copyWith(color: AppColors.onSurface),
+                      ),
+                    ],
+                  ),
+                ),
+                InkWell(
+                  onTap: () => _copy(context, NetworkConfig.programIdString, 'Program ID'),
+                  borderRadius: BorderRadius.circular(6),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.copy_rounded, size: 16, color: AppColors.outline),
+                  ),
                 ),
               ],
             ),
@@ -427,143 +461,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSecuritySection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.security_rounded, size: 20, color: AppColors.primary),
-            const SizedBox(width: 6),
-            Text('Security & MWA Architecture', style: AppTypography.titleMd.copyWith(color: AppColors.onSurface)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.surfaceContainerHigh),
-          ),
-          child: Column(
-            children: [
-              _securityItem(
-                icon: Icons.lock_rounded,
-                iconBg: AppColors.secondaryContainer,
-                iconColor: AppColors.onSecondaryContainer,
-                title: 'Zero Key Custody',
-                badge: 'PASSED',
-                badgeColor: AppColors.tertiary,
-                subtitle: 'Mobile Wallet Adapter (MWA)',
-                description:
-                    'Private keys never touch this app. Transactions are built here, then serialized and sent to your wallet app for review and signing — this app never sees your seed or private key.',
-              ),
-              const Divider(height: 1, color: AppColors.surfaceContainerHighest),
-              _securityItem(
-                icon: Icons.developer_board_rounded,
-                iconBg: AppColors.primaryFixedDim,
-                iconColor: AppColors.primary,
-                title: 'Anchor Program ID',
-                subtitle: null,
-                trailing: InkWell(
-                  onTap: () => _copy(context, NetworkConfig.programIdString, 'Program ID'),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${NetworkConfig.programIdString.substring(0, 5)}…${NetworkConfig.programIdString.substring(NetworkConfig.programIdString.length - 4)}',
-                        style: AppTypography.labelMd.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.copy_rounded, size: 14, color: AppColors.outline),
-                    ],
-                  ),
-                ),
-                description:
-                    'Deployed on Solana ${NetworkConfig.clusterDisplayName}. Manages the WorkerProfile and Review program-derived accounts behind on-chain reputation.',
-              ),
-              const Divider(height: 1, color: AppColors.surfaceContainerHighest),
-              _securityItem(
-                icon: Icons.storage_rounded,
-                iconBg: AppColors.surfaceContainerHigh,
-                iconColor: AppColors.primary,
-                title: 'Local SQLite Cache',
-                badge: 'ACTIVE',
-                badgeColor: AppColors.primary,
-                subtitle: 'Drift (SQLite)',
-                description:
-                    'Replicates on-chain worker profiles and reviews locally for fast, offline-first reads. Not encrypted — it only ever holds public on-chain data, never keys.',
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _securityItem({
-    required IconData icon,
-    required Color iconBg,
-    required Color iconColor,
-    required String title,
-    String? subtitle,
-    String? badge,
-    Color? badgeColor,
-    Widget? trailing,
-    required String description,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 22, color: iconColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(title, style: AppTypography.titleMd.copyWith(color: AppColors.onSurface)),
-                    ),
-                    ?trailing,
-                    if (badge != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: badgeColor?.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(badge,
-                            style: AppTypography.labelSm.copyWith(color: badgeColor, fontWeight: FontWeight.w700)),
-                      ),
-                  ],
-                ),
-                if (subtitle != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(subtitle,
-                        style: AppTypography.labelMd.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(description, style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildDiagnosticsSection(AsyncValue<NetworkDiagnostics> diagnosticsAsync) {
     return Column(
