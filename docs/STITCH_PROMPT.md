@@ -221,3 +221,48 @@ STICKY BOTTOM CTA:
 - Primary button: "Sign & Release 500 $SKR"
 - Caption: "Approved via Mobile Wallet Adapter. Zero platform fees."
 ```
+
+---
+
+### Screen 6: Dispute Resolution & Seeker Guardian Arbitration
+*Reference Screen: `12. Dispute Resolution & Seeker Guardian Arbitration` (`ac5d2278d09c4d069981c8b61378660e`)*
+
+```
+SCREEN 12: DISPUTE RESOLUTION & SEEKER GUARDIAN ARBITRATION
+
+TOP APP BAR:
+- Back arrow, Title: "Dispute Resolution" (Plus Jakarta Sans 16px bold), Sync icon, "DEVNET" amber chip (#C97A0A)
+
+DYNAMIC HERO DISPUTE BANNER:
+- Container: Soft primary tint (#E4F1F5), primary teal border (#0F6F8C), 16px radius
+- Header: Shield icon + "ARBITRATION IN PROGRESS • 3 JURORS" + right badge "0/3 VOTED"
+- Description: "Escrow funds are locked in the Solana Vault PDA pending Seeker Guardian arbitration. 3 Seeker Guardian Jurors have been cryptographically assigned on Solana Devnet to review deliverables and issue a binding ruling."
+- Locked Balance Card: White rounded card (10px radius) with "LOCKED DISPUTE BALANCE", prominent "0.1 SOL" in JetBrains Mono 22px bold, and "Locked in Vault PDA: HdVs...2n5t" with copy icon
+- Metadata Chips: "# Case #DISP-CTR-33", "0/3 Votes Cast", "Quorum 2/3 Jurors"
+
+USER ROLE EXPLANATION CARD:
+- White card with 14px radius and subtle blue border (#0284C7)
+- Avatar icon + "Worker Account" with "YOU (WORKER)" badge
+- Description of participant rights and evidence submission
+
+SEEKER GUARDIAN JURORS ARBITRATION PANEL:
+- Header: Shield icon + "Seeker Guardian Jurors" + "0/3 VOTES" badge
+- Subtitle: "3 assigned Seeker Guardian stakers reviewing evidence. 2/3 majority required for quorum."
+- Progress Bar: 0% progress track with "0 of 3 votes recorded • Need 2 matching votes for simple majority"
+- 3 Juror Rows:
+  * Juror 1 (Helius): Orange circular shield, "Helius Guardian Juror #1", "Ac4C...Fhrm" + copy icon, "Reviewing Evidence" badge, inner badge row: "500 $SKR Staked • Seeker Proof-of-Human Verified" + "TIER 1 NODE"
+  * Juror 2 (Triton): Blue circular shield, "Triton Guardian Juror #2", "AmSQ...wZJu" + copy icon, "Reviewing Evidence" badge, inner badge row: "250 $SKR Staked • Seeker Proof-of-Human Verified" + "TIER 2 NODE"
+  * Juror 3 (Jito): Purple circular bolt, "Jito Guardian Juror #3", "DHFX...3QjM" + copy icon, "Reviewing Evidence" badge, inner badge row: "750 $SKR Staked • Seeker Proof-of-Human Verified" + "TIER 1 NODE"
+- Quorum Rule Info Callout: "Simple Majority Quorum: When 2 out of 3 jurors vote for the same ruling, escrow is unlocked for execution."
+
+CONTRACT TERMS & EVIDENCE:
+- Header: "Contract Terms & Evidence" + "Audit-Grade" badge
+- SHA-256 TERMS HASH card: Fingerprint icon, raw hash "2289e69b7e6e594a762ed39c840de76c78fa7d48a164c955337ac2e37ba5a0a5" in JetBrains Mono, "P2P Contract Agreement"
+- Deliverables box: "No external deliverables filed yet. Use '+ Submit Additional Evidence' below to attach deliverables, pull requests, or evidence notes."
+- Full-width outlined button: "+ Submit Additional Evidence" (primary teal outline)
+
+BOTTOM ACTION DOCK:
+- Primary button (50px, #00556D / #0F6F8C, 12px radius, white text): Handshake icon + "Propose Amicable Settlement"
+- Secondary button (48px, white background, outline border, 12px radius): Wallet icon + "Contact Counterparty via Wallet"
+```
+
