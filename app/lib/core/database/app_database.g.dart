@@ -3730,6 +3730,703 @@ class SeekerAttestationsCompanion extends UpdateCompanion<SeekerAttestation> {
   }
 }
 
+class $DisputeCasesTable extends DisputeCases
+    with TableInfo<$DisputeCasesTable, DisputeCaseData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DisputeCasesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _contractIdMeta = const VerificationMeta(
+    'contractId',
+  );
+  @override
+  late final GeneratedColumn<String> contractId = GeneratedColumn<String>(
+    'contract_id',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 32,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _juror1Meta = const VerificationMeta('juror1');
+  @override
+  late final GeneratedColumn<String> juror1 = GeneratedColumn<String>(
+    'juror1',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _juror2Meta = const VerificationMeta('juror2');
+  @override
+  late final GeneratedColumn<String> juror2 = GeneratedColumn<String>(
+    'juror2',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _juror3Meta = const VerificationMeta('juror3');
+  @override
+  late final GeneratedColumn<String> juror3 = GeneratedColumn<String>(
+    'juror3',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _vote1Meta = const VerificationMeta('vote1');
+  @override
+  late final GeneratedColumn<int> vote1 = GeneratedColumn<int>(
+    'vote1',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _vote2Meta = const VerificationMeta('vote2');
+  @override
+  late final GeneratedColumn<int> vote2 = GeneratedColumn<int>(
+    'vote2',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _vote3Meta = const VerificationMeta('vote3');
+  @override
+  late final GeneratedColumn<int> vote3 = GeneratedColumn<int>(
+    'vote3',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _quorumOutcomeMeta = const VerificationMeta(
+    'quorumOutcome',
+  );
+  @override
+  late final GeneratedColumn<int> quorumOutcome = GeneratedColumn<int>(
+    'quorum_outcome',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('voting'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _resolvedAtMeta = const VerificationMeta(
+    'resolvedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> resolvedAt = GeneratedColumn<DateTime>(
+    'resolved_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncedAtMeta = const VerificationMeta(
+    'syncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> syncedAt = GeneratedColumn<DateTime>(
+    'synced_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    contractId,
+    juror1,
+    juror2,
+    juror3,
+    vote1,
+    vote2,
+    vote3,
+    quorumOutcome,
+    status,
+    createdAt,
+    resolvedAt,
+    syncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'dispute_cases';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DisputeCaseData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('contract_id')) {
+      context.handle(
+        _contractIdMeta,
+        contractId.isAcceptableOrUnknown(data['contract_id']!, _contractIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contractIdMeta);
+    }
+    if (data.containsKey('juror1')) {
+      context.handle(
+        _juror1Meta,
+        juror1.isAcceptableOrUnknown(data['juror1']!, _juror1Meta),
+      );
+    } else if (isInserting) {
+      context.missing(_juror1Meta);
+    }
+    if (data.containsKey('juror2')) {
+      context.handle(
+        _juror2Meta,
+        juror2.isAcceptableOrUnknown(data['juror2']!, _juror2Meta),
+      );
+    } else if (isInserting) {
+      context.missing(_juror2Meta);
+    }
+    if (data.containsKey('juror3')) {
+      context.handle(
+        _juror3Meta,
+        juror3.isAcceptableOrUnknown(data['juror3']!, _juror3Meta),
+      );
+    } else if (isInserting) {
+      context.missing(_juror3Meta);
+    }
+    if (data.containsKey('vote1')) {
+      context.handle(
+        _vote1Meta,
+        vote1.isAcceptableOrUnknown(data['vote1']!, _vote1Meta),
+      );
+    }
+    if (data.containsKey('vote2')) {
+      context.handle(
+        _vote2Meta,
+        vote2.isAcceptableOrUnknown(data['vote2']!, _vote2Meta),
+      );
+    }
+    if (data.containsKey('vote3')) {
+      context.handle(
+        _vote3Meta,
+        vote3.isAcceptableOrUnknown(data['vote3']!, _vote3Meta),
+      );
+    }
+    if (data.containsKey('quorum_outcome')) {
+      context.handle(
+        _quorumOutcomeMeta,
+        quorumOutcome.isAcceptableOrUnknown(
+          data['quorum_outcome']!,
+          _quorumOutcomeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('resolved_at')) {
+      context.handle(
+        _resolvedAtMeta,
+        resolvedAt.isAcceptableOrUnknown(data['resolved_at']!, _resolvedAtMeta),
+      );
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(
+        _syncedAtMeta,
+        syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {contractId};
+  @override
+  DisputeCaseData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DisputeCaseData(
+      contractId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}contract_id'],
+      )!,
+      juror1: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}juror1'],
+      )!,
+      juror2: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}juror2'],
+      )!,
+      juror3: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}juror3'],
+      )!,
+      vote1: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}vote1'],
+      )!,
+      vote2: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}vote2'],
+      )!,
+      vote3: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}vote3'],
+      )!,
+      quorumOutcome: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quorum_outcome'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      resolvedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}resolved_at'],
+      ),
+      syncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}synced_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DisputeCasesTable createAlias(String alias) {
+    return $DisputeCasesTable(attachedDatabase, alias);
+  }
+}
+
+class DisputeCaseData extends DataClass implements Insertable<DisputeCaseData> {
+  final String contractId;
+  final String juror1;
+  final String juror2;
+  final String juror3;
+  final int vote1;
+  final int vote2;
+  final int vote3;
+  final int quorumOutcome;
+  final String status;
+  final DateTime createdAt;
+  final DateTime? resolvedAt;
+  final DateTime syncedAt;
+  const DisputeCaseData({
+    required this.contractId,
+    required this.juror1,
+    required this.juror2,
+    required this.juror3,
+    required this.vote1,
+    required this.vote2,
+    required this.vote3,
+    required this.quorumOutcome,
+    required this.status,
+    required this.createdAt,
+    this.resolvedAt,
+    required this.syncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['contract_id'] = Variable<String>(contractId);
+    map['juror1'] = Variable<String>(juror1);
+    map['juror2'] = Variable<String>(juror2);
+    map['juror3'] = Variable<String>(juror3);
+    map['vote1'] = Variable<int>(vote1);
+    map['vote2'] = Variable<int>(vote2);
+    map['vote3'] = Variable<int>(vote3);
+    map['quorum_outcome'] = Variable<int>(quorumOutcome);
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || resolvedAt != null) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt);
+    }
+    map['synced_at'] = Variable<DateTime>(syncedAt);
+    return map;
+  }
+
+  DisputeCasesCompanion toCompanion(bool nullToAbsent) {
+    return DisputeCasesCompanion(
+      contractId: Value(contractId),
+      juror1: Value(juror1),
+      juror2: Value(juror2),
+      juror3: Value(juror3),
+      vote1: Value(vote1),
+      vote2: Value(vote2),
+      vote3: Value(vote3),
+      quorumOutcome: Value(quorumOutcome),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      resolvedAt: resolvedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolvedAt),
+      syncedAt: Value(syncedAt),
+    );
+  }
+
+  factory DisputeCaseData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DisputeCaseData(
+      contractId: serializer.fromJson<String>(json['contractId']),
+      juror1: serializer.fromJson<String>(json['juror1']),
+      juror2: serializer.fromJson<String>(json['juror2']),
+      juror3: serializer.fromJson<String>(json['juror3']),
+      vote1: serializer.fromJson<int>(json['vote1']),
+      vote2: serializer.fromJson<int>(json['vote2']),
+      vote3: serializer.fromJson<int>(json['vote3']),
+      quorumOutcome: serializer.fromJson<int>(json['quorumOutcome']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
+      syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'contractId': serializer.toJson<String>(contractId),
+      'juror1': serializer.toJson<String>(juror1),
+      'juror2': serializer.toJson<String>(juror2),
+      'juror3': serializer.toJson<String>(juror3),
+      'vote1': serializer.toJson<int>(vote1),
+      'vote2': serializer.toJson<int>(vote2),
+      'vote3': serializer.toJson<int>(vote3),
+      'quorumOutcome': serializer.toJson<int>(quorumOutcome),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
+      'syncedAt': serializer.toJson<DateTime>(syncedAt),
+    };
+  }
+
+  DisputeCaseData copyWith({
+    String? contractId,
+    String? juror1,
+    String? juror2,
+    String? juror3,
+    int? vote1,
+    int? vote2,
+    int? vote3,
+    int? quorumOutcome,
+    String? status,
+    DateTime? createdAt,
+    Value<DateTime?> resolvedAt = const Value.absent(),
+    DateTime? syncedAt,
+  }) => DisputeCaseData(
+    contractId: contractId ?? this.contractId,
+    juror1: juror1 ?? this.juror1,
+    juror2: juror2 ?? this.juror2,
+    juror3: juror3 ?? this.juror3,
+    vote1: vote1 ?? this.vote1,
+    vote2: vote2 ?? this.vote2,
+    vote3: vote3 ?? this.vote3,
+    quorumOutcome: quorumOutcome ?? this.quorumOutcome,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
+    syncedAt: syncedAt ?? this.syncedAt,
+  );
+  DisputeCaseData copyWithCompanion(DisputeCasesCompanion data) {
+    return DisputeCaseData(
+      contractId: data.contractId.present
+          ? data.contractId.value
+          : this.contractId,
+      juror1: data.juror1.present ? data.juror1.value : this.juror1,
+      juror2: data.juror2.present ? data.juror2.value : this.juror2,
+      juror3: data.juror3.present ? data.juror3.value : this.juror3,
+      vote1: data.vote1.present ? data.vote1.value : this.vote1,
+      vote2: data.vote2.present ? data.vote2.value : this.vote2,
+      vote3: data.vote3.present ? data.vote3.value : this.vote3,
+      quorumOutcome: data.quorumOutcome.present
+          ? data.quorumOutcome.value
+          : this.quorumOutcome,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      resolvedAt: data.resolvedAt.present
+          ? data.resolvedAt.value
+          : this.resolvedAt,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DisputeCaseData(')
+          ..write('contractId: $contractId, ')
+          ..write('juror1: $juror1, ')
+          ..write('juror2: $juror2, ')
+          ..write('juror3: $juror3, ')
+          ..write('vote1: $vote1, ')
+          ..write('vote2: $vote2, ')
+          ..write('vote3: $vote3, ')
+          ..write('quorumOutcome: $quorumOutcome, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('syncedAt: $syncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    contractId,
+    juror1,
+    juror2,
+    juror3,
+    vote1,
+    vote2,
+    vote3,
+    quorumOutcome,
+    status,
+    createdAt,
+    resolvedAt,
+    syncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DisputeCaseData &&
+          other.contractId == this.contractId &&
+          other.juror1 == this.juror1 &&
+          other.juror2 == this.juror2 &&
+          other.juror3 == this.juror3 &&
+          other.vote1 == this.vote1 &&
+          other.vote2 == this.vote2 &&
+          other.vote3 == this.vote3 &&
+          other.quorumOutcome == this.quorumOutcome &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.resolvedAt == this.resolvedAt &&
+          other.syncedAt == this.syncedAt);
+}
+
+class DisputeCasesCompanion extends UpdateCompanion<DisputeCaseData> {
+  final Value<String> contractId;
+  final Value<String> juror1;
+  final Value<String> juror2;
+  final Value<String> juror3;
+  final Value<int> vote1;
+  final Value<int> vote2;
+  final Value<int> vote3;
+  final Value<int> quorumOutcome;
+  final Value<String> status;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> resolvedAt;
+  final Value<DateTime> syncedAt;
+  final Value<int> rowid;
+  const DisputeCasesCompanion({
+    this.contractId = const Value.absent(),
+    this.juror1 = const Value.absent(),
+    this.juror2 = const Value.absent(),
+    this.juror3 = const Value.absent(),
+    this.vote1 = const Value.absent(),
+    this.vote2 = const Value.absent(),
+    this.vote3 = const Value.absent(),
+    this.quorumOutcome = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DisputeCasesCompanion.insert({
+    required String contractId,
+    required String juror1,
+    required String juror2,
+    required String juror3,
+    this.vote1 = const Value.absent(),
+    this.vote2 = const Value.absent(),
+    this.vote3 = const Value.absent(),
+    this.quorumOutcome = const Value.absent(),
+    this.status = const Value.absent(),
+    required DateTime createdAt,
+    this.resolvedAt = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : contractId = Value(contractId),
+       juror1 = Value(juror1),
+       juror2 = Value(juror2),
+       juror3 = Value(juror3),
+       createdAt = Value(createdAt);
+  static Insertable<DisputeCaseData> custom({
+    Expression<String>? contractId,
+    Expression<String>? juror1,
+    Expression<String>? juror2,
+    Expression<String>? juror3,
+    Expression<int>? vote1,
+    Expression<int>? vote2,
+    Expression<int>? vote3,
+    Expression<int>? quorumOutcome,
+    Expression<String>? status,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? resolvedAt,
+    Expression<DateTime>? syncedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (contractId != null) 'contract_id': contractId,
+      if (juror1 != null) 'juror1': juror1,
+      if (juror2 != null) 'juror2': juror2,
+      if (juror3 != null) 'juror3': juror3,
+      if (vote1 != null) 'vote1': vote1,
+      if (vote2 != null) 'vote2': vote2,
+      if (vote3 != null) 'vote3': vote3,
+      if (quorumOutcome != null) 'quorum_outcome': quorumOutcome,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (resolvedAt != null) 'resolved_at': resolvedAt,
+      if (syncedAt != null) 'synced_at': syncedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DisputeCasesCompanion copyWith({
+    Value<String>? contractId,
+    Value<String>? juror1,
+    Value<String>? juror2,
+    Value<String>? juror3,
+    Value<int>? vote1,
+    Value<int>? vote2,
+    Value<int>? vote3,
+    Value<int>? quorumOutcome,
+    Value<String>? status,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? resolvedAt,
+    Value<DateTime>? syncedAt,
+    Value<int>? rowid,
+  }) {
+    return DisputeCasesCompanion(
+      contractId: contractId ?? this.contractId,
+      juror1: juror1 ?? this.juror1,
+      juror2: juror2 ?? this.juror2,
+      juror3: juror3 ?? this.juror3,
+      vote1: vote1 ?? this.vote1,
+      vote2: vote2 ?? this.vote2,
+      vote3: vote3 ?? this.vote3,
+      quorumOutcome: quorumOutcome ?? this.quorumOutcome,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+      syncedAt: syncedAt ?? this.syncedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (contractId.present) {
+      map['contract_id'] = Variable<String>(contractId.value);
+    }
+    if (juror1.present) {
+      map['juror1'] = Variable<String>(juror1.value);
+    }
+    if (juror2.present) {
+      map['juror2'] = Variable<String>(juror2.value);
+    }
+    if (juror3.present) {
+      map['juror3'] = Variable<String>(juror3.value);
+    }
+    if (vote1.present) {
+      map['vote1'] = Variable<int>(vote1.value);
+    }
+    if (vote2.present) {
+      map['vote2'] = Variable<int>(vote2.value);
+    }
+    if (vote3.present) {
+      map['vote3'] = Variable<int>(vote3.value);
+    }
+    if (quorumOutcome.present) {
+      map['quorum_outcome'] = Variable<int>(quorumOutcome.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (resolvedAt.present) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt.value);
+    }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<DateTime>(syncedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DisputeCasesCompanion(')
+          ..write('contractId: $contractId, ')
+          ..write('juror1: $juror1, ')
+          ..write('juror2: $juror2, ')
+          ..write('juror3: $juror3, ')
+          ..write('vote1: $vote1, ')
+          ..write('vote2: $vote2, ')
+          ..write('vote3: $vote3, ')
+          ..write('quorumOutcome: $quorumOutcome, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3743,6 +4440,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DraftContractsTable draftContracts = $DraftContractsTable(this);
   late final $SeekerAttestationsTable seekerAttestations =
       $SeekerAttestationsTable(this);
+  late final $DisputeCasesTable disputeCases = $DisputeCasesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3755,6 +4453,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     escrowContracts,
     draftContracts,
     seekerAttestations,
+    disputeCases,
   ];
 }
 
@@ -5697,6 +6396,354 @@ typedef $$SeekerAttestationsTableProcessedTableManager =
       SeekerAttestation,
       PrefetchHooks Function()
     >;
+typedef $$DisputeCasesTableCreateCompanionBuilder =
+    DisputeCasesCompanion Function({
+      required String contractId,
+      required String juror1,
+      required String juror2,
+      required String juror3,
+      Value<int> vote1,
+      Value<int> vote2,
+      Value<int> vote3,
+      Value<int> quorumOutcome,
+      Value<String> status,
+      required DateTime createdAt,
+      Value<DateTime?> resolvedAt,
+      Value<DateTime> syncedAt,
+      Value<int> rowid,
+    });
+typedef $$DisputeCasesTableUpdateCompanionBuilder =
+    DisputeCasesCompanion Function({
+      Value<String> contractId,
+      Value<String> juror1,
+      Value<String> juror2,
+      Value<String> juror3,
+      Value<int> vote1,
+      Value<int> vote2,
+      Value<int> vote3,
+      Value<int> quorumOutcome,
+      Value<String> status,
+      Value<DateTime> createdAt,
+      Value<DateTime?> resolvedAt,
+      Value<DateTime> syncedAt,
+      Value<int> rowid,
+    });
+
+class $$DisputeCasesTableFilterComposer
+    extends Composer<_$AppDatabase, $DisputeCasesTable> {
+  $$DisputeCasesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get juror1 => $composableBuilder(
+    column: $table.juror1,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get juror2 => $composableBuilder(
+    column: $table.juror2,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get juror3 => $composableBuilder(
+    column: $table.juror3,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get vote1 => $composableBuilder(
+    column: $table.vote1,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get vote2 => $composableBuilder(
+    column: $table.vote2,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get vote3 => $composableBuilder(
+    column: $table.vote3,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quorumOutcome => $composableBuilder(
+    column: $table.quorumOutcome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DisputeCasesTableOrderingComposer
+    extends Composer<_$AppDatabase, $DisputeCasesTable> {
+  $$DisputeCasesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get juror1 => $composableBuilder(
+    column: $table.juror1,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get juror2 => $composableBuilder(
+    column: $table.juror2,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get juror3 => $composableBuilder(
+    column: $table.juror3,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get vote1 => $composableBuilder(
+    column: $table.vote1,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get vote2 => $composableBuilder(
+    column: $table.vote2,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get vote3 => $composableBuilder(
+    column: $table.vote3,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quorumOutcome => $composableBuilder(
+    column: $table.quorumOutcome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DisputeCasesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DisputeCasesTable> {
+  $$DisputeCasesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get juror1 =>
+      $composableBuilder(column: $table.juror1, builder: (column) => column);
+
+  GeneratedColumn<String> get juror2 =>
+      $composableBuilder(column: $table.juror2, builder: (column) => column);
+
+  GeneratedColumn<String> get juror3 =>
+      $composableBuilder(column: $table.juror3, builder: (column) => column);
+
+  GeneratedColumn<int> get vote1 =>
+      $composableBuilder(column: $table.vote1, builder: (column) => column);
+
+  GeneratedColumn<int> get vote2 =>
+      $composableBuilder(column: $table.vote2, builder: (column) => column);
+
+  GeneratedColumn<int> get vote3 =>
+      $composableBuilder(column: $table.vote3, builder: (column) => column);
+
+  GeneratedColumn<int> get quorumOutcome => $composableBuilder(
+    column: $table.quorumOutcome,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get syncedAt =>
+      $composableBuilder(column: $table.syncedAt, builder: (column) => column);
+}
+
+class $$DisputeCasesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DisputeCasesTable,
+          DisputeCaseData,
+          $$DisputeCasesTableFilterComposer,
+          $$DisputeCasesTableOrderingComposer,
+          $$DisputeCasesTableAnnotationComposer,
+          $$DisputeCasesTableCreateCompanionBuilder,
+          $$DisputeCasesTableUpdateCompanionBuilder,
+          (
+            DisputeCaseData,
+            BaseReferences<_$AppDatabase, $DisputeCasesTable, DisputeCaseData>,
+          ),
+          DisputeCaseData,
+          PrefetchHooks Function()
+        > {
+  $$DisputeCasesTableTableManager(_$AppDatabase db, $DisputeCasesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DisputeCasesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DisputeCasesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DisputeCasesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> contractId = const Value.absent(),
+                Value<String> juror1 = const Value.absent(),
+                Value<String> juror2 = const Value.absent(),
+                Value<String> juror3 = const Value.absent(),
+                Value<int> vote1 = const Value.absent(),
+                Value<int> vote2 = const Value.absent(),
+                Value<int> vote3 = const Value.absent(),
+                Value<int> quorumOutcome = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> resolvedAt = const Value.absent(),
+                Value<DateTime> syncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DisputeCasesCompanion(
+                contractId: contractId,
+                juror1: juror1,
+                juror2: juror2,
+                juror3: juror3,
+                vote1: vote1,
+                vote2: vote2,
+                vote3: vote3,
+                quorumOutcome: quorumOutcome,
+                status: status,
+                createdAt: createdAt,
+                resolvedAt: resolvedAt,
+                syncedAt: syncedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String contractId,
+                required String juror1,
+                required String juror2,
+                required String juror3,
+                Value<int> vote1 = const Value.absent(),
+                Value<int> vote2 = const Value.absent(),
+                Value<int> vote3 = const Value.absent(),
+                Value<int> quorumOutcome = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                required DateTime createdAt,
+                Value<DateTime?> resolvedAt = const Value.absent(),
+                Value<DateTime> syncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DisputeCasesCompanion.insert(
+                contractId: contractId,
+                juror1: juror1,
+                juror2: juror2,
+                juror3: juror3,
+                vote1: vote1,
+                vote2: vote2,
+                vote3: vote3,
+                quorumOutcome: quorumOutcome,
+                status: status,
+                createdAt: createdAt,
+                resolvedAt: resolvedAt,
+                syncedAt: syncedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DisputeCasesTable, DisputeCaseData>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DisputeCasesTable,
+                    DisputeCaseData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DisputeCasesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DisputeCasesTable,
+      DisputeCaseData,
+      $$DisputeCasesTableFilterComposer,
+      $$DisputeCasesTableOrderingComposer,
+      $$DisputeCasesTableAnnotationComposer,
+      $$DisputeCasesTableCreateCompanionBuilder,
+      $$DisputeCasesTableUpdateCompanionBuilder,
+      (
+        DisputeCaseData,
+        BaseReferences<_$AppDatabase, $DisputeCasesTable, DisputeCaseData>,
+      ),
+      DisputeCaseData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5715,4 +6762,6 @@ class $AppDatabaseManager {
       $$DraftContractsTableTableManager(_db, _db.draftContracts);
   $$SeekerAttestationsTableTableManager get seekerAttestations =>
       $$SeekerAttestationsTableTableManager(_db, _db.seekerAttestations);
+  $$DisputeCasesTableTableManager get disputeCases =>
+      $$DisputeCasesTableTableManager(_db, _db.disputeCases);
 }

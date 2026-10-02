@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:solana/encoder.dart';
 import 'package:solana/solana.dart';
+import '../models/dispute_case.dart';
 import 'network_config.dart';
 
 /// Instruction builders for ClockIn reputation Anchor program.
@@ -82,6 +83,30 @@ class ProgramInstructions {
   /// sha256("global:resolve_token_dispute")[0..8]
   static const List<int> resolveTokenDisputeDiscriminator = [
     42, 3, 244, 169, 158, 178, 251, 10
+  ];
+
+  /// Anchor instruction discriminator for initialize_dispute_case:
+  /// sha256("global:initialize_dispute_case")[0..8]
+  static const List<int> initializeDisputeCaseDiscriminator = [
+    76, 219, 65, 30, 115, 113, 27, 177
+  ];
+
+  /// Anchor instruction discriminator for cast_juror_vote:
+  /// sha256("global:cast_juror_vote")[0..8]
+  static const List<int> castJurorVoteDiscriminator = [
+    188, 185, 249, 80, 46, 77, 192, 91
+  ];
+
+  /// Anchor instruction discriminator for execute_dispute_ruling:
+  /// sha256("global:execute_dispute_ruling")[0..8]
+  static const List<int> executeDisputeRulingDiscriminator = [
+    133, 231, 183, 177, 33, 174, 38, 239
+  ];
+
+  /// Anchor instruction discriminator for execute_token_dispute_ruling:
+  /// sha256("global:execute_token_dispute_ruling")[0..8]
+  static const List<int> executeTokenDisputeRulingDiscriminator = [
+    47, 124, 91, 200, 195, 59, 255, 199
   ];
 
   /// Builds a `register_worker` instruction.
@@ -729,6 +754,197 @@ class ProgramInstructions {
       programId: NetworkConfig.programId,
       accounts: [
         AccountMeta.writeable(pubKey: caller, isSigner: true),
+        AccountMeta.writeable(pubKey: escrowPda, isSigner: false),
+        AccountMeta.readonly(pubKey: mint, isSigner: false),
+        AccountMeta.writeable(pubKey: vaultPda, isSigner: false),
+        AccountMeta.writeable(pubKey: vaultTokenAta, isSigner: false),
+        AccountMeta.writeable(pubKey: worker, isSigner: false),
+        AccountMeta.writeable(pubKey: workerTokenAta, isSigner: false),
+        AccountMeta.writeable(pubKey: employer, isSigner: false),
+        AccountMeta.writeable(pubKey: employerTokenAta, isSigner: false),
+        AccountMeta.readonly(pubKey: NetworkConfig.tokenProgramId, isSigner: false),
+      ],
+      data: ByteArray(uint8List),
+    );
+  }
+
+  /// Builds an `initialize_dispute_case` instruction.
+  /// Accounts:
+  /// 0. [writable, signer] caller
+  /// 1. [] escrow_contract (PDA: [b"escrow", contract_id])
+  /// 2. [writable] dispute_case (PDA: [b"dispute_case", contract_id])
+  /// 3. [] system_program
+  static Future<Instruction> initializeDisputeCase({
+    required Ed25519HDPublicKey caller,
+    required String contractId,
+    required List<Ed25519HDPublicKey> jurors,
+  }) async {
+    if (jurors.length != 3) {
+      throw ArgumentError('Exactly 3 jurors are required');
+    }
+    final escrowPda = await NetworkConfig.findEscrowPda(contractId);
+    final disputeCasePda = await NetworkConfig.findDisputeCasePda(contractId);
+
+    final contractIdBytes = utf8.encode(contractId);
+    final totalLen = 8 + 4 + contractIdBytes.length + (32 * 3);
+    final byteData = ByteData(totalLen);
+    final uint8List = Uint8List(totalLen);
+
+    uint8List.setRange(0, 8, initializeDisputeCaseDiscriminator);
+    int offset = 8;
+    byteData.setUint32(offset, contractIdBytes.length, Endian.little);
+    offset += 4;
+    uint8List.setRange(offset, offset + contractIdBytes.length, contractIdBytes);
+    offset += contractIdBytes.length;
+
+    for (final j in jurors) {
+      uint8List.setRange(offset, offset + 32, j.bytes);
+      offset += 32;
+    }
+
+    return Instruction(
+      programId: NetworkConfig.programId,
+      accounts: [
+        AccountMeta.writeable(pubKey: caller, isSigner: true),
+        AccountMeta.readonly(pubKey: escrowPda, isSigner: false),
+        AccountMeta.writeable(pubKey: disputeCasePda, isSigner: false),
+        AccountMeta.readonly(pubKey: systemProgramId, isSigner: false),
+      ],
+      data: ByteArray(uint8List),
+    );
+  }
+
+  /// Builds a `cast_juror_vote` instruction.
+  /// Accounts:
+  /// 0. [writable, signer] juror
+  /// 1. [writable] dispute_case (PDA: [b"dispute_case", contract_id])
+  static Future<Instruction> castJurorVote({
+    required Ed25519HDPublicKey juror,
+    required String contractId,
+    required DisputeVote vote,
+  }) async {
+    final disputeCasePda = await NetworkConfig.findDisputeCasePda(contractId);
+
+    final contractIdBytes = utf8.encode(contractId);
+    final totalLen = 8 + 4 + contractIdBytes.length + 1;
+    final byteData = ByteData(totalLen);
+    final uint8List = Uint8List(totalLen);
+
+    uint8List.setRange(0, 8, castJurorVoteDiscriminator);
+    int offset = 8;
+    byteData.setUint32(offset, contractIdBytes.length, Endian.little);
+    offset += 4;
+    uint8List.setRange(offset, offset + contractIdBytes.length, contractIdBytes);
+    offset += contractIdBytes.length;
+    uint8List[offset] = vote.value;
+
+    return Instruction(
+      programId: NetworkConfig.programId,
+      accounts: [
+        AccountMeta.writeable(pubKey: juror, isSigner: true),
+        AccountMeta.writeable(pubKey: disputeCasePda, isSigner: false),
+      ],
+      data: ByteArray(uint8List),
+    );
+  }
+
+  /// Builds an `execute_dispute_ruling` instruction (native SOL).
+  /// Accounts:
+  /// 0. [writable, signer] caller
+  /// 1. [writable] dispute_case
+  /// 2. [writable] escrow_contract
+  /// 3. [writable] vault
+  /// 4. [writable] worker
+  /// 5. [writable] employer
+  /// 6. [] system_program
+  static Future<Instruction> executeDisputeRuling({
+    required Ed25519HDPublicKey caller,
+    required String contractId,
+    required Ed25519HDPublicKey worker,
+    required Ed25519HDPublicKey employer,
+  }) async {
+    final disputeCasePda = await NetworkConfig.findDisputeCasePda(contractId);
+    final escrowPda = await NetworkConfig.findEscrowPda(contractId);
+    final vaultPda = await NetworkConfig.findVaultPda(contractId);
+
+    final contractIdBytes = utf8.encode(contractId);
+    final totalLen = 8 + 4 + contractIdBytes.length;
+    final byteData = ByteData(totalLen);
+    final uint8List = Uint8List(totalLen);
+
+    uint8List.setRange(0, 8, executeDisputeRulingDiscriminator);
+    int offset = 8;
+    byteData.setUint32(offset, contractIdBytes.length, Endian.little);
+    offset += 4;
+    uint8List.setRange(offset, offset + contractIdBytes.length, contractIdBytes);
+
+    return Instruction(
+      programId: NetworkConfig.programId,
+      accounts: [
+        AccountMeta.writeable(pubKey: caller, isSigner: true),
+        AccountMeta.writeable(pubKey: disputeCasePda, isSigner: false),
+        AccountMeta.writeable(pubKey: escrowPda, isSigner: false),
+        AccountMeta.writeable(pubKey: vaultPda, isSigner: false),
+        AccountMeta.writeable(pubKey: worker, isSigner: false),
+        AccountMeta.writeable(pubKey: employer, isSigner: false),
+        AccountMeta.readonly(pubKey: systemProgramId, isSigner: false),
+      ],
+      data: ByteArray(uint8List),
+    );
+  }
+
+  /// Builds an `execute_token_dispute_ruling` instruction ($SKR SPL token).
+  /// Accounts:
+  /// 0. [writable, signer] caller
+  /// 1. [writable] dispute_case
+  /// 2. [writable] escrow_contract
+  /// 3. [] mint
+  /// 4. [writable] vault
+  /// 5. [writable] vault_token_account
+  /// 6. [writable] worker
+  /// 7. [writable] worker_token_account
+  /// 8. [writable] employer
+  /// 9. [writable] employer_token_account
+  /// 10. [] token_program
+  static Future<Instruction> executeTokenDisputeRuling({
+    required Ed25519HDPublicKey caller,
+    required String contractId,
+    required Ed25519HDPublicKey mint,
+    required Ed25519HDPublicKey worker,
+    required Ed25519HDPublicKey employer,
+  }) async {
+    final disputeCasePda = await NetworkConfig.findDisputeCasePda(contractId);
+    final escrowPda = await NetworkConfig.findEscrowPda(contractId);
+    final vaultPda = await NetworkConfig.findVaultPda(contractId);
+    final vaultTokenAta = await NetworkConfig.findAssociatedTokenAddress(
+      owner: vaultPda,
+      mint: mint,
+    );
+    final workerTokenAta = await NetworkConfig.findAssociatedTokenAddress(
+      owner: worker,
+      mint: mint,
+    );
+    final employerTokenAta = await NetworkConfig.findAssociatedTokenAddress(
+      owner: employer,
+      mint: mint,
+    );
+
+    final contractIdBytes = utf8.encode(contractId);
+    final totalLen = 8 + 4 + contractIdBytes.length;
+    final byteData = ByteData(totalLen);
+    final uint8List = Uint8List(totalLen);
+
+    uint8List.setRange(0, 8, executeTokenDisputeRulingDiscriminator);
+    int offset = 8;
+    byteData.setUint32(offset, contractIdBytes.length, Endian.little);
+    offset += 4;
+    uint8List.setRange(offset, offset + contractIdBytes.length, contractIdBytes);
+
+    return Instruction(
+      programId: NetworkConfig.programId,
+      accounts: [
+        AccountMeta.writeable(pubKey: caller, isSigner: true),
+        AccountMeta.writeable(pubKey: disputeCasePda, isSigner: false),
         AccountMeta.writeable(pubKey: escrowPda, isSigner: false),
         AccountMeta.readonly(pubKey: mint, isSigner: false),
         AccountMeta.writeable(pubKey: vaultPda, isSigner: false),

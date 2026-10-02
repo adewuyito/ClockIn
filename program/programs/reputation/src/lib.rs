@@ -634,6 +634,234 @@ pub mod reputation {
 
         Ok(())
     }
+
+    // =========================================================================
+    // PHASE 2: SEEKER GUARDIAN DISPUTE ARBITRATION & JUROR PROTOCOL
+    // =========================================================================
+
+    /// Escalate an active disputed escrow contract to a 3-juror Seeker Guardian panel.
+    pub fn initialize_dispute_case(
+        ctx: Context<InitializeDisputeCase>,
+        contract_id: String,
+        jurors: [Pubkey; 3],
+    ) -> Result<()> {
+        require!(contract_id.len() <= MAX_CONTRACT_ID_LEN, ReputationError::ContractIdTooLong);
+        require!(
+            jurors[0] != jurors[1] && jurors[1] != jurors[2] && jurors[0] != jurors[2],
+            ReputationError::InvalidJurorCount
+        );
+        let escrow = &ctx.accounts.escrow_contract;
+        require!(
+            jurors[0] != escrow.employer && jurors[1] != escrow.employer && jurors[2] != escrow.employer,
+            ReputationError::UnauthorizedParticipant
+        );
+        require!(
+            jurors[0] != escrow.worker && jurors[1] != escrow.worker && jurors[2] != escrow.worker,
+            ReputationError::UnauthorizedParticipant
+        );
+
+        let case = &mut ctx.accounts.dispute_case;
+        case.contract_id = contract_id;
+        case.escrow_contract = ctx.accounts.escrow_contract.key();
+        case.jurors = jurors;
+        case.votes = [0, 0, 0];
+        case.quorum_outcome = 0;
+        case.status = DisputeCaseStatus::Voting;
+        case.created_at = Clock::get()?.unix_timestamp;
+        case.resolved_at = 0;
+        case.bump = ctx.bumps.dispute_case;
+        Ok(())
+    }
+
+    /// Assigned Guardian juror casts a binding verdict on an active dispute case.
+    pub fn cast_juror_vote(
+        ctx: Context<CastJurorVote>,
+        _contract_id: String,
+        vote: DisputeVote,
+    ) -> Result<()> {
+        let case = &mut ctx.accounts.dispute_case;
+        require!(case.status == DisputeCaseStatus::Voting, ReputationError::DisputeCaseNotVoting);
+        require!(vote != DisputeVote::None, ReputationError::InvalidRating);
+
+        let juror_key = ctx.accounts.juror.key();
+        let juror_idx = case.jurors.iter().position(|j| *j == juror_key)
+            .ok_or(ReputationError::JurorNotAssigned)?;
+        require!(case.votes[juror_idx] == 0, ReputationError::JurorAlreadyVoted);
+
+        case.votes[juror_idx] = vote as u8;
+
+        // Tally votes to evaluate 2/3 simple majority quorum
+        let mut counts = [0u8; 4];
+        for &v in case.votes.iter() {
+            if (v as usize) < counts.len() {
+                counts[v as usize] += 1;
+            }
+        }
+
+        for outcome in 1..=3 {
+            if counts[outcome] >= 2 {
+                case.status = DisputeCaseStatus::QuorumReached;
+                case.quorum_outcome = outcome as u8;
+                case.resolved_at = Clock::get()?.unix_timestamp;
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Executes the binding ruling reached by juror quorum on a native SOL escrow.
+    pub fn execute_dispute_ruling(
+        ctx: Context<ExecuteDisputeRuling>,
+        _contract_id: String,
+    ) -> Result<()> {
+        let case = &mut ctx.accounts.dispute_case;
+        require!(case.status == DisputeCaseStatus::QuorumReached, ReputationError::QuorumNotReached);
+
+        let contract = &mut ctx.accounts.escrow_contract;
+        let amount = contract.amount;
+
+        match case.quorum_outcome {
+            1 => {
+                // ReleaseToWorker: full escrow to worker
+                **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = ctx
+                    .accounts
+                    .vault
+                    .to_account_info()
+                    .lamports()
+                    .checked_sub(amount)
+                    .ok_or(ReputationError::Overflow)?;
+
+                **ctx.accounts.worker.to_account_info().try_borrow_mut_lamports()? = ctx
+                    .accounts
+                    .worker
+                    .to_account_info()
+                    .lamports()
+                    .checked_add(amount)
+                    .ok_or(ReputationError::Overflow)?;
+
+                contract.status = ContractStatus::Completed;
+                contract.completed_at = Clock::get()?.unix_timestamp;
+            },
+            2 => {
+                // RefundToEmployer: vault closes to employer, returning all funds + rent
+                contract.status = ContractStatus::Cancelled;
+            },
+            3 => {
+                // Split5050: 50% to worker, remainder (50% + rent) to employer via vault close
+                let worker_amount = amount / 2;
+                **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = ctx
+                    .accounts
+                    .vault
+                    .to_account_info()
+                    .lamports()
+                    .checked_sub(worker_amount)
+                    .ok_or(ReputationError::Overflow)?;
+
+                **ctx.accounts.worker.to_account_info().try_borrow_mut_lamports()? = ctx
+                    .accounts
+                    .worker
+                    .to_account_info()
+                    .lamports()
+                    .checked_add(worker_amount)
+                    .ok_or(ReputationError::Overflow)?;
+
+                contract.status = ContractStatus::Completed;
+                contract.completed_at = Clock::get()?.unix_timestamp;
+            },
+            _ => return Err(ReputationError::QuorumNotReached.into()),
+        }
+
+        case.status = DisputeCaseStatus::Executed;
+        Ok(())
+    }
+
+    /// Executes the binding ruling reached by juror quorum on an SPL token ($SKR) escrow.
+    pub fn execute_token_dispute_ruling(
+        ctx: Context<ExecuteTokenDisputeRuling>,
+        _contract_id: String,
+    ) -> Result<()> {
+        let case = &mut ctx.accounts.dispute_case;
+        require!(case.status == DisputeCaseStatus::QuorumReached, ReputationError::QuorumNotReached);
+
+        let contract = &mut ctx.accounts.escrow_contract;
+        let amount = contract.amount;
+        let contract_id_bytes = _contract_id.as_bytes();
+        let vault_bump = contract.vault_bump;
+        let seeds = &[
+            b"vault",
+            contract_id_bytes,
+            &[vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        match case.quorum_outcome {
+            1 => {
+                let cpi_accounts = Transfer {
+                    from: ctx.accounts.vault_token_account.to_account_info(),
+                    to: ctx.accounts.worker_token_account.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                };
+                token::transfer(
+                    CpiContext::new_with_signer(ctx.accounts.token_program.key(), cpi_accounts, signer_seeds),
+                    amount,
+                )?;
+                contract.status = ContractStatus::Completed;
+                contract.completed_at = Clock::get()?.unix_timestamp;
+            },
+            2 => {
+                let cpi_accounts = Transfer {
+                    from: ctx.accounts.vault_token_account.to_account_info(),
+                    to: ctx.accounts.employer_token_account.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                };
+                token::transfer(
+                    CpiContext::new_with_signer(ctx.accounts.token_program.key(), cpi_accounts, signer_seeds),
+                    amount,
+                )?;
+                contract.status = ContractStatus::Cancelled;
+            },
+            3 => {
+                let worker_amount = amount / 2;
+                let employer_amount = amount - worker_amount;
+
+                let cpi_worker = Transfer {
+                    from: ctx.accounts.vault_token_account.to_account_info(),
+                    to: ctx.accounts.worker_token_account.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                };
+                token::transfer(
+                    CpiContext::new_with_signer(ctx.accounts.token_program.key(), cpi_worker, signer_seeds),
+                    worker_amount,
+                )?;
+
+                let cpi_employer = Transfer {
+                    from: ctx.accounts.vault_token_account.to_account_info(),
+                    to: ctx.accounts.employer_token_account.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                };
+                token::transfer(
+                    CpiContext::new_with_signer(ctx.accounts.token_program.key(), cpi_employer, signer_seeds),
+                    employer_amount,
+                )?;
+
+                contract.status = ContractStatus::Completed;
+                contract.completed_at = Clock::get()?.unix_timestamp;
+            },
+            _ => return Err(ReputationError::QuorumNotReached.into()),
+        }
+
+        // Close the Vault ATA, refunding rent lamports to employer
+        let close_accounts = CloseAccount {
+            account: ctx.accounts.vault_token_account.to_account_info(),
+            destination: ctx.accounts.employer.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        token::close_account(CpiContext::new_with_signer(ctx.accounts.token_program.key(), close_accounts, signer_seeds))?;
+
+        case.status = DisputeCaseStatus::Executed;
+        Ok(())
+    }
 }
 
 // =============================================================================
@@ -679,6 +907,21 @@ pub enum ContractStatus {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DisputeResolution {
+    ReleaseToWorker,
+    RefundToEmployer,
+    Split5050,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum DisputeCaseStatus {
+    Voting,
+    QuorumReached,
+    Executed,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum DisputeVote {
+    None,
     ReleaseToWorker,
     RefundToEmployer,
     Split5050,
@@ -733,6 +976,33 @@ impl EscrowVault {
     pub const SPACE: usize = 8 + 1;
 }
 
+/// PDA seeds: [b"dispute_case", contract_id.as_bytes()]
+#[account]
+pub struct DisputeCase {
+    pub contract_id: String,       // 4 + MAX_CONTRACT_ID_LEN
+    pub escrow_contract: Pubkey,   // 32
+    pub jurors: [Pubkey; 3],       // 32 * 3 = 96
+    pub votes: [u8; 3],            // 3 (0=None, 1=Release, 2=Refund, 3=Split)
+    pub quorum_outcome: u8,        // 1 (0=None, 1=Release, 2=Refund, 3=Split)
+    pub status: DisputeCaseStatus,  // 1
+    pub created_at: i64,           // 8
+    pub resolved_at: i64,          // 8
+    pub bump: u8,                  // 1
+}
+
+impl DisputeCase {
+    pub const SPACE: usize = 8
+        + (4 + MAX_CONTRACT_ID_LEN)
+        + 32
+        + 96
+        + 3
+        + 1
+        + 1
+        + 8
+        + 8
+        + 1;
+}
+
 // =============================================================================
 // ERROR CODES
 // =============================================================================
@@ -777,6 +1047,20 @@ pub enum ReputationError {
     NotTokenContract,
     #[msg("Contract is an SPL token escrow. Use token instructions.")]
     TokenContract,
+    #[msg("Signer is not an assigned juror on this dispute case.")]
+    JurorNotAssigned,
+    #[msg("This juror has already cast a vote on this dispute case.")]
+    JurorAlreadyVoted,
+    #[msg("Dispute case is not open for voting.")]
+    DisputeCaseNotVoting,
+    #[msg("Dispute quorum has not been reached yet.")]
+    QuorumNotReached,
+    #[msg("Three distinct jurors are required.")]
+    InvalidJurorCount,
+    #[msg("Escrow contract is not in Disputed status.")]
+    ContractNotDisputed,
+    #[msg("Dispute case has already been executed.")]
+    DisputeAlreadyExecuted,
 }
 
 // =============================================================================
@@ -1178,6 +1462,136 @@ pub struct ResolveTokenDispute<'info> {
         constraint = employer_token_account.owner == employer.key() @ ReputationError::UnauthorizedEmployer,
     )]
     pub employer_token_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
+pub struct InitializeDisputeCase<'info> {
+    #[account(mut)]
+    pub caller: Signer<'info>,
+    #[account(
+        seeds = [b"escrow", contract_id.as_bytes()],
+        bump = escrow_contract.bump,
+        constraint = escrow_contract.status == ContractStatus::Disputed @ ReputationError::ContractNotDisputed,
+        constraint = caller.key() == escrow_contract.employer || caller.key() == escrow_contract.worker @ ReputationError::UnauthorizedParticipant,
+    )]
+    pub escrow_contract: Account<'info, EscrowContract>,
+    #[account(
+        init,
+        payer = caller,
+        space = DisputeCase::SPACE,
+        seeds = [b"dispute_case", contract_id.as_bytes()],
+        bump,
+    )]
+    pub dispute_case: Account<'info, DisputeCase>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
+pub struct CastJurorVote<'info> {
+    #[account(mut)]
+    pub juror: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"dispute_case", contract_id.as_bytes()],
+        bump = dispute_case.bump,
+    )]
+    pub dispute_case: Account<'info, DisputeCase>,
+}
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
+pub struct ExecuteDisputeRuling<'info> {
+    #[account(mut)]
+    pub caller: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"dispute_case", contract_id.as_bytes()],
+        bump = dispute_case.bump,
+    )]
+    pub dispute_case: Box<Account<'info, DisputeCase>>,
+    #[account(
+        mut,
+        seeds = [b"escrow", contract_id.as_bytes()],
+        bump = escrow_contract.bump,
+        has_one = employer @ ReputationError::UnauthorizedEmployer,
+        has_one = worker @ ReputationError::WorkerMismatch,
+        constraint = !escrow_contract.is_token @ ReputationError::TokenContract,
+        constraint = escrow_contract.status == ContractStatus::Disputed @ ReputationError::InvalidContractStatus,
+    )]
+    pub escrow_contract: Box<Account<'info, EscrowContract>>,
+    #[account(
+        mut,
+        close = employer,
+        seeds = [b"vault", contract_id.as_bytes()],
+        bump = escrow_contract.vault_bump,
+    )]
+    pub vault: Account<'info, EscrowVault>,
+    /// CHECK: Worker receives SOL on Release or Split. Validated by has_one on escrow_contract.
+    #[account(mut)]
+    pub worker: UncheckedAccount<'info>,
+    /// CHECK: Employer receives SOL on Refund or Split, and rent refund. Validated by has_one.
+    #[account(mut)]
+    pub employer: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
+pub struct ExecuteTokenDisputeRuling<'info> {
+    #[account(mut)]
+    pub caller: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"dispute_case", contract_id.as_bytes()],
+        bump = dispute_case.bump,
+    )]
+    pub dispute_case: Box<Account<'info, DisputeCase>>,
+    #[account(
+        mut,
+        seeds = [b"escrow", contract_id.as_bytes()],
+        bump = escrow_contract.bump,
+        has_one = employer @ ReputationError::UnauthorizedEmployer,
+        has_one = worker @ ReputationError::WorkerMismatch,
+        constraint = escrow_contract.is_token @ ReputationError::NotTokenContract,
+        constraint = escrow_contract.token_mint == mint.key() @ ReputationError::MintMismatch,
+        constraint = escrow_contract.status == ContractStatus::Disputed @ ReputationError::InvalidContractStatus,
+    )]
+    pub escrow_contract: Box<Account<'info, EscrowContract>>,
+    pub mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        close = employer,
+        seeds = [b"vault", contract_id.as_bytes()],
+        bump = escrow_contract.vault_bump,
+    )]
+    pub vault: Account<'info, EscrowVault>,
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = vault,
+    )]
+    pub vault_token_account: Box<Account<'info, TokenAccount>>,
+    /// CHECK: Worker receives tokens on Release or Split. Validated by has_one.
+    #[account(mut)]
+    pub worker: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = worker_token_account.mint == mint.key() @ ReputationError::MintMismatch,
+        constraint = worker_token_account.owner == worker.key() @ ReputationError::WorkerMismatch,
+    )]
+    pub worker_token_account: Box<Account<'info, TokenAccount>>,
+    /// CHECK: Employer receives tokens on Refund or Split, and rent refund. Validated by has_one.
+    #[account(mut)]
+    pub employer: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = employer_token_account.mint == mint.key() @ ReputationError::MintMismatch,
+        constraint = employer_token_account.owner == employer.key() @ ReputationError::UnauthorizedEmployer,
+    )]
+    pub employer_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
 

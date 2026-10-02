@@ -106,6 +106,26 @@ class SeekerAttestations extends Table {
   Set<Column> get primaryKey => {address};
 }
 
+/// Local cache for Seeker Guardian juror panel and dispute cases.
+@DataClassName('DisputeCaseData')
+class DisputeCases extends Table {
+  TextColumn get contractId => text().withLength(min: 1, max: 32)();
+  TextColumn get juror1 => text()();
+  TextColumn get juror2 => text()();
+  TextColumn get juror3 => text()();
+  IntColumn get vote1 => integer().withDefault(const Constant(0))();
+  IntColumn get vote2 => integer().withDefault(const Constant(0))();
+  IntColumn get vote3 => integer().withDefault(const Constant(0))();
+  IntColumn get quorumOutcome => integer().withDefault(const Constant(0))();
+  TextColumn get status => text().withDefault(const Constant('voting'))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get resolvedAt => dateTime().nullable()();
+  DateTimeColumn get syncedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {contractId};
+}
+
 @DriftDatabase(tables: [
   WorkerProfiles,
   Reviews,
@@ -114,13 +134,14 @@ class SeekerAttestations extends Table {
   EscrowContracts,
   DraftContracts,
   SeekerAttestations,
+  DisputeCases,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -155,7 +176,11 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(escrowContracts, escrowContracts.disputeRaisedBy);
             await m.addColumn(escrowContracts, escrowContracts.disputeRaisedAt);
           }
+          if (from < 9) {
+            await m.createTable(disputeCases);
+          }
         },
       );
 }
+
 

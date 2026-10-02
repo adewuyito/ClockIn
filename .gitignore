@@ -37,6 +37,8 @@ DerivedData/
 *.swp
 *.iml
 .idea/
+*.sqlite
+*.sqlite-*
 
 # Secrets — never committed, ever
 *.pem

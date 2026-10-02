@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:solana/solana.dart';
 import '../models/escrow_contract.dart' as domain;
+import '../models/dispute_case.dart';
 import '../solana/contract_service.dart';
 import '../solana/network_config.dart';
 import '../solana/program_instructions.dart';
@@ -557,5 +558,232 @@ class ContractRepository {
   /// Deletes a draft contract by its local SQLite ID.
   Future<void> deleteDraftContract(int id) async {
     await (db.delete(db.draftContracts)..where((tbl) => tbl.id.equals(id))).go();
+  }
+
+  // ==================== DISPUTE CASE METHODS ====================
+
+  DisputeCase _disputeCaseRowToDomain(DisputeCaseData row) {
+    final DisputeCaseStatus status;
+    switch (row.status) {
+      case 'quorum_reached':
+        status = DisputeCaseStatus.quorumReached;
+        break;
+      case 'executed':
+        status = DisputeCaseStatus.executed;
+        break;
+      case 'voting':
+      default:
+        status = DisputeCaseStatus.voting;
+        break;
+    }
+
+    return DisputeCase(
+      contractId: row.contractId,
+      juror1: row.juror1,
+      juror2: row.juror2,
+      juror3: row.juror3,
+      vote1: row.vote1,
+      vote2: row.vote2,
+      vote3: row.vote3,
+      quorumOutcome: row.quorumOutcome,
+      status: status,
+      createdAt: row.createdAt,
+      resolvedAt: row.resolvedAt,
+      syncedAt: row.syncedAt,
+    );
+  }
+
+  Future<void> _upsertOnChainDisputeCase(DisputeCase disputeCase) async {
+    String statusStr = 'voting';
+    switch (disputeCase.status) {
+      case DisputeCaseStatus.quorumReached:
+        statusStr = 'quorum_reached';
+        break;
+      case DisputeCaseStatus.executed:
+        statusStr = 'executed';
+        break;
+      case DisputeCaseStatus.voting:
+        statusStr = 'voting';
+        break;
+    }
+
+    await db.into(db.disputeCases).insertOnConflictUpdate(
+          DisputeCasesCompanion.insert(
+            contractId: disputeCase.contractId,
+            juror1: disputeCase.juror1,
+            juror2: disputeCase.juror2,
+            juror3: disputeCase.juror3,
+            vote1: Value(disputeCase.vote1),
+            vote2: Value(disputeCase.vote2),
+            vote3: Value(disputeCase.vote3),
+            quorumOutcome: Value(disputeCase.quorumOutcome),
+            status: Value(statusStr),
+            createdAt: disputeCase.createdAt,
+            resolvedAt: Value(disputeCase.resolvedAt),
+            syncedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+  }
+
+  /// Watches a dispute case reactively from local Drift database.
+  Stream<DisputeCase?> watchDisputeCase(String contractId) {
+    final query = db.select(db.disputeCases)
+      ..where((tbl) => tbl.contractId.equals(contractId));
+
+    return query.watchSingleOrNull().map((row) => row != null ? _disputeCaseRowToDomain(row) : null);
+  }
+
+  /// Gets a dispute case from Drift or fetches from Solana RPC.
+  Future<DisputeCase?> getDisputeCase(
+    String contractId, {
+    bool forceRefresh = false,
+  }) async {
+    final cached = await (db.select(db.disputeCases)
+          ..where((tbl) => tbl.contractId.equals(contractId)))
+        .getSingleOrNull();
+
+    if (cached != null && !forceRefresh) {
+      // Background sync
+      // ignore: unawaited_futures
+      refreshDisputeCase(contractId);
+      return _disputeCaseRowToDomain(cached);
+    }
+
+    return await refreshDisputeCase(contractId);
+  }
+
+  /// Refreshes dispute case state from on-chain Solana RPC into Drift.
+  Future<DisputeCase?> refreshDisputeCase(String contractId) async {
+    final onChain = await contractService.getDisputeCase(contractId);
+    if (onChain != null) {
+      await _upsertOnChainDisputeCase(onChain);
+      return onChain;
+    }
+    return null;
+  }
+
+  /// Initializes an on-chain DisputeCase with 3 Guardian jurors and caches in Drift.
+  Future<String> initializeDisputeCase({
+    required Ed25519HDPublicKey caller,
+    required String contractId,
+    required List<Ed25519HDPublicKey> jurors,
+    required WalletAdapter walletAdapter,
+  }) async {
+    final signature = await contractService.initializeDisputeCase(
+      caller: caller,
+      contractId: contractId,
+      jurors: jurors,
+      walletAdapter: walletAdapter,
+    );
+
+    // Optimistically update Drift cache
+    await db.into(db.disputeCases).insertOnConflictUpdate(
+          DisputeCasesCompanion.insert(
+            contractId: contractId,
+            juror1: jurors[0].toBase58(),
+            juror2: jurors[1].toBase58(),
+            juror3: jurors[2].toBase58(),
+            vote1: const Value(0),
+            vote2: const Value(0),
+            vote3: const Value(0),
+            quorumOutcome: const Value(0),
+            status: const Value('voting'),
+            createdAt: DateTime.now().toUtc(),
+            resolvedAt: const Value(null),
+            syncedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+
+    // Refresh from on-chain
+    // ignore: unawaited_futures
+    refreshDisputeCase(contractId);
+
+    return signature;
+  }
+
+  /// Casts an on-chain juror vote and updates Drift cache.
+  Future<String> castJurorVote({
+    required Ed25519HDPublicKey juror,
+    required String contractId,
+    required DisputeVote vote,
+    required WalletAdapter walletAdapter,
+  }) async {
+    final signature = await contractService.castJurorVote(
+      juror: juror,
+      contractId: contractId,
+      vote: vote,
+      walletAdapter: walletAdapter,
+    );
+
+    // Trigger on-chain refresh to get authoritative vote tally and quorum
+    await refreshDisputeCase(contractId);
+
+    return signature;
+  }
+
+  /// Executes an on-chain dispute ruling upon quorum and updates both DisputeCase and EscrowContract in Drift.
+  Future<String> executeDisputeRuling({
+    required domain.EscrowContract contract,
+    required Ed25519HDPublicKey caller,
+    required WalletAdapter walletAdapter,
+  }) async {
+    final signature = contract.isToken
+        ? await contractService.executeTokenDisputeRuling(
+            caller: caller,
+            contractId: contract.contractId,
+            worker: Ed25519HDPublicKey.fromBase58(contract.worker),
+            employer: Ed25519HDPublicKey.fromBase58(contract.employer),
+            mint: Ed25519HDPublicKey.fromBase58(contract.tokenMint ?? NetworkConfig.devnetSkrMint),
+            walletAdapter: walletAdapter,
+          )
+        : await contractService.executeDisputeRuling(
+            caller: caller,
+            contractId: contract.contractId,
+            worker: Ed25519HDPublicKey.fromBase58(contract.worker),
+            employer: Ed25519HDPublicKey.fromBase58(contract.employer),
+            walletAdapter: walletAdapter,
+          );
+
+    // Fetch dispute case to find quorum outcome
+    final disputeCase = await contractService.getDisputeCase(contract.contractId);
+
+    final domain.ContractStatus finalStatus;
+    if (disputeCase?.quorumOutcome == 2) {
+      finalStatus = domain.ContractStatus.cancelled;
+    } else {
+      finalStatus = domain.ContractStatus.completed;
+    }
+
+    // Update escrow contract in Drift
+    await (db.update(db.escrowContracts)
+          ..where((tbl) => tbl.contractId.equals(contract.contractId)))
+        .write(
+      EscrowContractsCompanion(
+        status: Value(finalStatus.name),
+        lastTxSignature: Value(signature),
+        syncedAt: Value(DateTime.now().toUtc()),
+        completedAt: Value(BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000)),
+      ),
+    );
+
+    // Update dispute case in Drift
+    if (disputeCase != null) {
+      await _upsertOnChainDisputeCase(disputeCase);
+    } else {
+      await (db.update(db.disputeCases)
+            ..where((tbl) => tbl.contractId.equals(contract.contractId)))
+          .write(
+        DisputeCasesCompanion(
+          status: const Value('executed'),
+          resolvedAt: Value(DateTime.now().toUtc()),
+          syncedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+    }
+
+    // ignore: unawaited_futures
+    refreshContract(contract.contractId);
+
+    return signature;
   }
 }

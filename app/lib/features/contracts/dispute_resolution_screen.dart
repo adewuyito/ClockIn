@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:solana/solana.dart';
 import '../../core/models/escrow_contract.dart';
+import '../../core/models/dispute_case.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/network_config.dart';
 import '../../core/solana/program_instructions.dart';
@@ -27,6 +28,221 @@ class DisputeResolutionScreen extends ConsumerStatefulWidget {
 class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScreen> {
   final List<String> _additionalEvidence = [];
   bool _isResolving = false;
+  bool _isInitializingPanel = false;
+  bool _isCastingVote = false;
+  bool _isExecutingRuling = false;
+
+  Future<void> _handleInitializePanel(EscrowContract contract) async {
+    final wallet = ref.read(walletStateProvider);
+    final walletAdapter = ref.read(walletAdapterProvider);
+    final contractRepo = ref.read(contractRepositoryProvider);
+
+    if (!wallet.isConnected || wallet.publicKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please connect your Solana wallet first.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isInitializingPanel = true);
+
+    try {
+      final jurors = [
+        Ed25519HDPublicKey.fromBase58('Ac4CjecDdASGmd3y4UPGXrutxEV9Prh5d4e1YS5bFhrm'),
+        Ed25519HDPublicKey.fromBase58('AmSQZU4Qvuxu7eamHXEvyigqS9nhEm8AfkdTTmLJwZJu'),
+        Ed25519HDPublicKey.fromBase58('DHFXmMhC4Dds57pkXjijYqFENBWPST4VfwtDSbZ13QjM'),
+      ];
+
+      // If connected wallet is a 3rd party (neither employer nor worker), assign them as Juror #1
+      final userAddress = wallet.publicKey!.toBase58();
+      if (!contract.isEmployer(userAddress) && !contract.isWorker(userAddress)) {
+        jurors[0] = wallet.publicKey!;
+      }
+
+      final sig = await contractRepo.initializeDisputeCase(
+        caller: wallet.publicKey!,
+        contractId: contract.contractId,
+        jurors: jurors,
+        walletAdapter: walletAdapter,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Guardian Juror panel assembled! Tx: ${sig.substring(0, 8)}…'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error assembling juror panel: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isInitializingPanel = false);
+    }
+  }
+
+  Future<void> _handleCastJurorVote(
+    DisputeCase disputeCase,
+    DisputeVote vote,
+    Ed25519HDPublicKey jurorKey,
+  ) async {
+    final wallet = ref.read(walletStateProvider);
+    final walletAdapter = ref.read(walletAdapterProvider);
+    final contractRepo = ref.read(contractRepositoryProvider);
+
+    if (!wallet.isConnected || wallet.publicKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please connect your Solana wallet first.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final voteName = DisputeCase.voteDisplay(vote.value);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Cast Juror Vote: $voteName?'),
+        content: const Text(
+          'As a Seeker Guardian Juror, your vote is binding on-chain. When 2 of 3 jurors agree, simple majority quorum is achieved and escrow is unlocked for release.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirm & Sign Vote'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isCastingVote = true);
+
+    try {
+      final sig = await contractRepo.castJurorVote(
+        juror: jurorKey,
+        contractId: disputeCase.contractId,
+        vote: vote,
+        walletAdapter: walletAdapter,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Binding juror vote confirmed! Tx: ${sig.substring(0, 8)}…'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error casting juror vote: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCastingVote = false);
+    }
+  }
+
+  Future<void> _handleExecuteRuling(
+    EscrowContract contract,
+    DisputeCase disputeCase,
+  ) async {
+    final wallet = ref.read(walletStateProvider);
+    final walletAdapter = ref.read(walletAdapterProvider);
+    final contractRepo = ref.read(contractRepositoryProvider);
+
+    if (!wallet.isConnected || wallet.publicKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please connect your Solana wallet first.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Execute Ruling: ${disputeCase.outcomeDisplay}?'),
+        content: Text(
+          'Quorum (2/3 majority) has been achieved on Solana.\n\nExecuting this transaction will transfer all escrow funds according to the binding ruling (${disputeCase.outcomeDisplay}) and close the vault account.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Execute On-Chain Ruling'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isExecutingRuling = true);
+
+    try {
+      final sig = await contractRepo.executeDisputeRuling(
+        contract: contract,
+        caller: wallet.publicKey!,
+        walletAdapter: walletAdapter,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Dispute ruling executed on Solana! Tx: ${sig.substring(0, 8)}…'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error executing dispute ruling: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExecutingRuling = false);
+    }
+  }
 
   void _showAddEvidenceDialog() {
     final textController = TextEditingController();
@@ -528,6 +744,8 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
           }
 
           final caseId = 'DISP-${contract.contractId.substring(0, contract.contractId.length >= 6 ? 6 : contract.contractId.length).toUpperCase()}';
+          final disputeCaseAsync = ref.watch(disputeCaseProvider(contract.contractId));
+          final disputeCase = disputeCaseAsync.valueOrNull;
 
           return FutureBuilder<Ed25519HDPublicKey>(
             future: NetworkConfig.findVaultPda(contract.contractId),
@@ -685,131 +903,21 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
               // Filed Dispute Claim & Statement
               _buildDisputeClaimCard(contract),
 
+              // Assemble Juror Panel CTA (if not yet assembled)
+              if (disputeCase == null) _buildAssembleJurorPanelCard(contract),
+
               // Seeker Guardian Jurors Panel
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Seeker Guardian Jurors',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '3 randomly selected Seeker Guardian stakers are assigned to review evidence and cast binding release votes.',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        color: AppColors.onSurfaceVariant,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Voting Progress Indicator
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'VOTING PROGRESS',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.onSurfaceVariant,
-                                ),
-                              ),
-                              Text(
-                                '1 of 3 Votes Cast',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: const LinearProgressIndicator(
-                              value: 1 / 3,
-                              minHeight: 6,
-                              backgroundColor: AppColors.surfaceContainerHigh,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.success),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Target: Simple Majority (2 Votes)',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 10.5,
-                                  color: AppColors.onSurfaceVariant,
-                                ),
-                              ),
-                              Text(
-                                '1 Release Vote',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.success,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 3 Juror Rows
-                    _buildJurorRow(
-                      id: 'J1',
-                      name: 'Juror #1 • Guardian Helius',
-                      stake: '250 \$SKR Staked • Slot #2849102',
-                      status: 'Reviewing Evidence',
-                      isDone: false,
-                    ),
-                    const Divider(height: 1, color: AppColors.surfaceContainerHigh),
-                    _buildJurorRow(
-                      id: 'J2',
-                      name: 'Juror #2 • Guardian Triton',
-                      stake: '500 \$SKR Staked • Slot #2849105',
-                      status: 'Reviewing Evidence',
-                      isDone: false,
-                    ),
-                    const Divider(height: 1, color: AppColors.surfaceContainerHigh),
-                    _buildJurorRow(
-                      id: 'J3',
-                      name: 'Juror #3 • Guardian Jito',
-                      stake: '250 \$SKR Staked • Slot #2849118',
-                      status: 'Vote Cast: Release',
-                      isDone: true,
-                    ),
-                  ],
-                ),
-              ),
+              _buildGuardianJurorsPanel(disputeCase, contract),
               const SizedBox(height: 18),
+
+              // Juror Action & Quorum Execution Cards
+              if (disputeCase != null) ...[
+                _buildJurorActionCard(disputeCase),
+                if (disputeCase.status == DisputeCaseStatus.quorumReached)
+                  _buildQuorumExecutionCard(contract, disputeCase),
+                if (disputeCase.status == DisputeCaseStatus.executed)
+                  _buildRulingExecutedCard(disputeCase),
+              ],
 
               // Contract Terms & Evidence Section
               Container(
@@ -1309,6 +1417,573 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAssembleJurorPanelCard(EscrowContract contract) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.people_alt_rounded, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Guardian Panel Not Yet Assembled',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    Text(
+                      'Arbitration requires 3 active Seeker Guardian stakers.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Escrow is locked on Solana. Initialize a 3-juror Guardian panel on Devnet to review deliverables and issue a binding ruling.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              color: AppColors.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed: _isInitializingPanel ? null : () => _handleInitializePanel(contract),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: _isInitializingPanel
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.how_to_reg_rounded, size: 18),
+              label: Text(
+                _isInitializingPanel ? 'Assembling Jurors on Solana…' : 'Assemble Seeker Juror Panel',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuardianJurorsPanel(DisputeCase? disputeCase, EscrowContract contract) {
+    final votesCast = disputeCase?.votesCastCount ?? 0;
+    final progress = votesCast / 3.0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.shield_outlined, size: 18, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Seeker Guardian Jurors',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: disputeCase != null && disputeCase.status == DisputeCaseStatus.quorumReached
+                      ? AppColors.successContainer.withValues(alpha: 0.5)
+                      : AppColors.primaryContainer.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  disputeCase != null
+                      ? '${disputeCase.votesCastCount}/3 VOTES'
+                      : 'PANEL PENDING',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: disputeCase != null && disputeCase.status == DisputeCaseStatus.quorumReached
+                        ? AppColors.success
+                        : AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            disputeCase == null
+                ? '3 Guardian Jurors will be randomly selected from active \$SKR stakers upon panel assembly.'
+                : '3 assigned Seeker Guardian stakers reviewing evidence. 2/3 majority required for quorum.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11.5,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+          if (disputeCase != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: AppColors.surfaceContainerHigh,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  disputeCase.status == DisputeCaseStatus.quorumReached ||
+                          disputeCase.status == DisputeCaseStatus.executed
+                      ? AppColors.success
+                      : AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _buildJurorRow(
+            id: '1',
+            name: disputeCase != null ? '${disputeCase.shortJuror(0)} (Helius Guardian)' : 'Helius Guardian #1',
+            stake: '500 \$SKR Staked • Tier 1',
+            status: disputeCase == null
+                ? 'Awaiting Init'
+                : (disputeCase.hasVoted(0)
+                    ? 'Voted: ${DisputeCase.voteDisplay(disputeCase.vote1)}'
+                    : 'Reviewing Evidence'),
+            isDone: disputeCase?.hasVoted(0) ?? false,
+          ),
+          const Divider(height: 1, color: AppColors.surfaceContainerHigh),
+          _buildJurorRow(
+            id: '2',
+            name: disputeCase != null ? '${disputeCase.shortJuror(1)} (Triton Guardian)' : 'Triton Guardian #2',
+            stake: '250 \$SKR Staked • Tier 2',
+            status: disputeCase == null
+                ? 'Awaiting Init'
+                : (disputeCase.hasVoted(1)
+                    ? 'Voted: ${DisputeCase.voteDisplay(disputeCase.vote2)}'
+                    : 'Reviewing Evidence'),
+            isDone: disputeCase?.hasVoted(1) ?? false,
+          ),
+          const Divider(height: 1, color: AppColors.surfaceContainerHigh),
+          _buildJurorRow(
+            id: '3',
+            name: disputeCase != null ? '${disputeCase.shortJuror(2)} (Jito Guardian)' : 'Jito Guardian #3',
+            stake: '750 \$SKR Staked • Tier 1',
+            status: disputeCase == null
+                ? 'Awaiting Init'
+                : (disputeCase.hasVoted(2)
+                    ? 'Voted: ${DisputeCase.voteDisplay(disputeCase.vote3)}'
+                    : 'Reviewing Evidence'),
+            isDone: disputeCase?.hasVoted(2) ?? false,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 14, color: AppColors.outline),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Simple Majority Quorum: When 2 out of 3 jurors vote for the same ruling, escrow is unlocked for execution.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJurorActionCard(DisputeCase disputeCase) {
+    final wallet = ref.watch(walletStateProvider);
+    final userAddress = wallet.publicKey?.toBase58();
+    if (userAddress == null) return const SizedBox.shrink();
+
+    final jurorIndex = disputeCase.jurors.indexOf(userAddress);
+    // If not a juror, or already executed, don't show voting actions
+    if (jurorIndex == -1 || disputeCase.status == DisputeCaseStatus.executed) {
+      return const SizedBox.shrink();
+    }
+
+    final hasVoted = disputeCase.hasVoted(jurorIndex);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.shield_rounded, size: 16, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'YOU ARE JUROR #${jurorIndex + 1}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: hasVoted ? AppColors.success : const Color(0xFFFEF7ED),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  hasVoted ? 'VOTE RECORDED' : 'VOTE REQUIRED',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: hasVoted ? Colors.white : AppColors.warning,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (hasVoted) ...[
+            Text(
+              'Your binding vote (${DisputeCase.voteDisplay(disputeCase.votes[jurorIndex])}) has been cryptographically confirmed on Solana Devnet. Awaiting other jurors for quorum.',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                color: AppColors.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
+          ] else ...[
+            Text(
+              'As an active Seeker Guardian staker, review the submitted deliverable evidence and contract hash above. Your vote is binding on-chain:',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                color: AppColors.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            _buildJurorVoteButton(
+              label: 'Vote: Release to Worker',
+              color: AppColors.success,
+              icon: Icons.check_circle_outline_rounded,
+              onTap: _isCastingVote
+                  ? null
+                  : () => _handleCastJurorVote(
+                        disputeCase,
+                        DisputeVote.releaseToWorker,
+                        wallet.publicKey!,
+                      ),
+            ),
+            const SizedBox(height: 8),
+            _buildJurorVoteButton(
+              label: 'Vote: Refund to Employer',
+              color: AppColors.warning,
+              icon: Icons.replay_rounded,
+              onTap: _isCastingVote
+                  ? null
+                  : () => _handleCastJurorVote(
+                        disputeCase,
+                        DisputeVote.refundToEmployer,
+                        wallet.publicKey!,
+                      ),
+            ),
+            const SizedBox(height: 8),
+            _buildJurorVoteButton(
+              label: 'Vote: Split 50% / 50%',
+              color: AppColors.primary,
+              icon: Icons.pie_chart_outline_rounded,
+              onTap: _isCastingVote
+                  ? null
+                  : () => _handleCastJurorVote(
+                        disputeCase,
+                        DisputeVote.split5050,
+                        wallet.publicKey!,
+                      ),
+            ),
+            if (_isCastingVote) ...[
+              const SizedBox(height: 10),
+              const Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(width: 8),
+                    Text('Signing and broadcasting vote to Solana…'),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJurorVoteButton({
+    required String label,
+    required Color color,
+    required IconData icon,
+    required VoidCallback? onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 42,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: color,
+          side: BorderSide(color: color.withValues(alpha: 0.6)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        icon: Icon(icon, size: 16),
+        label: Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuorumExecutionCard(EscrowContract contract, DisputeCase disputeCase) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.successContainer.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.success, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.gavel_rounded, color: AppColors.success, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'QUORUM ACHIEVED (2/3 MAJORITY)',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.success,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.success,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'READY TO EXECUTE',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'BINDING JUROR VERDICT',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.outline,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  disputeCase.outcomeDisplay,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'The Seeker Guardian Juror panel has completed arbitration. Any participant or juror can now execute this settlement on Solana to transfer escrow funds and close the vault account.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              color: AppColors.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed: _isExecutingRuling ? null : () => _handleExecuteRuling(contract, disputeCase),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: _isExecutingRuling
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check_circle_rounded, size: 18),
+              label: Text(
+                _isExecutingRuling ? 'Executing Ruling on Solana…' : 'Execute On-Chain Ruling',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRulingExecutedCard(DisputeCase disputeCase) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.success, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.task_alt_rounded, color: AppColors.success, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'DISPUTE RULING FINALIZED & EXECUTED',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.success,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The dispute ruling (${disputeCase.outcomeDisplay}) has been executed on Solana Devnet. Escrow funds were programmatically released according to the Seeker Guardian 2/3 juror verdict and the vault account is closed.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              color: AppColors.onSurfaceVariant,
+              height: 1.45,
+            ),
+          ),
         ],
       ),
     );

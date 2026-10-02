@@ -96,6 +96,18 @@ class NetworkConfig {
     );
   }
 
+  /// Computes the DisputeCase Program Derived Address (PDA).
+  /// Seeds: [b"dispute_case", contract_id]
+  static Future<Ed25519HDPublicKey> findDisputeCasePda(String contractId) async {
+    return Ed25519HDPublicKey.findProgramAddress(
+      seeds: [
+        utf8.encode('dispute_case'),
+        utf8.encode(contractId),
+      ],
+      programId: programId,
+    );
+  }
+
   /// SPL Token Program ID: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
   static final Ed25519HDPublicKey tokenProgramId =
       Ed25519HDPublicKey.fromBase58('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');

@@ -5,6 +5,7 @@ import 'package:solana/dto.dart' hide Instruction;
 import 'package:solana/encoder.dart';
 import 'package:solana/solana.dart';
 import '../models/escrow_contract.dart';
+import '../models/dispute_case.dart';
 import 'account_decoders.dart';
 import 'network_config.dart';
 import 'program_instructions.dart';
@@ -675,6 +676,211 @@ class ContractService {
               source: userAta,
               destination: guardianVaultAta,
               owner: wallet,
+            ),
+          );
+
+          return instructions;
+        },
+      );
+
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
+
+  /// Fetches an on-chain DisputeCase account by contractId.
+  /// Returns null if not found.
+  Future<DisputeCase?> getDisputeCase(String contractId) async {
+    try {
+      final pda = await NetworkConfig.findDisputeCasePda(contractId);
+      final accountInfo = await solanaClient.rpcClient.getAccountInfo(
+        pda.toBase58(),
+        encoding: Encoding.base64,
+        commitment: Commitment.confirmed,
+      );
+
+      final account = accountInfo.value;
+      if (account == null) {
+        return null;
+      }
+
+      final data = account.data;
+      if (data is BinaryAccountData) {
+        return AccountDecoders.decodeDisputeCase(data.data);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Initializes an on-chain DisputeCase with 3 assigned Guardian jurors.
+  Future<String> initializeDisputeCase({
+    required Ed25519HDPublicKey caller,
+    required String contractId,
+    required List<Ed25519HDPublicKey> jurors,
+    required WalletAdapter walletAdapter,
+  }) async {
+    try {
+      final signature = await _signAndSendInstructionsWithRetry(
+        feePayer: caller,
+        walletAdapter: walletAdapter,
+        buildInstructions: () async {
+          final instruction = await ProgramInstructions.initializeDisputeCase(
+            caller: caller,
+            contractId: contractId,
+            jurors: jurors,
+          );
+          return [instruction];
+        },
+      );
+
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
+
+  /// Assigned Guardian juror casts their vote on an active dispute case.
+  Future<String> castJurorVote({
+    required Ed25519HDPublicKey juror,
+    required String contractId,
+    required DisputeVote vote,
+    required WalletAdapter walletAdapter,
+  }) async {
+    try {
+      final signature = await _signAndSendInstructionsWithRetry(
+        feePayer: juror,
+        walletAdapter: walletAdapter,
+        buildInstructions: () async {
+          final instruction = await ProgramInstructions.castJurorVote(
+            juror: juror,
+            contractId: contractId,
+            vote: vote,
+          );
+          return [instruction];
+        },
+      );
+
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
+
+  /// Executes the quorum outcome on a native SOL escrow dispute case.
+  Future<String> executeDisputeRuling({
+    required Ed25519HDPublicKey caller,
+    required String contractId,
+    required Ed25519HDPublicKey worker,
+    required Ed25519HDPublicKey employer,
+    required WalletAdapter walletAdapter,
+  }) async {
+    try {
+      final signature = await _signAndSendInstructionsWithRetry(
+        feePayer: caller,
+        walletAdapter: walletAdapter,
+        buildInstructions: () async {
+          final instruction = await ProgramInstructions.executeDisputeRuling(
+            caller: caller,
+            contractId: contractId,
+            worker: worker,
+            employer: employer,
+          );
+          return [instruction];
+        },
+      );
+
+      await solanaClient.waitForSignatureStatus(
+        signature,
+        status: Commitment.confirmed,
+      );
+
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
+    }
+  }
+
+  /// Executes the quorum outcome on an SPL token ($SKR) escrow dispute case.
+  Future<String> executeTokenDisputeRuling({
+    required Ed25519HDPublicKey caller,
+    required String contractId,
+    required Ed25519HDPublicKey worker,
+    required Ed25519HDPublicKey employer,
+    required Ed25519HDPublicKey mint,
+    required WalletAdapter walletAdapter,
+  }) async {
+    try {
+      final signature = await _signAndSendInstructionsWithRetry(
+        feePayer: caller,
+        walletAdapter: walletAdapter,
+        buildInstructions: () async {
+          final instructions = <Instruction>[];
+
+          // Check if worker ATA exists
+          final workerAta = await NetworkConfig.findAssociatedTokenAddress(
+            owner: worker,
+            mint: mint,
+          );
+          final workerAtaInfo = await solanaClient.rpcClient.getAccountInfo(
+            workerAta.toBase58(),
+            encoding: Encoding.base64,
+            commitment: Commitment.confirmed,
+          );
+          if (workerAtaInfo.value == null) {
+            instructions.add(
+              await ProgramInstructions.createAssociatedTokenAccountIdempotent(
+                fundingAccount: caller,
+                walletAddress: worker,
+                mint: mint,
+              ),
+            );
+          }
+
+          // Check if employer ATA exists
+          final employerAta = await NetworkConfig.findAssociatedTokenAddress(
+            owner: employer,
+            mint: mint,
+          );
+          final employerAtaInfo = await solanaClient.rpcClient.getAccountInfo(
+            employerAta.toBase58(),
+            encoding: Encoding.base64,
+            commitment: Commitment.confirmed,
+          );
+          if (employerAtaInfo.value == null) {
+            instructions.add(
+              await ProgramInstructions.createAssociatedTokenAccountIdempotent(
+                fundingAccount: caller,
+                walletAddress: employer,
+                mint: mint,
+              ),
+            );
+          }
+
+          instructions.add(
+            await ProgramInstructions.executeTokenDisputeRuling(
+              caller: caller,
+              contractId: contractId,
+              mint: mint,
+              worker: worker,
+              employer: employer,
             ),
           );
 

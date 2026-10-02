@@ -5,6 +5,7 @@ import '../database/reputation_repository.dart';
 import '../database/contract_repository.dart';
 import '../database/attestation_repository.dart';
 import '../models/escrow_contract.dart';
+import '../models/dispute_case.dart';
 import '../models/review.dart';
 import '../models/seeker_attestation.dart';
 import '../models/worker_profile.dart';
@@ -221,6 +222,14 @@ final contractProvider = StreamProvider.family<EscrowContract?, String>((ref, co
   final repository = ref.watch(contractRepositoryProvider);
   repository.getContract(contractId);
   return repository.watchContract(contractId);
+});
+
+/// Watches a DisputeCase for a contract reactively from local Drift database,
+/// while triggering an on-chain refresh from Solana RPC.
+final disputeCaseProvider = StreamProvider.family<DisputeCase?, String>((ref, contractId) {
+  final repository = ref.watch(contractRepositoryProvider);
+  repository.getDisputeCase(contractId);
+  return repository.watchDisputeCase(contractId);
 });
 
 /// Watches all offline draft contracts from local Drift database.

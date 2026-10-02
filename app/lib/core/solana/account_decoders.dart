@@ -4,6 +4,7 @@ import 'package:solana/solana.dart';
 import '../models/worker_profile.dart';
 import '../models/review.dart';
 import '../models/escrow_contract.dart';
+import '../models/dispute_case.dart';
 
 /// Decoders for Anchor accounts stored on Solana.
 class AccountDecoders {
@@ -22,6 +23,11 @@ class AccountDecoders {
   /// Anchor account discriminator for EscrowContract: sha256("account:EscrowContract")[0..8]
   static const List<int> escrowContractDiscriminator = [
     217, 21, 73, 45, 210, 127, 211, 81
+  ];
+
+  /// Anchor account discriminator for DisputeCase: sha256("account:DisputeCase")[0..8]
+  static const List<int> disputeCaseDiscriminator = [
+    164, 200, 54, 239, 94, 76, 51, 130
   ];
 
   /// Decodes raw binary account data into a WorkerProfile domain model.
@@ -264,6 +270,107 @@ class AccountDecoders {
       rating: rating,
       isToken: isToken,
       tokenMint: tokenMint,
+      syncedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  /// Decodes raw binary account data into a DisputeCase domain model.
+  static DisputeCase decodeDisputeCase(List<int> bytes) {
+    if (bytes.length < 8 + 4 + 32 + 96 + 3 + 1 + 1 + 8 + 8 + 1) {
+      throw FormatException(
+        'DisputeCase data too short: expected at least 162 bytes, got ${bytes.length}',
+      );
+    }
+
+    final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
+
+    // Verify 8-byte Anchor discriminator
+    for (int i = 0; i < 8; i++) {
+      if (byteData.getUint8(i) != disputeCaseDiscriminator[i]) {
+        throw const FormatException('Invalid DisputeCase account discriminator');
+      }
+    }
+
+    int offset = 8;
+
+    // contract_id: Borsh string (4-byte length prefix + utf-8 bytes)
+    final contractIdLen = byteData.getUint32(offset, Endian.little);
+    offset += 4;
+    final contractId = utf8.decode(bytes.sublist(offset, offset + contractIdLen));
+    offset += contractIdLen;
+
+    // escrow_contract: Pubkey (32 bytes)
+    // ignore: unused_local_variable
+    final escrowPubkey = Ed25519HDPublicKey(bytes.sublist(offset, offset + 32)).toBase58();
+    offset += 32;
+
+    // jurors: [Pubkey; 3] (3 * 32 = 96 bytes)
+    final juror1 = Ed25519HDPublicKey(bytes.sublist(offset, offset + 32)).toBase58();
+    offset += 32;
+    final juror2 = Ed25519HDPublicKey(bytes.sublist(offset, offset + 32)).toBase58();
+    offset += 32;
+    final juror3 = Ed25519HDPublicKey(bytes.sublist(offset, offset + 32)).toBase58();
+    offset += 32;
+
+    // votes: [u8; 3]
+    final vote1 = byteData.getUint8(offset);
+    offset += 1;
+    final vote2 = byteData.getUint8(offset);
+    offset += 1;
+    final vote3 = byteData.getUint8(offset);
+    offset += 1;
+
+    // quorum_outcome: u8
+    final quorumOutcome = byteData.getUint8(offset);
+    offset += 1;
+
+    // status: DisputeCaseStatus (1 byte: 0=voting, 1=quorumReached, 2=executed)
+    final statusByte = byteData.getUint8(offset);
+    offset += 1;
+    final DisputeCaseStatus status;
+    switch (statusByte) {
+      case 0:
+        status = DisputeCaseStatus.voting;
+        break;
+      case 1:
+        status = DisputeCaseStatus.quorumReached;
+        break;
+      case 2:
+        status = DisputeCaseStatus.executed;
+        break;
+      default:
+        status = DisputeCaseStatus.voting;
+    }
+
+    // created_at: i64 (8 bytes)
+    final createdAtSeconds = byteData.getInt64(offset, Endian.little);
+    final createdAt =
+        DateTime.fromMillisecondsSinceEpoch(createdAtSeconds * 1000, isUtc: true);
+    offset += 8;
+
+    // resolved_at: i64 (8 bytes)
+    final resolvedAtSeconds = byteData.getInt64(offset, Endian.little);
+    final resolvedAt = resolvedAtSeconds > 0
+        ? DateTime.fromMillisecondsSinceEpoch(resolvedAtSeconds * 1000, isUtc: true)
+        : null;
+    offset += 8;
+
+    // bump: u8
+    // ignore: unused_local_variable
+    final bump = byteData.getUint8(offset);
+
+    return DisputeCase(
+      contractId: contractId,
+      juror1: juror1,
+      juror2: juror2,
+      juror3: juror3,
+      vote1: vote1,
+      vote2: vote2,
+      vote3: vote3,
+      quorumOutcome: quorumOutcome,
+      status: status,
+      createdAt: createdAt,
+      resolvedAt: resolvedAt,
       syncedAt: DateTime.now().toUtc(),
     );
   }

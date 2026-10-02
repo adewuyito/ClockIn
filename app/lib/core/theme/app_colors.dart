@@ -18,6 +18,7 @@ class AppColors {
 
   // Semantic feedback colors
   static const Color success = Color(0xFF1F9D5B);
+  static const Color successContainer = Color(0xFFE8F5E9);
   static const Color tertiary = Color(0xFF005B30);
   static const Color tertiaryContainer = Color(0xFF007640);
   static const Color onTertiary = Color(0xFFFFFFFF);
