@@ -627,48 +627,6 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
             ),
             const SizedBox(height: 16),
 
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.secondaryContainer.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: const BoxDecoration(color: AppColors.secondaryContainer, shape: BoxShape.circle),
-                    child: const Icon(Icons.security_rounded, size: 18, color: AppColors.onSecondaryContainer),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Dual-Layer Verification', style: AppTypography.titleMd),
-                        const SizedBox(height: 2),
-                        RichText(
-                          text: TextSpan(
-                            style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                            children: [
-                              const TextSpan(text: 'Note is stored on '),
-                              const TextSpan(text: 'Arweave/Irys', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary)),
-                              const TextSpan(text: ' while your verified score is committed to Solana '),
-                              TextSpan(text: NetworkConfig.clusterDisplayName, style: const TextStyle(fontWeight: FontWeight.w700)),
-                              const TextSpan(text: ' via MWA.'),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
             if (_txError != null) ...[
               Container(
                 padding: const EdgeInsets.all(12),
