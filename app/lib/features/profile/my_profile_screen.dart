@@ -220,8 +220,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 20),
-                  _buildProTipCard(),
                 ],
               );
             },
@@ -1204,48 +1202,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     );
   }
 
-  Widget _buildProTipCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            margin: const EdgeInsets.only(top: 2),
-            decoration: BoxDecoration(
-              color: AppColors.tertiary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppColors.tertiary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pro tip for builders',
-                  style: AppTypography.titleMd.copyWith(color: AppColors.onSurface),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  "ClockIn reviews are non-transferable proof of delivery. When clients submit a review, it's cryptographically anchored to your Solana identity — permanently, and only once per job.",
-                  style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildReviewCard(Review review) {
     return Container(
