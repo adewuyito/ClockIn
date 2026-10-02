@@ -2,7 +2,7 @@ import 'package:clockin/core/widgets/profile_qr_sheet.dart';
 import 'package:clockin/core/widgets/qr_scanner_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 
 void main() {
   group('QrScanResult.parse tests', () {
@@ -64,14 +64,14 @@ void main() {
       expect(find.text('Scan to view on-chain record'), findsOneWidget);
 
       // Verify QR image widget rendered
-      expect(find.byType(QrImageView), findsOneWidget);
+      expect(find.byType(PrettyQrView), findsOneWidget);
 
       // Tap Enlarge button
       await tester.tap(find.text('Enlarge'));
       await tester.pumpAndSettle();
 
-      // ProfileQrSheet opens with two QrImageViews (one inline, one in sheet)
-      expect(find.byType(QrImageView), findsNWidgets(2));
+      // ProfileQrSheet opens with two PrettyQrViews (one inline, one in sheet)
+      expect(find.byType(PrettyQrView), findsNWidgets(2));
       expect(find.text('Solana Pay URI'), findsOneWidget);
       expect(find.text('Raw Address'), findsOneWidget);
       expect(find.text('Copy Solana URI'), findsOneWidget);
@@ -90,7 +90,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Solana Pay URI'), findsNothing);
-      expect(find.byType(QrImageView), findsOneWidget);
+      expect(find.byType(PrettyQrView), findsOneWidget);
     });
   });
 }

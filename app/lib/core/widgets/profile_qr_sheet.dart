@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 import '../theme/app_colors.dart';
 
 /// Modal bottom sheet and inline card for rendering a scannable Solana QR code
@@ -170,17 +170,18 @@ class _ProfileQrSheetState extends State<ProfileQrSheet> {
                     ),
                   ],
                 ),
-                child: QrImageView(
-                  data: _qrPayload,
-                  version: QrVersions.auto,
-                  size: 210,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: AppColors.primary,
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: AppColors.primary,
+                child: SizedBox(
+                  width: 210,
+                  height: 210,
+                  child: PrettyQrView.data(
+                    data: _qrPayload,
+                    errorCorrectLevel: QrErrorCorrectLevel.M,
+                    decoration: const PrettyQrDecoration(
+                      shape: PrettyQrSmoothSymbol(
+                        roundFactor: 1.0,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -522,17 +523,18 @@ class ProfileQrCard extends StatelessWidget {
                   ),
                 ],
               ),
-              child: QrImageView(
-                data: qrData,
-                version: QrVersions.auto,
-                size: isCompact ? 140 : 170,
-                eyeStyle: const QrEyeStyle(
-                  eyeShape: QrEyeShape.square,
-                  color: AppColors.primary,
-                ),
-                dataModuleStyle: const QrDataModuleStyle(
-                  dataModuleShape: QrDataModuleShape.square,
-                  color: AppColors.primary,
+              child: SizedBox(
+                width: isCompact ? 140 : 170,
+                height: isCompact ? 140 : 170,
+                child: PrettyQrView.data(
+                  data: qrData,
+                  errorCorrectLevel: QrErrorCorrectLevel.M,
+                  decoration: const PrettyQrDecoration(
+                    shape: PrettyQrSmoothSymbol(
+                      roundFactor: 1.0,
+                      color: AppColors.primary,
+                    ),
+                  ),
                 ),
               ),
             ),

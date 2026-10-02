@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
@@ -67,17 +67,18 @@ class ContractShareScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppColors.surfaceContainerHigh),
                   ),
-                  child: QrImageView(
-                    data: contractDeepLink,
-                    version: QrVersions.auto,
-                    size: 200.0,
-                    eyeStyle: const QrEyeStyle(
-                      eyeShape: QrEyeShape.square,
-                      color: AppColors.primary,
-                    ),
-                    dataModuleStyle: const QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.square,
-                      color: AppColors.primary,
+                  child: SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: PrettyQrView.data(
+                      data: contractDeepLink,
+                      errorCorrectLevel: QrErrorCorrectLevel.M,
+                      decoration: const PrettyQrDecoration(
+                        shape: PrettyQrSmoothSymbol(
+                          roundFactor: 1.0,
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
                   ),
                 ),

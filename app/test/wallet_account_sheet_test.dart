@@ -1,6 +1,5 @@
 import 'package:clockin/core/providers/app_providers.dart';
 import 'package:clockin/core/solana/wallet_adapter.dart';
-import 'package:clockin/core/theme/app_colors.dart';
 import 'package:clockin/core/widgets/app_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
