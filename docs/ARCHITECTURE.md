@@ -16,6 +16,7 @@ flowchart LR
         VM["Riverpod Providers"]
         CS["ContractService"]
         RS["ReputationService"]
+        IS["IrysStorageService"]
         DB["Drift local cache"]
     end
     subgraph wallet["Installed Wallet App"]
@@ -27,11 +28,18 @@ flowchart LR
         VAULT_SOL["SOL Vault PDAs\n(native lamports)"]
         VAULT_SKR["$SKR Token Vault ATAs\n(SPL Token via PDA authority)"]
     end
+    subgraph perma["Permanent Storage (Arweave / Irys)"]
+        IRYS["Irys Gateway / Bundler\n(devnet.irys.xyz)"]
+        ARW["Arweave Permaweb\n(immutable review notes & deliverables)"]
+    end
     DEAL -.->|share contract link/QR| UI
     UI --> VM --> CS
+    UI --> VM --> IS
     CS <--> RS
     CS <--> DB
     RS <--> DB
+    IS <--> DB
+    IS -->|upload JSON + tags| IRYS --> ARW
     CS -->|via solana pkg| RPC --> PROG
     PROG <-->|system_program::transfer| VAULT_SOL
     PROG <-->|anchor_spl::token CPI| VAULT_SKR
@@ -189,6 +197,75 @@ Drift caches on-chain state (`WorkerProfiles`, `Reviews`, `EscrowContracts`) plu
 
 **Decided: trust the cache, refresh in the background** (`ReputationRepository.getWorkerProfile`/`getWorkerReviews` serve the cached row immediately, then trigger an unawaited background refresh). The required transparency piece is in the UI: profile cards show "Synced Xm ago" reading `WorkerProfile.syncedAt`. Contract screens should show a similar sync indicator — contract state transitions (especially `Funded` → `InProgress` and `InProgress` → `Completed`) are time-sensitive and worth re-verifying from chain before acting on.
 
+## Permanent Review & Deliverables Storage (Arweave / Irys)
+
+Solana L1 excels at high-throughput state machines, deterministic escrow vaults, and fast mathematical reputation updates. However, storing long-form qualitative review feedback, deliverable attachments, work evidence, and contract terms documents directly on Solana accounts is cost-prohibitive due to ongoing account rent (~0.00089 SOL per KB).
+
+ClockIn adopts a **hybrid decentralized architecture**:
+1. **Solana L1 (Anchor)**: Holds the authoritative escrow state, financial transfers, Sybil-proof numerical rating ($1-5★$), aggregate trust score calculations, and cryptographic verification pointers.
+2. **Arweave via Irys**: Holds the permanent, tamper-proof qualitative metadata (written review feedback, category scores, milestone deliverable links, proof-of-work hashes, and dispute evidence).
+
+### Why Irys for Arweave Storage?
+
+- **Native Solana Support**: Irys allows paying for permanent Arweave permaweb storage directly using SOL (or Devnet SOL), enabling unified payments without acquiring AR tokens.
+- **Sub-Second Receipts**: Instant upload confirmations and deterministic transaction IDs without waiting for Arweave block mining.
+- **Tag-Based Provenance Indexing**: Every payload is inscribed with standard metadata tags (`App-Name`, `Type`, `Worker`, `Job-Id`), allowing direct decentralized retrieval via Irys GraphQL queries without dedicated web servers.
+- **Zero-Storage-Cost Free Tier for Mobile**: Uploads under 100 KB on Irys are gasless on devnet and sub-cent on mainnet, enabling sponsored or friction-free mobile review submissions.
+
+### Review Metadata Standard (`ClockInReviewPayload`)
+
+When an employer submits a review or completes escrow settlement, the app serializes a canonical JSON document uploaded to Irys:
+
+```json
+{
+  "$schema": "https://clockin.protocol/schemas/review-v1.json",
+  "protocol": "ClockIn",
+  "version": "1.0.0",
+  "jobId": "ctr-985669",
+  "contractId": "ctr-985669",
+  "worker": "4ojAkcXs48y2M8xLXYNkG5ULw4rabNT8o9P...",
+  "reviewer": "6Z2qZfW7GqFv3qNf4K8jY1u9m6oP4s7T2wX1...",
+  "rating": 5,
+  "categoryRatings": {
+    "quality": 5,
+    "communication": 5,
+    "timeliness": 5
+  },
+  "reviewNote": "Outstanding developer. Delivered production Anchor escrow program and Flutter integration 2 days ahead of schedule.",
+  "deliverables": [
+    {
+      "title": "GitHub Pull Request",
+      "uri": "https://github.com/project/core/pull/42",
+      "hash": "e7d06573b4..."
+    }
+  ],
+  "timestamp": 1727885000,
+  "escrowSettled": true,
+  "clientSignature": "3xY8..."
+}
+```
+
+### Irys Bundling & Indexing Protocol
+
+The upload is dispatched to `https://devnet.irys.xyz/tx/solana` (or mainnet gateway) with cryptographic tags:
+
+| Tag Name | Value | Purpose |
+|---|---|---|
+| `App-Name` | `ClockIn` | Protocol namespace |
+| `Content-Type` | `application/json` | Media payload descriptor |
+| `Type` | `Reputation-Review` | Schema differentiator |
+| `Worker` | `<worker_solana_pubkey>` | Enables worker-wide review retrieval via GraphQL |
+| `Reviewer` | `<reviewer_solana_pubkey>` | Author identity |
+| `Job-Id` | `<job_id>` | Deterministic linkage to Solana `Review` PDA |
+
+### Discovery & Retrieval Architecture
+
+Clients discover and display full review feedback using a two-stage read pattern:
+
+1. **Fast Anchor PDA Read**: The Flutter client fetches the worker's `WorkerProfile` and `Review` accounts from Solana RPC to compute the verified on-chain score and list completed jobs.
+2. **Decentralized GraphQL / Gateway Read**: The app queries Irys GraphQL by worker address (`tags: [{name: "Worker", values: [workerPubkey]}]`) or resolves directly via `https://gateway.irys.xyz/<arweave_id>`.
+3. **Local Drift Storage & Offline Resilience**: Retrieved review text is cached in Drift (`LocalReviews` table). When creating a review offline, the draft is stored in `ReviewDrafts`; once connectivity returns, the payload is published to Irys, and the resulting Arweave ID is linked to the Solana MWA transaction.
+
 ## Security / trust model
 
 - **Sybil resistance is now escrow-linked, not just signature-based.** In the previous architecture, a review only required the reviewer's signature — one person could generate five free wallets and review "themselves" from each. Now, each escrow-linked review requires real SOL to be locked and transferred, making the cost of fabrication equal to the cost of actual payment. Standalone `submit_review` (without escrow) still exists for backward compatibility but should be clearly marked as "unverified" in the UI and weighted lower in any aggregate score.
@@ -233,12 +310,12 @@ Intentionally excluded from the first working version. Each is a real candidate 
 - **Automated dispute resolution / arbitration DAO** — disputes can be raised and recorded on-chain, but resolution is manual. Building a full arbitration system (mediator selection, evidence submission, voting) is a separate product.
 - **Multi-milestone contracts** — MVP supports single-payment escrow. Phased milestones (release 30% at checkpoint 1, 70% at completion) are a natural extension but significantly more complex state management.
 - **Additional SPL tokens beyond $SKR** — the token escrow architecture is generic (accepts any mint), but the MVP UI only surfaces SOL and $SKR. USDC/USDT support is a post-hackathon addition.
-- **On-chain terms storage** — only the hash is stored. Decentralized terms storage (IPFS/Arweave) is a future improvement.
+- **On-chain terms storage** — only the hash is stored directly on Solana; full terms documents and qualitative review commentary are offloaded to the Arweave permaweb via Irys (see the Permanent Review & Deliverables Storage section above).
 - **Multi-marketplace aggregation** — importing/reconciling existing reputation from other platforms.
 - **Reviewer reputation / weighted reviews** — weighting a review by how trustworthy the *reviewer* is.
 - **Mainnet deployment and a real key-management story beyond "the user's own wallet app handles it."**
 - **iOS.** Flutter scaffolds it by default; Solana Mobile Stack doesn't need it and this hackathon doesn't reward it.
-- **Worker identity: display name and avatar photo.** Deliberately choosing pseudonymity for the hackathon build — identity/KYC is a different product concern from "did this person complete verified, paid work." Same reasoning applies to review comments (no text field on `Review`). Revisit both together post-hackathon.
+- **Worker identity: display name and avatar photo.** Deliberately choosing pseudonymity for the hackathon build — identity/KYC is a different product concern from "did this person complete verified, paid work." Review commentary and work evidence are now preserved immutably via Arweave/Irys.
 
 ## Future: "Seeker Verified" Identity Layer (On Hold)
 
