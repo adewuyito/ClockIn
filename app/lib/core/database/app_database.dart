@@ -23,6 +23,8 @@ class Reviews extends Table {
   TextColumn get jobId => text()();
   IntColumn get rating => integer()();
   Int64Column get timestamp => int64()();
+  TextColumn get reviewNote => text().nullable()();
+  TextColumn get arweaveTxId => text().nullable()();
   DateTimeColumn get syncedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
@@ -33,6 +35,7 @@ class DraftReviews extends Table {
   TextColumn get jobId => text()();
   IntColumn get rating => integer()();
   TextColumn get notes => text().nullable()();
+  TextColumn get arweaveTxId => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get status => text().withDefault(const Constant('draft'))();
 }
@@ -141,7 +144,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -178,6 +181,11 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 9) {
             await m.createTable(disputeCases);
+          }
+          if (from < 10) {
+            await m.addColumn(reviews, reviews.reviewNote);
+            await m.addColumn(reviews, reviews.arweaveTxId);
+            await m.addColumn(draftReviews, draftReviews.arweaveTxId);
           }
         },
       );

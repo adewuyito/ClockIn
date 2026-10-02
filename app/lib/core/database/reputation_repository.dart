@@ -112,6 +112,8 @@ class ReputationRepository {
             isUtc: true,
           ),
           syncedAt: row.syncedAt,
+          reviewNote: row.reviewNote,
+          arweaveTxId: row.arweaveTxId,
         );
       }).toList();
     });
@@ -146,6 +148,8 @@ class ReputationRepository {
             isUtc: true,
           ),
           syncedAt: row.syncedAt,
+          reviewNote: row.reviewNote,
+          arweaveTxId: row.arweaveTxId,
         );
       }).toList();
     }
@@ -153,10 +157,28 @@ class ReputationRepository {
     return await refreshWorkerReviews(workerAddress);
   }
 
-  /// Refreshes worker reviews from Solana RPC and syncs to Drift cache.
-  Future<List<domain.Review>> refreshWorkerReviews(String workerAddress) async {
+  /// Refreshes worker reviews from Solana RPC and syncs to Drift cache,
+  /// preserving existing Arweave provenance metadata.
+  Future<List<domain.Review>> refreshWorkerReviews(
+    String workerAddress, {
+    String? submittedNotes,
+    String? submittedArweaveTxId,
+    String? submittedJobId,
+  }) async {
     final pubkey = Ed25519HDPublicKey.fromBase58(workerAddress);
     final onChainReviews = await reputationService.getWorkerReviews(pubkey);
+
+    // Collect existing Arweave metadata to preserve across refreshes
+    final existingRows = await (db.select(db.reviews)
+          ..where((tbl) => tbl.workerAddress.equals(workerAddress)))
+        .get();
+    final metaMap = <String, ({String? note, String? arweaveId})>{};
+    for (final row in existingRows) {
+      metaMap[row.jobId] = (note: row.reviewNote, arweaveId: row.arweaveTxId);
+    }
+    if (submittedJobId != null) {
+      metaMap[submittedJobId] = (note: submittedNotes, arweaveId: submittedArweaveTxId);
+    }
 
     await db.transaction(() async {
       // Delete existing cached reviews for this worker
@@ -164,8 +186,9 @@ class ReputationRepository {
             ..where((tbl) => tbl.workerAddress.equals(workerAddress)))
           .go();
 
-      // Insert fresh batch
+      // Insert fresh batch with preserved Arweave metadata
       for (final r in onChainReviews) {
+        final meta = metaMap[r.jobId];
         await db.into(db.reviews).insert(
               ReviewsCompanion.insert(
                 workerAddress: r.workerAddress,
@@ -173,13 +196,15 @@ class ReputationRepository {
                 jobId: r.jobId,
                 rating: r.rating,
                 timestamp: BigInt.from(r.timestamp.millisecondsSinceEpoch ~/ 1000),
+                reviewNote: Value(meta?.note),
+                arweaveTxId: Value(meta?.arweaveId),
                 syncedAt: Value(DateTime.now()),
               ),
             );
       }
     });
 
-    return onChainReviews;
+    return getWorkerReviews(workerAddress, forceRefresh: false);
   }
 
   // ==================== RECENT LOOKUPS (Look Up screen history) ====================
@@ -243,6 +268,7 @@ class ReputationRepository {
     required String jobId,
     required int rating,
     String? notes,
+    String? arweaveTxId,
   }) async {
     if (id != null) {
       await (db.update(db.draftReviews)..where((tbl) => tbl.id.equals(id))).write(
@@ -251,6 +277,7 @@ class ReputationRepository {
           jobId: Value(jobId),
           rating: Value(rating),
           notes: Value(notes),
+          arweaveTxId: Value(arweaveTxId),
         ),
       );
       return id;
@@ -261,6 +288,7 @@ class ReputationRepository {
               jobId: jobId,
               rating: rating,
               notes: Value(notes),
+              arweaveTxId: Value(arweaveTxId),
             ),
           );
     }
@@ -307,6 +335,8 @@ class ReputationRepository {
     required int rating,
     required WalletAdapter walletAdapter,
     int? draftId,
+    String? notes,
+    String? arweaveTxId,
   }) async {
     final signature = await reputationService.submitReview(
       worker: worker,
@@ -321,9 +351,14 @@ class ReputationRepository {
       await deleteDraftReview(draftId);
     }
 
-    // Refresh cached state for worker profile and reviews
+    // Refresh cached state for worker profile and reviews, preserving Arweave metadata
     await refreshWorkerProfile(worker.toBase58());
-    await refreshWorkerReviews(worker.toBase58());
+    await refreshWorkerReviews(
+      worker.toBase58(),
+      submittedNotes: notes,
+      submittedArweaveTxId: arweaveTxId,
+      submittedJobId: jobId,
+    );
 
     return signature;
   }

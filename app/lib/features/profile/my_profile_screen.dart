@@ -1245,25 +1245,90 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               ),
             ],
           ),
+          if (review.reviewNote != null && review.reviewNote!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.25)),
+              ),
+              child: Text(
+                '“${review.reviewNote!}”',
+                style: AppTypography.bodySm.copyWith(
+                  color: AppColors.onSurface,
+                  fontStyle: FontStyle.italic,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              'Job ID: ${review.jobId}',
-              style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              DateFormat.yMMMd().format(review.timestamp),
-              style: AppTypography.bodySm.copyWith(color: AppColors.outline),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Job ID: ${review.jobId}',
+                      style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                    ),
+                  ),
+                  if (review.hasArweaveProvenance) ...[
+                    GestureDetector(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(
+                          text: 'https://gateway.irys.xyz/${review.arweaveTxId}',
+                        ));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Copied Arweave permaweb link to clipboard'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.cloud_done_rounded, size: 12, color: AppColors.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Arweave Permaweb',
+                              style: AppTypography.labelSm.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              Text(
+                DateFormat.yMMMd().format(review.timestamp),
+                style: AppTypography.bodySm.copyWith(color: AppColors.outline),
+              ),
+            ],
           ),
         ],
       ),

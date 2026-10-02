@@ -220,6 +220,8 @@ class ContractRepository {
     required WalletAdapter walletAdapter,
     bool? isToken,
     String? tokenMint,
+    String? reviewNote,
+    String? arweaveTxId,
   }) async {
     final workerPubkey = Ed25519HDPublicKey.fromBase58(workerAddress);
 
@@ -271,6 +273,20 @@ class ContractRepository {
         syncedAt: Value(now),
       ),
     );
+
+    // Cache the verified review with Arweave metadata in Drift
+    await db.into(db.reviews).insert(
+          ReviewsCompanion.insert(
+            workerAddress: workerAddress,
+            reviewerAddress: employer.toBase58(),
+            jobId: contractId,
+            rating: rating,
+            timestamp: BigInt.from(now.millisecondsSinceEpoch ~/ 1000),
+            reviewNote: Value(reviewNote),
+            arweaveTxId: Value(arweaveTxId),
+            syncedAt: Value(now),
+          ),
+        );
 
     // ignore: unawaited_futures
     refreshContract(contractId);

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:solana/solana.dart';
 import '../../core/database/app_database.dart' hide WorkerProfile, Review, EscrowContract;
+import '../../core/models/review_metadata.dart';
 import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/irys_storage_service.dart';
 import '../../core/solana/network_config.dart';
 import '../../core/solana/reputation_errors.dart';
 import '../../core/theme/app_colors.dart';
@@ -71,9 +74,12 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
   // Captured at the moment of a successful submit, since the input fields
   // get cleared once the user taps "Done" on the success screen.
   String? _successTxSignature;
+  String? _successArweaveId;
+  String? _successNote;
   String? _successWorkerAddress;
   String? _successJobId;
   int _successRating = 5;
+  String? _submittingStatusText;
 
   @override
   void initState() {
@@ -230,6 +236,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
 
     setState(() {
       _isSubmitting = true;
+      _submittingStatusText = 'Inscribing review note to Arweave…';
       _txError = null;
       _txErrorKind = null;
     });
@@ -238,7 +245,27 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
       final workerPubkey = Ed25519HDPublicKey.fromBase58(workerAddress);
       final repo = ref.read(reputationRepositoryProvider);
       final adapter = ref.read(walletAdapterProvider);
+      final irys = ref.read(irysStorageServiceProvider);
+      final noteText = _notesController.text.trim();
 
+      // 1. Inscribe review note and metadata permanently to Arweave via Irys
+      final metadata = ClockInReviewMetadata(
+        jobId: jobId,
+        worker: workerAddress,
+        reviewer: wallet.publicKey!.toBase58(),
+        rating: _rating,
+        reviewNote: noteText,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+      );
+      final arweaveId = await irys.uploadReviewMetadata(metadata);
+
+      if (mounted) {
+        setState(() {
+          _submittingStatusText = 'Requesting Solana wallet signature…';
+        });
+      }
+
+      // 2. Submit on-chain review to Solana Anchor program
       final signature = await repo.submitReview(
         worker: workerPubkey,
         reviewer: wallet.publicKey!,
@@ -246,10 +273,14 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
         rating: _rating,
         walletAdapter: adapter,
         draftId: _activeDraftId,
+        notes: noteText,
+        arweaveTxId: arweaveId,
       );
 
       setState(() {
         _successTxSignature = signature;
+        _successArweaveId = arweaveId;
+        _successNote = noteText;
         _successWorkerAddress = workerAddress;
         _successJobId = jobId;
         _successRating = _rating;
@@ -266,6 +297,7 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
+          _submittingStatusText = null;
         });
       }
     }
@@ -579,10 +611,18 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(left: 4, top: 2),
-              child: Text(
-                'Saved on this device only. The on-chain program has no field for review text, so this never leaves your phone.',
-                style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+              padding: const EdgeInsets.only(left: 4, top: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.cloud_done_rounded, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Permanently inscribed to the Arweave permaweb via Irys & anchored to Solana.',
+                      style: AppTypography.bodySm.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -607,17 +647,17 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Immutable attestation', style: AppTypography.titleMd),
+                        Text('Dual-Layer Verification', style: AppTypography.titleMd),
                         const SizedBox(height: 2),
                         RichText(
                           text: TextSpan(
                             style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
                             children: [
-                              const TextSpan(text: 'Your signed rating is written permanently to Solana '),
+                              const TextSpan(text: 'Note is stored on '),
+                              const TextSpan(text: 'Arweave/Irys', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary)),
+                              const TextSpan(text: ' while your verified score is committed to Solana '),
                               TextSpan(text: NetworkConfig.clusterDisplayName, style: const TextStyle(fontWeight: FontWeight.w700)),
-                              const TextSpan(text: ' via Mobile Wallet Adapter. Network fee: '),
-                              const TextSpan(text: '~0.000005 SOL', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary)),
-                              const TextSpan(text: '.'),
+                              const TextSpan(text: ' via MWA.'),
                             ],
                           ),
                         ),
@@ -655,12 +695,12 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
               child: ElevatedButton(
                 onPressed: canSubmit ? () => _handleSubmit(targetProfile) : null,
                 child: _isSubmitting
-                    ? const Row(
+                    ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-                          SizedBox(width: 10),
-                          Text('Requesting MWA Signature…'),
+                          const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                          const SizedBox(width: 10),
+                          Text(_submittingStatusText ?? 'Processing…'),
                         ],
                       )
                     : const Row(
@@ -1098,12 +1138,80 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
                 ],
               ),
             ),
+            if (_successNote != null && _successNote!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.format_quote_rounded, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 6),
+                        Text('REVIEW FEEDBACK', style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _successNote!,
+                      style: AppTypography.bodyMd.copyWith(color: AppColors.onSurface, fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (_successArweaveId != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.cloud_done_rounded, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('ARWEAVE PROVENANCE (IRYS)', style: AppTypography.labelSm.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                          Text(
+                            _successArweaveId!.length > 16
+                                ? '${_successArweaveId!.substring(0, 8)}…${_successArweaveId!.substring(_successArweaveId!.length - 8)}'
+                                : _successArweaveId!,
+                            style: GoogleFonts.jetBrainsMono(fontSize: 12, color: AppColors.onSurface),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_rounded, size: 16, color: AppColors.primary),
+                      onPressed: () => _copy(
+                        'https://gateway.irys.xyz/$_successArweaveId',
+                        'Arweave permaweb URL copied to clipboard!',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
 
             TextButton.icon(
               onPressed: () => _copy(explorerUrl, 'Explorer link copied — paste it in your browser.'),
               icon: const Icon(Icons.open_in_new_rounded, size: 16),
-              label: const Text('Copy explorer link'),
+              label: const Text('Copy Solana explorer link'),
               style: TextButton.styleFrom(foregroundColor: AppColors.primaryContainer),
             ),
             const SizedBox(height: 16),
@@ -1114,6 +1222,8 @@ class _SubmitReviewScreenState extends ConsumerState<SubmitReviewScreen> {
                 onPressed: () {
                   setState(() {
                     _successTxSignature = null;
+                    _successArweaveId = null;
+                    _successNote = null;
                     _successWorkerAddress = null;
                     _successJobId = null;
                     _activeDraftId = null;

@@ -7,6 +7,8 @@ class Review {
   final int rating;
   final DateTime timestamp;
   final DateTime? syncedAt;
+  final String? reviewNote;
+  final String? arweaveTxId;
 
   const Review({
     this.id,
@@ -16,7 +18,13 @@ class Review {
     required this.rating,
     required this.timestamp,
     this.syncedAt,
+    this.reviewNote,
+    this.arweaveTxId,
   });
+
+  /// True if this review has permanent provenance on Arweave via Irys.
+  bool get hasArweaveProvenance =>
+      arweaveTxId != null && arweaveTxId!.trim().isNotEmpty;
 
   /// Short truncated reviewer address for UI cards, e.g. "8x2…k9F4".
   String get shortReviewerAddress {

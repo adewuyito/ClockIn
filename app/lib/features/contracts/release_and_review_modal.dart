@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/models/escrow_contract.dart';
+import '../../core/models/review_metadata.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/irys_storage_service.dart';
 import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/celebration_badge.dart';
@@ -34,7 +36,10 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
   bool _isSubmitting = false;
   bool _isSuccess = false;
   String? _txSignature;
+  String? _arweaveTxId;
+  String? _submittedNote;
   String? _errorMessage;
+  final TextEditingController _notesController = TextEditingController();
 
   final List<String> _ratingLabels = [
     '1 - Poor',
@@ -43,6 +48,12 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
     '4 - Very Good',
     '5 - Excellent',
   ];
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleRelease() async {
     HapticFeedback.lightImpact();
@@ -55,11 +66,35 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
       final wallet = ref.read(walletStateProvider);
       final walletAdapter = ref.read(walletAdapterProvider);
       final contractRepo = ref.read(contractRepositoryProvider);
+      final irys = ref.read(irysStorageServiceProvider);
 
       if (!wallet.isConnected || wallet.publicKey == null) {
         throw Exception('Please connect your Solana wallet first.');
       }
 
+      final noteText = _notesController.text.trim();
+
+      // 1. Inscribe review note and contract settlement metadata to Arweave via Irys
+      String? arweaveId;
+      try {
+        final metadata = ClockInReviewMetadata(
+          jobId: widget.contract.contractId,
+          contractId: widget.contract.contractId,
+          worker: widget.contract.worker,
+          reviewer: wallet.publicKey!.toBase58(),
+          rating: _selectedRating,
+          reviewNote: noteText.isNotEmpty
+              ? noteText
+              : 'Escrow payment released with $_selectedRating-star rating.',
+          escrowSettled: true,
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+        );
+        arweaveId = await irys.uploadReviewMetadata(metadata);
+      } catch (_) {
+        // Fallback handled gracefully inside IrysStorageService
+      }
+
+      // 2. Execute on-chain Solana escrow settlement & review PDA minting
       final signature = await contractRepo.releaseAndReview(
         contractId: widget.contract.contractId,
         workerAddress: widget.contract.worker,
@@ -68,12 +103,16 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
         walletAdapter: walletAdapter,
         isToken: widget.contract.isToken,
         tokenMint: widget.contract.tokenMint,
+        reviewNote: noteText.isNotEmpty ? noteText : null,
+        arweaveTxId: arweaveId,
       );
 
       setState(() {
         _isSubmitting = false;
         _isSuccess = true;
         _txSignature = signature;
+        _arweaveTxId = arweaveId;
+        _submittedNote = noteText.isNotEmpty ? noteText : null;
       });
       HapticFeedback.heavyImpact();
     } catch (e) {
@@ -237,6 +276,82 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
         ),
         const SizedBox(height: 16),
 
+        // Feedback Note (stored permanently on Arweave)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Feedback Note (Optional)',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.onSurface,
+              ),
+            ),
+            Text(
+              '${_notesController.text.length} / 280',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _notesController,
+          maxLines: 2,
+          maxLength: 280,
+          onChanged: (_) => setState(() {}),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            color: AppColors.onSurface,
+          ),
+          decoration: InputDecoration(
+            hintText: 'e.g. Excellent work, delivered on time and high quality.',
+            hintStyle: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+            ),
+            counterText: '',
+            filled: true,
+            fillColor: AppColors.surfaceContainerLow,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, top: 4),
+          child: Row(
+            children: [
+              const Icon(Icons.cloud_done_rounded, size: 13, color: AppColors.primary),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  'Inscribed permanently to Arweave permaweb via Irys & anchored on Solana.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
         // Atomic settlement note
         Container(
           padding: const EdgeInsets.all(14),
@@ -383,7 +498,101 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
             height: 1.4,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
+
+        if (_submittedNote != null) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.format_quote_rounded, size: 15, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'REVIEW FEEDBACK',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _submittedNote!,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    color: AppColors.onSurface,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        if (_arweaveTxId != null) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.cloud_done_rounded, color: AppColors.primary, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ARWEAVE PROVENANCE (IRYS)',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      Text(
+                        _arweaveTxId!.length > 16
+                            ? '${_arweaveTxId!.substring(0, 8)}…${_arweaveTxId!.substring(_arweaveTxId!.length - 8)}'
+                            : _arweaveTxId!,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy_rounded, size: 15, color: AppColors.primary),
+                  onPressed: () {
+                    final link = 'https://gateway.irys.xyz/$_arweaveTxId';
+                    Clipboard.setData(ClipboardData(text: link));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Copied Arweave permaweb link to clipboard')),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
 
         if (_txSignature != null) ...[
           Container(

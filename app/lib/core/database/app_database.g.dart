@@ -438,6 +438,28 @@ class $ReviewsTable extends Reviews with TableInfo<$ReviewsTable, Review> {
     type: DriftSqlType.bigInt,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _reviewNoteMeta = const VerificationMeta(
+    'reviewNote',
+  );
+  @override
+  late final GeneratedColumn<String> reviewNote = GeneratedColumn<String>(
+    'review_note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _arweaveTxIdMeta = const VerificationMeta(
+    'arweaveTxId',
+  );
+  @override
+  late final GeneratedColumn<String> arweaveTxId = GeneratedColumn<String>(
+    'arweave_tx_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncedAtMeta = const VerificationMeta(
     'syncedAt',
   );
@@ -458,6 +480,8 @@ class $ReviewsTable extends Reviews with TableInfo<$ReviewsTable, Review> {
     jobId,
     rating,
     timestamp,
+    reviewNote,
+    arweaveTxId,
     syncedAt,
   ];
   @override
@@ -521,6 +545,21 @@ class $ReviewsTable extends Reviews with TableInfo<$ReviewsTable, Review> {
     } else if (isInserting) {
       context.missing(_timestampMeta);
     }
+    if (data.containsKey('review_note')) {
+      context.handle(
+        _reviewNoteMeta,
+        reviewNote.isAcceptableOrUnknown(data['review_note']!, _reviewNoteMeta),
+      );
+    }
+    if (data.containsKey('arweave_tx_id')) {
+      context.handle(
+        _arweaveTxIdMeta,
+        arweaveTxId.isAcceptableOrUnknown(
+          data['arweave_tx_id']!,
+          _arweaveTxIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('synced_at')) {
       context.handle(
         _syncedAtMeta,
@@ -560,6 +599,14 @@ class $ReviewsTable extends Reviews with TableInfo<$ReviewsTable, Review> {
         DriftSqlType.bigInt,
         data['${effectivePrefix}timestamp'],
       )!,
+      reviewNote: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}review_note'],
+      ),
+      arweaveTxId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}arweave_tx_id'],
+      ),
       syncedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}synced_at'],
@@ -580,6 +627,8 @@ class Review extends DataClass implements Insertable<Review> {
   final String jobId;
   final int rating;
   final BigInt timestamp;
+  final String? reviewNote;
+  final String? arweaveTxId;
   final DateTime syncedAt;
   const Review({
     required this.id,
@@ -588,6 +637,8 @@ class Review extends DataClass implements Insertable<Review> {
     required this.jobId,
     required this.rating,
     required this.timestamp,
+    this.reviewNote,
+    this.arweaveTxId,
     required this.syncedAt,
   });
   @override
@@ -599,6 +650,12 @@ class Review extends DataClass implements Insertable<Review> {
     map['job_id'] = Variable<String>(jobId);
     map['rating'] = Variable<int>(rating);
     map['timestamp'] = Variable<BigInt>(timestamp);
+    if (!nullToAbsent || reviewNote != null) {
+      map['review_note'] = Variable<String>(reviewNote);
+    }
+    if (!nullToAbsent || arweaveTxId != null) {
+      map['arweave_tx_id'] = Variable<String>(arweaveTxId);
+    }
     map['synced_at'] = Variable<DateTime>(syncedAt);
     return map;
   }
@@ -611,6 +668,12 @@ class Review extends DataClass implements Insertable<Review> {
       jobId: Value(jobId),
       rating: Value(rating),
       timestamp: Value(timestamp),
+      reviewNote: reviewNote == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reviewNote),
+      arweaveTxId: arweaveTxId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(arweaveTxId),
       syncedAt: Value(syncedAt),
     );
   }
@@ -627,6 +690,8 @@ class Review extends DataClass implements Insertable<Review> {
       jobId: serializer.fromJson<String>(json['jobId']),
       rating: serializer.fromJson<int>(json['rating']),
       timestamp: serializer.fromJson<BigInt>(json['timestamp']),
+      reviewNote: serializer.fromJson<String?>(json['reviewNote']),
+      arweaveTxId: serializer.fromJson<String?>(json['arweaveTxId']),
       syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
     );
   }
@@ -640,6 +705,8 @@ class Review extends DataClass implements Insertable<Review> {
       'jobId': serializer.toJson<String>(jobId),
       'rating': serializer.toJson<int>(rating),
       'timestamp': serializer.toJson<BigInt>(timestamp),
+      'reviewNote': serializer.toJson<String?>(reviewNote),
+      'arweaveTxId': serializer.toJson<String?>(arweaveTxId),
       'syncedAt': serializer.toJson<DateTime>(syncedAt),
     };
   }
@@ -651,6 +718,8 @@ class Review extends DataClass implements Insertable<Review> {
     String? jobId,
     int? rating,
     BigInt? timestamp,
+    Value<String?> reviewNote = const Value.absent(),
+    Value<String?> arweaveTxId = const Value.absent(),
     DateTime? syncedAt,
   }) => Review(
     id: id ?? this.id,
@@ -659,6 +728,8 @@ class Review extends DataClass implements Insertable<Review> {
     jobId: jobId ?? this.jobId,
     rating: rating ?? this.rating,
     timestamp: timestamp ?? this.timestamp,
+    reviewNote: reviewNote.present ? reviewNote.value : this.reviewNote,
+    arweaveTxId: arweaveTxId.present ? arweaveTxId.value : this.arweaveTxId,
     syncedAt: syncedAt ?? this.syncedAt,
   );
   Review copyWithCompanion(ReviewsCompanion data) {
@@ -673,6 +744,12 @@ class Review extends DataClass implements Insertable<Review> {
       jobId: data.jobId.present ? data.jobId.value : this.jobId,
       rating: data.rating.present ? data.rating.value : this.rating,
       timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      reviewNote: data.reviewNote.present
+          ? data.reviewNote.value
+          : this.reviewNote,
+      arweaveTxId: data.arweaveTxId.present
+          ? data.arweaveTxId.value
+          : this.arweaveTxId,
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
     );
   }
@@ -686,6 +763,8 @@ class Review extends DataClass implements Insertable<Review> {
           ..write('jobId: $jobId, ')
           ..write('rating: $rating, ')
           ..write('timestamp: $timestamp, ')
+          ..write('reviewNote: $reviewNote, ')
+          ..write('arweaveTxId: $arweaveTxId, ')
           ..write('syncedAt: $syncedAt')
           ..write(')'))
         .toString();
@@ -699,6 +778,8 @@ class Review extends DataClass implements Insertable<Review> {
     jobId,
     rating,
     timestamp,
+    reviewNote,
+    arweaveTxId,
     syncedAt,
   );
   @override
@@ -711,6 +792,8 @@ class Review extends DataClass implements Insertable<Review> {
           other.jobId == this.jobId &&
           other.rating == this.rating &&
           other.timestamp == this.timestamp &&
+          other.reviewNote == this.reviewNote &&
+          other.arweaveTxId == this.arweaveTxId &&
           other.syncedAt == this.syncedAt);
 }
 
@@ -721,6 +804,8 @@ class ReviewsCompanion extends UpdateCompanion<Review> {
   final Value<String> jobId;
   final Value<int> rating;
   final Value<BigInt> timestamp;
+  final Value<String?> reviewNote;
+  final Value<String?> arweaveTxId;
   final Value<DateTime> syncedAt;
   const ReviewsCompanion({
     this.id = const Value.absent(),
@@ -729,6 +814,8 @@ class ReviewsCompanion extends UpdateCompanion<Review> {
     this.jobId = const Value.absent(),
     this.rating = const Value.absent(),
     this.timestamp = const Value.absent(),
+    this.reviewNote = const Value.absent(),
+    this.arweaveTxId = const Value.absent(),
     this.syncedAt = const Value.absent(),
   });
   ReviewsCompanion.insert({
@@ -738,6 +825,8 @@ class ReviewsCompanion extends UpdateCompanion<Review> {
     required String jobId,
     required int rating,
     required BigInt timestamp,
+    this.reviewNote = const Value.absent(),
+    this.arweaveTxId = const Value.absent(),
     this.syncedAt = const Value.absent(),
   }) : workerAddress = Value(workerAddress),
        reviewerAddress = Value(reviewerAddress),
@@ -751,6 +840,8 @@ class ReviewsCompanion extends UpdateCompanion<Review> {
     Expression<String>? jobId,
     Expression<int>? rating,
     Expression<BigInt>? timestamp,
+    Expression<String>? reviewNote,
+    Expression<String>? arweaveTxId,
     Expression<DateTime>? syncedAt,
   }) {
     return RawValuesInsertable({
@@ -760,6 +851,8 @@ class ReviewsCompanion extends UpdateCompanion<Review> {
       if (jobId != null) 'job_id': jobId,
       if (rating != null) 'rating': rating,
       if (timestamp != null) 'timestamp': timestamp,
+      if (reviewNote != null) 'review_note': reviewNote,
+      if (arweaveTxId != null) 'arweave_tx_id': arweaveTxId,
       if (syncedAt != null) 'synced_at': syncedAt,
     });
   }
@@ -771,6 +864,8 @@ class ReviewsCompanion extends UpdateCompanion<Review> {
     Value<String>? jobId,
     Value<int>? rating,
     Value<BigInt>? timestamp,
+    Value<String?>? reviewNote,
+    Value<String?>? arweaveTxId,
     Value<DateTime>? syncedAt,
   }) {
     return ReviewsCompanion(
@@ -780,6 +875,8 @@ class ReviewsCompanion extends UpdateCompanion<Review> {
       jobId: jobId ?? this.jobId,
       rating: rating ?? this.rating,
       timestamp: timestamp ?? this.timestamp,
+      reviewNote: reviewNote ?? this.reviewNote,
+      arweaveTxId: arweaveTxId ?? this.arweaveTxId,
       syncedAt: syncedAt ?? this.syncedAt,
     );
   }
@@ -805,6 +902,12 @@ class ReviewsCompanion extends UpdateCompanion<Review> {
     if (timestamp.present) {
       map['timestamp'] = Variable<BigInt>(timestamp.value);
     }
+    if (reviewNote.present) {
+      map['review_note'] = Variable<String>(reviewNote.value);
+    }
+    if (arweaveTxId.present) {
+      map['arweave_tx_id'] = Variable<String>(arweaveTxId.value);
+    }
     if (syncedAt.present) {
       map['synced_at'] = Variable<DateTime>(syncedAt.value);
     }
@@ -820,6 +923,8 @@ class ReviewsCompanion extends UpdateCompanion<Review> {
           ..write('jobId: $jobId, ')
           ..write('rating: $rating, ')
           ..write('timestamp: $timestamp, ')
+          ..write('reviewNote: $reviewNote, ')
+          ..write('arweaveTxId: $arweaveTxId, ')
           ..write('syncedAt: $syncedAt')
           ..write(')'))
         .toString();
@@ -883,6 +988,17 @@ class $DraftReviewsTable extends DraftReviews
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _arweaveTxIdMeta = const VerificationMeta(
+    'arweaveTxId',
+  );
+  @override
+  late final GeneratedColumn<String> arweaveTxId = GeneratedColumn<String>(
+    'arweave_tx_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -912,6 +1028,7 @@ class $DraftReviewsTable extends DraftReviews
     jobId,
     rating,
     notes,
+    arweaveTxId,
     createdAt,
     status,
   ];
@@ -963,6 +1080,15 @@ class $DraftReviewsTable extends DraftReviews
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
+    if (data.containsKey('arweave_tx_id')) {
+      context.handle(
+        _arweaveTxIdMeta,
+        arweaveTxId.isAcceptableOrUnknown(
+          data['arweave_tx_id']!,
+          _arweaveTxIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1004,6 +1130,10 @@ class $DraftReviewsTable extends DraftReviews
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      arweaveTxId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}arweave_tx_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1027,6 +1157,7 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
   final String jobId;
   final int rating;
   final String? notes;
+  final String? arweaveTxId;
   final DateTime createdAt;
   final String status;
   const DraftReview({
@@ -1035,6 +1166,7 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
     required this.jobId,
     required this.rating,
     this.notes,
+    this.arweaveTxId,
     required this.createdAt,
     required this.status,
   });
@@ -1047,6 +1179,9 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
     map['rating'] = Variable<int>(rating);
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || arweaveTxId != null) {
+      map['arweave_tx_id'] = Variable<String>(arweaveTxId);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['status'] = Variable<String>(status);
@@ -1062,6 +1197,9 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      arweaveTxId: arweaveTxId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(arweaveTxId),
       createdAt: Value(createdAt),
       status: Value(status),
     );
@@ -1078,6 +1216,7 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
       jobId: serializer.fromJson<String>(json['jobId']),
       rating: serializer.fromJson<int>(json['rating']),
       notes: serializer.fromJson<String?>(json['notes']),
+      arweaveTxId: serializer.fromJson<String?>(json['arweaveTxId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       status: serializer.fromJson<String>(json['status']),
     );
@@ -1091,6 +1230,7 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
       'jobId': serializer.toJson<String>(jobId),
       'rating': serializer.toJson<int>(rating),
       'notes': serializer.toJson<String?>(notes),
+      'arweaveTxId': serializer.toJson<String?>(arweaveTxId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'status': serializer.toJson<String>(status),
     };
@@ -1102,6 +1242,7 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
     String? jobId,
     int? rating,
     Value<String?> notes = const Value.absent(),
+    Value<String?> arweaveTxId = const Value.absent(),
     DateTime? createdAt,
     String? status,
   }) => DraftReview(
@@ -1110,6 +1251,7 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
     jobId: jobId ?? this.jobId,
     rating: rating ?? this.rating,
     notes: notes.present ? notes.value : this.notes,
+    arweaveTxId: arweaveTxId.present ? arweaveTxId.value : this.arweaveTxId,
     createdAt: createdAt ?? this.createdAt,
     status: status ?? this.status,
   );
@@ -1122,6 +1264,9 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
       jobId: data.jobId.present ? data.jobId.value : this.jobId,
       rating: data.rating.present ? data.rating.value : this.rating,
       notes: data.notes.present ? data.notes.value : this.notes,
+      arweaveTxId: data.arweaveTxId.present
+          ? data.arweaveTxId.value
+          : this.arweaveTxId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       status: data.status.present ? data.status.value : this.status,
     );
@@ -1135,6 +1280,7 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
           ..write('jobId: $jobId, ')
           ..write('rating: $rating, ')
           ..write('notes: $notes, ')
+          ..write('arweaveTxId: $arweaveTxId, ')
           ..write('createdAt: $createdAt, ')
           ..write('status: $status')
           ..write(')'))
@@ -1142,8 +1288,16 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, workerAddress, jobId, rating, notes, createdAt, status);
+  int get hashCode => Object.hash(
+    id,
+    workerAddress,
+    jobId,
+    rating,
+    notes,
+    arweaveTxId,
+    createdAt,
+    status,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1153,6 +1307,7 @@ class DraftReview extends DataClass implements Insertable<DraftReview> {
           other.jobId == this.jobId &&
           other.rating == this.rating &&
           other.notes == this.notes &&
+          other.arweaveTxId == this.arweaveTxId &&
           other.createdAt == this.createdAt &&
           other.status == this.status);
 }
@@ -1163,6 +1318,7 @@ class DraftReviewsCompanion extends UpdateCompanion<DraftReview> {
   final Value<String> jobId;
   final Value<int> rating;
   final Value<String?> notes;
+  final Value<String?> arweaveTxId;
   final Value<DateTime> createdAt;
   final Value<String> status;
   const DraftReviewsCompanion({
@@ -1171,6 +1327,7 @@ class DraftReviewsCompanion extends UpdateCompanion<DraftReview> {
     this.jobId = const Value.absent(),
     this.rating = const Value.absent(),
     this.notes = const Value.absent(),
+    this.arweaveTxId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.status = const Value.absent(),
   });
@@ -1180,6 +1337,7 @@ class DraftReviewsCompanion extends UpdateCompanion<DraftReview> {
     required String jobId,
     required int rating,
     this.notes = const Value.absent(),
+    this.arweaveTxId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.status = const Value.absent(),
   }) : workerAddress = Value(workerAddress),
@@ -1191,6 +1349,7 @@ class DraftReviewsCompanion extends UpdateCompanion<DraftReview> {
     Expression<String>? jobId,
     Expression<int>? rating,
     Expression<String>? notes,
+    Expression<String>? arweaveTxId,
     Expression<DateTime>? createdAt,
     Expression<String>? status,
   }) {
@@ -1200,6 +1359,7 @@ class DraftReviewsCompanion extends UpdateCompanion<DraftReview> {
       if (jobId != null) 'job_id': jobId,
       if (rating != null) 'rating': rating,
       if (notes != null) 'notes': notes,
+      if (arweaveTxId != null) 'arweave_tx_id': arweaveTxId,
       if (createdAt != null) 'created_at': createdAt,
       if (status != null) 'status': status,
     });
@@ -1211,6 +1371,7 @@ class DraftReviewsCompanion extends UpdateCompanion<DraftReview> {
     Value<String>? jobId,
     Value<int>? rating,
     Value<String?>? notes,
+    Value<String?>? arweaveTxId,
     Value<DateTime>? createdAt,
     Value<String>? status,
   }) {
@@ -1220,6 +1381,7 @@ class DraftReviewsCompanion extends UpdateCompanion<DraftReview> {
       jobId: jobId ?? this.jobId,
       rating: rating ?? this.rating,
       notes: notes ?? this.notes,
+      arweaveTxId: arweaveTxId ?? this.arweaveTxId,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
     );
@@ -1243,6 +1405,9 @@ class DraftReviewsCompanion extends UpdateCompanion<DraftReview> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (arweaveTxId.present) {
+      map['arweave_tx_id'] = Variable<String>(arweaveTxId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1260,6 +1425,7 @@ class DraftReviewsCompanion extends UpdateCompanion<DraftReview> {
           ..write('jobId: $jobId, ')
           ..write('rating: $rating, ')
           ..write('notes: $notes, ')
+          ..write('arweaveTxId: $arweaveTxId, ')
           ..write('createdAt: $createdAt, ')
           ..write('status: $status')
           ..write(')'))
@@ -4676,6 +4842,8 @@ typedef $$ReviewsTableCreateCompanionBuilder =
       required String jobId,
       required int rating,
       required BigInt timestamp,
+      Value<String?> reviewNote,
+      Value<String?> arweaveTxId,
       Value<DateTime> syncedAt,
     });
 typedef $$ReviewsTableUpdateCompanionBuilder =
@@ -4686,6 +4854,8 @@ typedef $$ReviewsTableUpdateCompanionBuilder =
       Value<String> jobId,
       Value<int> rating,
       Value<BigInt> timestamp,
+      Value<String?> reviewNote,
+      Value<String?> arweaveTxId,
       Value<DateTime> syncedAt,
     });
 
@@ -4725,6 +4895,16 @@ class $$ReviewsTableFilterComposer
 
   ColumnFilters<BigInt> get timestamp => $composableBuilder(
     column: $table.timestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reviewNote => $composableBuilder(
+    column: $table.reviewNote,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get arweaveTxId => $composableBuilder(
+    column: $table.arweaveTxId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4773,6 +4953,16 @@ class $$ReviewsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get reviewNote => $composableBuilder(
+    column: $table.reviewNote,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get arweaveTxId => $composableBuilder(
+    column: $table.arweaveTxId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get syncedAt => $composableBuilder(
     column: $table.syncedAt,
     builder: (column) => ColumnOrderings(column),
@@ -4809,6 +4999,16 @@ class $$ReviewsTableAnnotationComposer
 
   GeneratedColumn<BigInt> get timestamp =>
       $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<String> get reviewNote => $composableBuilder(
+    column: $table.reviewNote,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get arweaveTxId => $composableBuilder(
+    column: $table.arweaveTxId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get syncedAt =>
       $composableBuilder(column: $table.syncedAt, builder: (column) => column);
@@ -4848,6 +5048,8 @@ class $$ReviewsTableTableManager
                 Value<String> jobId = const Value.absent(),
                 Value<int> rating = const Value.absent(),
                 Value<BigInt> timestamp = const Value.absent(),
+                Value<String?> reviewNote = const Value.absent(),
+                Value<String?> arweaveTxId = const Value.absent(),
                 Value<DateTime> syncedAt = const Value.absent(),
               }) => ReviewsCompanion(
                 id: id,
@@ -4856,6 +5058,8 @@ class $$ReviewsTableTableManager
                 jobId: jobId,
                 rating: rating,
                 timestamp: timestamp,
+                reviewNote: reviewNote,
+                arweaveTxId: arweaveTxId,
                 syncedAt: syncedAt,
               ),
           createCompanionCallback:
@@ -4866,6 +5070,8 @@ class $$ReviewsTableTableManager
                 required String jobId,
                 required int rating,
                 required BigInt timestamp,
+                Value<String?> reviewNote = const Value.absent(),
+                Value<String?> arweaveTxId = const Value.absent(),
                 Value<DateTime> syncedAt = const Value.absent(),
               }) => ReviewsCompanion.insert(
                 id: id,
@@ -4874,6 +5080,8 @@ class $$ReviewsTableTableManager
                 jobId: jobId,
                 rating: rating,
                 timestamp: timestamp,
+                reviewNote: reviewNote,
+                arweaveTxId: arweaveTxId,
                 syncedAt: syncedAt,
               ),
           withReferenceMapper: (p0) => p0
@@ -4914,6 +5122,7 @@ typedef $$DraftReviewsTableCreateCompanionBuilder =
       required String jobId,
       required int rating,
       Value<String?> notes,
+      Value<String?> arweaveTxId,
       Value<DateTime> createdAt,
       Value<String> status,
     });
@@ -4924,6 +5133,7 @@ typedef $$DraftReviewsTableUpdateCompanionBuilder =
       Value<String> jobId,
       Value<int> rating,
       Value<String?> notes,
+      Value<String?> arweaveTxId,
       Value<DateTime> createdAt,
       Value<String> status,
     });
@@ -4959,6 +5169,11 @@ class $$DraftReviewsTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get arweaveTxId => $composableBuilder(
+    column: $table.arweaveTxId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5007,6 +5222,11 @@ class $$DraftReviewsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get arweaveTxId => $composableBuilder(
+    column: $table.arweaveTxId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -5043,6 +5263,11 @@ class $$DraftReviewsTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get arweaveTxId => $composableBuilder(
+    column: $table.arweaveTxId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -5087,6 +5312,7 @@ class $$DraftReviewsTableTableManager
                 Value<String> jobId = const Value.absent(),
                 Value<int> rating = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> arweaveTxId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> status = const Value.absent(),
               }) => DraftReviewsCompanion(
@@ -5095,6 +5321,7 @@ class $$DraftReviewsTableTableManager
                 jobId: jobId,
                 rating: rating,
                 notes: notes,
+                arweaveTxId: arweaveTxId,
                 createdAt: createdAt,
                 status: status,
               ),
@@ -5105,6 +5332,7 @@ class $$DraftReviewsTableTableManager
                 required String jobId,
                 required int rating,
                 Value<String?> notes = const Value.absent(),
+                Value<String?> arweaveTxId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> status = const Value.absent(),
               }) => DraftReviewsCompanion.insert(
@@ -5113,6 +5341,7 @@ class $$DraftReviewsTableTableManager
                 jobId: jobId,
                 rating: rating,
                 notes: notes,
+                arweaveTxId: arweaveTxId,
                 createdAt: createdAt,
                 status: status,
               ),
