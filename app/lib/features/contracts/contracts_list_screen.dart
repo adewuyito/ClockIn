@@ -309,47 +309,25 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
-          // Header title & badge
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+          // Header title
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'My Contracts',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.onSurface,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  Text(
-                    'P2P Solana on-chain escrow agreements',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(6),
+              Text(
+                'My Contracts',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.onSurface,
+                  letterSpacing: -0.5,
                 ),
-                child: Text(
-                  'Solana Devnet',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+              ),
+              Text(
+                'P2P Solana on-chain escrow agreements',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.onSurfaceVariant,
                 ),
               ),
             ],
@@ -395,7 +373,7 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildSummaryCard(
-                  label: 'TOTAL VALUE',
+                  label: 'ACTIVE VALUE',
                   valueWidget: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -553,13 +531,17 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                label,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onSurfaceVariant,
-                  letterSpacing: 0.5,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurfaceVariant,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
               ?topTrailing,
