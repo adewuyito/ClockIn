@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:solana/solana.dart';
-import '../../core/database/attestation_repository.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/models/dispute_case.dart';
 import '../../core/providers/app_providers.dart';
@@ -1433,316 +1432,6 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
     );
   }
 
-  Widget _buildGuardianJurorItem({
-    required int index,
-    required String jurorAddress,
-    required int vote,
-  }) {
-    final wallet = ref.watch(walletStateProvider);
-    final userAddress = wallet.publicKey?.toBase58();
-    final isCurrentUser = userAddress != null && userAddress == jurorAddress;
-
-    final attestationAsync = ref.watch(seekerAttestationProvider(jurorAddress));
-    final attestation = attestationAsync.valueOrNull;
-
-    final knownNode = AttestationRepository.knownGuardianNodes[jurorAddress];
-    final guardianName = attestation?.guardianName ??
-        knownNode?.$1 ??
-        (index == 0 ? 'Helius' : index == 1 ? 'Triton' : 'Jito');
-    final stakedAmount = attestation?.stakedAmount ??
-        knownNode?.$2 ??
-        (index == 0 ? 500.0 : index == 1 ? 250.0 : 750.0);
-    final isAttested = attestation?.isAttested ??
-        (knownNode != null || stakedAmount >= AttestationRepository.minimumStakeThreshold);
-
-    final Color badgeColor;
-    final IconData shieldIcon;
-    switch (guardianName.toLowerCase()) {
-      case 'triton':
-        badgeColor = const Color(0xFF0284C7);
-        shieldIcon = Icons.shield_rounded;
-        break;
-      case 'jito':
-        badgeColor = const Color(0xFF7C3AED);
-        shieldIcon = Icons.bolt_rounded;
-        break;
-      case 'helius':
-      default:
-        badgeColor = const Color(0xFFE8590C);
-        shieldIcon = Icons.shield_rounded;
-        break;
-    }
-
-    final shortAddr = jurorAddress.length >= 8
-        ? '${jurorAddress.substring(0, 4)}…${jurorAddress.substring(jurorAddress.length - 4)}'
-        : jurorAddress;
-
-    final String voteText;
-    final IconData voteIcon;
-    final Color voteColor;
-    final Color voteBg;
-
-    switch (vote) {
-      case 1:
-        voteText = 'Release to Worker';
-        voteIcon = Icons.check_circle_rounded;
-        voteColor = AppColors.success;
-        voteBg = AppColors.successContainer.withValues(alpha: 0.15);
-        break;
-      case 2:
-        voteText = 'Refund to Employer';
-        voteIcon = Icons.replay_rounded;
-        voteColor = AppColors.warning;
-        voteBg = const Color(0xFFFEF7ED);
-        break;
-      case 3:
-        voteText = 'Split 50% / 50%';
-        voteIcon = Icons.pie_chart_outline_rounded;
-        voteColor = AppColors.primary;
-        voteBg = AppColors.primaryContainer.withValues(alpha: 0.15);
-        break;
-      case 0:
-      default:
-        voteText = 'Reviewing Evidence';
-        voteIcon = Icons.schedule_rounded;
-        voteColor = AppColors.outline;
-        voteBg = AppColors.surfaceContainerHigh;
-        break;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
-                ),
-                child: Center(
-                  child: Icon(shieldIcon, size: 18, color: badgeColor),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            '$guardianName Guardian Juror #${index + 1}',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.onSurface,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isCurrentUser) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: AppColors.success,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'YOU (JUROR)',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Text(
-                          shortAddr,
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
-                            color: AppColors.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        InkWell(
-                          onTap: () {
-                            Clipboard.setData(ClipboardData(text: jurorAddress));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Juror address copied: $shortAddr')),
-                            );
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.all(2),
-                            child: Icon(Icons.copy_rounded, size: 12, color: AppColors.outline),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: voteBg,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: voteColor.withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(voteIcon, size: 12, color: voteColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      voteText,
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w700,
-                        color: voteColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.verified_user_rounded,
-                  size: 13,
-                  color: isAttested ? badgeColor : AppColors.outline,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    isAttested
-                        ? '${stakedAmount.toStringAsFixed(0)} \$SKR Staked • Seeker Proof-of-Human Verified'
-                        : 'Unverified Staker • Awaiting Attestation',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: badgeColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    stakedAmount >= 500
-                        ? 'TIER 1 NODE'
-                        : stakedAmount >= 250
-                            ? 'TIER 2 NODE'
-                            : 'COMMUNITY',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w800,
-                      color: badgeColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPendingJurorSlot(int slotNumber, String guardianLabel) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceContainerHigh,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '#$slotNumber',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.outline,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Juror Slot #$slotNumber • $guardianLabel',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Awaiting panel assembly on Solana Devnet',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              'PENDING',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: AppColors.outline,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildEvidenceItem({
     required String title,
@@ -2021,7 +1710,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                   const Icon(Icons.shield_outlined, size: 18, color: AppColors.primary),
                   const SizedBox(width: 8),
                   Text(
-                    'Seeker Guardian Jurors',
+                    'Arbitration Quorum',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -2056,20 +1745,20 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
           const SizedBox(height: 6),
           Text(
             disputeCase == null
-                ? '3 Guardian Jurors will be randomly selected from active \$SKR stakers upon panel assembly.'
-                : '3 assigned Seeker Guardian stakers reviewing evidence. 2/3 majority required for quorum.',
+                ? 'Guardian Jurors will be randomly selected from active stakers upon panel assembly.'
+                : 'Decentralized juror panel reviewing deliverables on Solana Devnet. 2/3 majority vote required to release or refund escrow.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,
               color: AppColors.onSurfaceVariant,
             ),
           ),
           if (disputeCase != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: progress,
-                minHeight: 6,
+                minHeight: 8,
                 backgroundColor: AppColors.surfaceContainerHigh,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   disputeCase.status == DisputeCaseStatus.quorumReached ||
@@ -2079,37 +1768,36 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                 ),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              disputeCase.status == DisputeCaseStatus.quorumReached ||
-                      disputeCase.status == DisputeCaseStatus.executed
-                  ? 'Quorum reached (2/3 majority agrees on ${disputeCase.outcomeDisplay})'
-                  : '$votesCast of 3 votes recorded • Need 2 matching votes for simple majority',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
-                color: AppColors.outline,
-                fontWeight: FontWeight.w600,
-              ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  disputeCase.status == DisputeCaseStatus.quorumReached ||
+                          disputeCase.status == DisputeCaseStatus.executed
+                      ? 'Quorum reached (${disputeCase.outcomeDisplay})'
+                      : '$votesCast of 3 votes recorded',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10.5,
+                    color: AppColors.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  disputeCase.status == DisputeCaseStatus.quorumReached ||
+                          disputeCase.status == DisputeCaseStatus.executed
+                      ? 'Ready for execution'
+                      : '2 of 3 votes needed',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10,
+                    color: AppColors.outline,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ],
           const SizedBox(height: 14),
-          if (disputeCase != null) ...[
-            for (int i = 0; i < 3; i++) ...[
-              if (i > 0) const Divider(height: 16, color: AppColors.surfaceContainerHigh),
-              _buildGuardianJurorItem(
-                index: i,
-                jurorAddress: disputeCase.jurors[i],
-                vote: disputeCase.votes[i],
-              ),
-            ],
-          ] else ...[
-            _buildPendingJurorSlot(1, 'Helius Guardian Node'),
-            const Divider(height: 16, color: AppColors.surfaceContainerHigh),
-            _buildPendingJurorSlot(2, 'Triton RPC Guardian'),
-            const Divider(height: 16, color: AppColors.surfaceContainerHigh),
-            _buildPendingJurorSlot(3, 'Jito MEV Guardian'),
-          ],
-          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
