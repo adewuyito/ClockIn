@@ -1361,7 +1361,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'No external deliverables filed yet. Use "+ Submit Additional Evidence" below to attach deliverables, pull requests, or evidence notes.',
+                      'No external deliverables filed yet. Use "Submit Additional Evidence" below to attach deliverables, pull requests, or evidence notes.',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 11.5,
                         color: AppColors.onSurfaceVariant,
@@ -1380,7 +1380,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
               onPressed: _showAddEvidenceDialog,
               icon: const Icon(Icons.add_rounded, size: 16),
               label: Text(
-                '+ Submit Additional Evidence',
+                'Submit Additional Evidence',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
