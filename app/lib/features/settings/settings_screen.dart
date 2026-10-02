@@ -562,14 +562,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildVersionStamp() {
-    return Column(
-      children: [
-        Text('ClockIn Solana Pass v1.0.0 (${NetworkConfig.clusterDisplayName} Build)',
-            style: AppTypography.labelSm.copyWith(color: AppColors.outline)),
-        const SizedBox(height: 2),
-        Text('CLOCK IN Solana Mobile Hackathon',
-            style: AppTypography.labelSm.copyWith(color: AppColors.outlineVariant)),
-      ],
+    return Center(
+      child: Text(
+        'ClockIn v1.0.0',
+        style: AppTypography.labelSm.copyWith(color: AppColors.outline),
+      ),
     );
   }
 }
