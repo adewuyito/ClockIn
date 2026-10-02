@@ -329,36 +329,6 @@ class _LookupWorkerScreenState extends ConsumerState<LookupWorkerScreen> {
             const SizedBox(height: 20),
 
             _buildRecentLookups(),
-            const SizedBox(height: 16),
-
-            // Trust banner
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainer,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.lock_clock_rounded, size: 24, color: AppColors.primary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Direct On-Chain Reads',
-                            style: AppTypography.titleMd.copyWith(color: AppColors.onSurface)),
-                        Text(
-                          'ClockIn reads reputation directly from Solana account state — no indexer, no intermediary caching.',
-                          style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
