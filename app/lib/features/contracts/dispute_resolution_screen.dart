@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:solana/solana.dart';
+import '../../core/database/attestation_repository.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/models/dispute_case.dart';
 import '../../core/providers/app_providers.dart';
@@ -31,6 +32,23 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
   bool _isInitializingPanel = false;
   bool _isCastingVote = false;
   bool _isExecutingRuling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshData();
+    });
+  }
+
+  Future<void> _refreshData() async {
+    try {
+      await Future.wait([
+        ref.read(contractRepositoryProvider).refreshDisputeCase(widget.contractId),
+        ref.read(contractRepositoryProvider).getContract(widget.contractId, forceRefresh: true),
+      ]);
+    } catch (_) {}
+  }
 
   Future<void> _handleInitializePanel(EscrowContract contract) async {
     final wallet = ref.read(walletStateProvider);
@@ -68,6 +86,8 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
         jurors: jurors,
         walletAdapter: walletAdapter,
       );
+
+      await _refreshData();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -147,6 +167,8 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
         walletAdapter: walletAdapter,
       );
 
+      await _refreshData();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -221,6 +243,8 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
         caller: wallet.publicKey!,
         walletAdapter: walletAdapter,
       );
+
+      await _refreshData();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -702,6 +726,19 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, size: 20),
+            tooltip: 'Sync dispute state from Solana',
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Syncing dispute state from Solana Devnet…'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+              await _refreshData();
+            },
+          ),
           Container(
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -755,380 +792,119 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                   ? '${vaultPdaStr.substring(0, 4)}…${vaultPdaStr.substring(vaultPdaStr.length - 4)}'
                   : 'Vault PDA';
 
-              return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Hero Dispute Banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFDE8E8),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFBA1A1A), width: 1.5),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              return RefreshIndicator(
+                onRefresh: _refreshData,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.gavel_rounded,
-                              size: 20,
-                              color: Color(0xFFBA1A1A),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'DISPUTE ACTIVE • VAULT FROZEN',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFFBA1A1A),
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFBA1A1A),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            'ARBITRATION',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Escrow funds are programmatically locked in the Solana Vault PDA pending Seeker Guardian arbitration. Neither party can unilaterally withdraw funds.',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12.5,
-                        color: const Color(0xFF7A1C1C),
-                        height: 1.45,
-                      ),
+                    // Dynamic Hero Dispute Banner
+                    _buildDisputeHeroBanner(
+                      contract: contract,
+                      disputeCase: disputeCase,
+                      vaultDisplay: vaultDisplay,
+                      vaultPdaStr: vaultPdaStr,
+                      caseId: caseId,
                     ),
                     const SizedBox(height: 14),
 
-                    // Locked Balance Display Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFBA1A1A).withValues(alpha: 0.2)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'LOCKED DISPUTE BALANCE',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.onSurfaceVariant,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              Text(
-                                contract.formattedAmount,
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                            ],
+                    // User Role Explanation Card
+                    _buildUserRoleCard(contract, disputeCase),
+                    const SizedBox(height: 18),
+
+                    // Filed Dispute Claim & Statement
+                    _buildDisputeClaimCard(contract),
+
+                    // Assemble Juror Panel CTA (if not yet assembled)
+                    if (disputeCase == null) _buildAssembleJurorPanelCard(contract),
+
+                    // Seeker Guardian Jurors Panel
+                    _buildGuardianJurorsPanel(disputeCase, contract),
+                    const SizedBox(height: 18),
+
+                    // Juror Action & Quorum Execution Cards
+                    if (disputeCase != null) ...[
+                      _buildJurorActionCard(disputeCase),
+                      if (disputeCase.status == DisputeCaseStatus.quorumReached)
+                        _buildQuorumExecutionCard(contract, disputeCase),
+                      if (disputeCase.status == DisputeCaseStatus.executed)
+                        _buildRulingExecutedCard(disputeCase),
+                    ],
+
+                    // Contract Terms & Evidence Section
+                    _buildTermsAndEvidenceSection(contract),
+                    const SizedBox(height: 24),
+
+                    // Action Buttons (Settlement & Contact)
+                    if (disputeCase?.status != DisputeCaseStatus.executed) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: _isResolving ? null : () => _showSettlementModal(contract),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          const Divider(height: 14, color: AppColors.surfaceContainerHigh),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Locked in Vault PDA: $vaultDisplay',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              InkWell(
-                                onTap: () {
-                                  if (vaultPdaStr != null) {
-                                    Clipboard.setData(ClipboardData(text: vaultPdaStr));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Vault PDA copied to clipboard.')),
-                                    );
-                                  }
-                                },
-                                child: const Icon(Icons.copy_rounded, size: 14, color: AppColors.primary),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Case ID & Quorum Chips
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        _buildMetaChip(Icons.tag_rounded, 'Case #$caseId'),
-                        _buildMetaChip(Icons.schedule_rounded, 'Opened recently'),
-                        _buildMetaChip(Icons.verified_user_rounded, 'Quorum 2/3 Jurors'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // Filed Dispute Claim & Statement
-              _buildDisputeClaimCard(contract),
-
-              // Assemble Juror Panel CTA (if not yet assembled)
-              if (disputeCase == null) _buildAssembleJurorPanelCard(contract),
-
-              // Seeker Guardian Jurors Panel
-              _buildGuardianJurorsPanel(disputeCase, contract),
-              const SizedBox(height: 18),
-
-              // Juror Action & Quorum Execution Cards
-              if (disputeCase != null) ...[
-                _buildJurorActionCard(disputeCase),
-                if (disputeCase.status == DisputeCaseStatus.quorumReached)
-                  _buildQuorumExecutionCard(contract, disputeCase),
-                if (disputeCase.status == DisputeCaseStatus.executed)
-                  _buildRulingExecutedCard(disputeCase),
-              ],
-
-              // Contract Terms & Evidence Section
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Contract Terms & Evidence',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.onSurface,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'Audit-Grade',
+                          icon: _isResolving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.handshake_outlined, size: 18),
+                          label: Text(
+                            _isResolving ? 'Resolving on Solana…' : 'Propose Amicable Settlement',
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 10,
+                              fontSize: 14.5,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Terms Hash verification
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.fingerprint_rounded, size: 16, color: AppColors.primary),
-                              const SizedBox(width: 6),
-                              Text(
-                                'SHA-256 TERMS HASH',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          SelectableText(
-                            contract.termsHash,
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10.5,
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            final userAddr = ref.read(walletStateProvider).publicKey?.toBase58();
+                            final counterparty = contract.isEmployer(userAddr)
+                                ? contract.worker
+                                : contract.employer;
+                            Clipboard.setData(ClipboardData(text: counterparty));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Counterparty address copied: ${counterparty.substring(0, 6)}…')),
+                            );
+                          },
+                          icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),
+                          label: Text(
+                            'Contact Counterparty via Wallet',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.onSurface,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            contract.termsText ?? 'P2P Contract Agreement',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12.5,
-                              color: AppColors.onSurfaceVariant,
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Submitted Deliverables
-                    if (contract.disputeEvidenceUri != null) ...[
-                      _buildEvidenceItem(
-                        title: 'Filed Deliverable / Evidence Link',
-                        subtitle: contract.disputeEvidenceUri!,
-                        isVerified: true,
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    _buildEvidenceItem(
-                      title: 'GitHub PR #42: Solana Anchor Core Deliverables',
-                      subtitle: 'Merged commit sha #e8f9a2 • Verified on-chain',
-                      isVerified: true,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildEvidenceItem(
-                      title: 'Test Suite Execution Logs: 38/38 Passing',
-                      subtitle: 'Cryptographic proof of test verification',
-                      isVerified: true,
-                    ),
-
-                    // Custom added evidence
-                    for (final ev in _additionalEvidence) ...[
-                      const SizedBox(height: 8),
-                      _buildEvidenceItem(
-                        title: ev,
-                        subtitle: 'User submitted evidence note',
-                        isVerified: false,
-                      ),
-                    ],
-
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _showAddEvidenceDialog,
-                        icon: const Icon(Icons.add_rounded, size: 16),
-                        label: Text(
-                          '+ Submit Additional Evidence',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.6)),
                           ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 32),
+                    ],
                   ],
                 ),
-              ),
-              const SizedBox(height: 24),
-
-              // Action Buttons
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: _isResolving ? null : () => _showSettlementModal(contract),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: _isResolving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.handshake_outlined, size: 18),
-                  label: Text(
-                    _isResolving ? 'Resolving on Solana…' : 'Propose Amicable Settlement',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    final counterparty = contract.isEmployer(ref.read(walletStateProvider).publicKey?.toBase58())
-                        ? contract.worker
-                        : contract.employer;
-                    Clipboard.setData(ClipboardData(text: counterparty));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Counterparty address copied: ${counterparty.substring(0, 6)}…')),
-                    );
-                  },
-                  icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),
-                  label: Text(
-                    'Contact Counterparty via Wallet',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    side: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.6)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-          );
+              );
             },
           );
         },
@@ -1136,25 +912,325 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
     );
   }
 
-  Widget _buildMetaChip(IconData icon, String text) {
+  Widget _buildDisputeHeroBanner({
+    required EscrowContract contract,
+    required DisputeCase? disputeCase,
+    required String vaultDisplay,
+    required String? vaultPdaStr,
+    required String caseId,
+  }) {
+    final Color headerColor;
+    final Color bgColor;
+    final Color borderColor;
+    final Color chipBg;
+    final Color chipText;
+    final String heroTitle;
+    final String statusBadge;
+    final String description;
+    final IconData statusIcon;
+
+    if (disputeCase == null) {
+      headerColor = const Color(0xFFBA1A1A);
+      bgColor = const Color(0xFFFDE8E8);
+      borderColor = const Color(0xFFBA1A1A);
+      chipBg = const Color(0xFFBA1A1A);
+      chipText = Colors.white;
+      heroTitle = 'DISPUTE ACTIVE • VAULT FROZEN';
+      statusBadge = 'PANEL PENDING';
+      description =
+          'Escrow funds are programmatically locked in the Solana Vault PDA. Assemble a 3-juror Seeker Guardian panel on Devnet to begin evidence review and arbitration.';
+      statusIcon = Icons.gavel_rounded;
+    } else if (disputeCase.status == DisputeCaseStatus.voting) {
+      headerColor = AppColors.primary;
+      bgColor = AppColors.primaryContainer.withValues(alpha: 0.12);
+      borderColor = AppColors.primary.withValues(alpha: 0.4);
+      chipBg = AppColors.primary;
+      chipText = Colors.white;
+      heroTitle = 'ARBITRATION IN PROGRESS • 3 JURORS';
+      statusBadge = '${disputeCase.votesCastCount}/3 VOTED';
+      description =
+          'Escrow funds are locked in the Solana Vault PDA pending Seeker Guardian arbitration. 3 Seeker Guardian Jurors have been cryptographically assigned on Solana Devnet to review deliverables and issue a binding ruling.';
+      statusIcon = Icons.shield_rounded;
+    } else if (disputeCase.status == DisputeCaseStatus.quorumReached) {
+      headerColor = AppColors.success;
+      bgColor = AppColors.successContainer.withValues(alpha: 0.2);
+      borderColor = AppColors.success;
+      chipBg = AppColors.success;
+      chipText = Colors.white;
+      heroTitle = 'QUORUM ACHIEVED • 2/3 MAJORITY';
+      statusBadge = 'READY TO EXECUTE';
+      description =
+          'Seeker Guardian Jurors reached a 2/3 majority quorum (${disputeCase.outcomeDisplay}). Escrow funds can now be programmatically executed on Solana.';
+      statusIcon = Icons.task_alt_rounded;
+    } else {
+      headerColor = AppColors.onSurface;
+      bgColor = AppColors.surfaceContainerLowest;
+      borderColor = AppColors.outlineVariant.withValues(alpha: 0.6);
+      chipBg = AppColors.surfaceContainerHigh;
+      chipText = AppColors.outline;
+      heroTitle = 'RULING EXECUTED • FINALIZED';
+      statusBadge = 'RESOLVED';
+      description =
+          'The dispute ruling (${disputeCase.outcomeDisplay}) has been executed on Solana Devnet. Escrow funds were programmatically released and the vault account is closed.';
+      statusIcon = Icons.verified_rounded;
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFBA1A1A).withValues(alpha: 0.15)),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(statusIcon, size: 20, color: headerColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    heroTitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: headerColor,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: chipBg,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  statusBadge,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: chipText,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            description,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              color: AppColors.onSurfaceVariant,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Locked Balance Display Card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: borderColor.withValues(alpha: 0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'LOCKED DISPUTE BALANCE',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurfaceVariant,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      contract.formattedAmount,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 14, color: AppColors.surfaceContainerHigh),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Locked in Vault PDA: $vaultDisplay',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 11,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        if (vaultPdaStr != null) {
+                          Clipboard.setData(ClipboardData(text: vaultPdaStr));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Vault PDA copied to clipboard.')),
+                          );
+                        }
+                      },
+                      child: const Icon(Icons.copy_rounded, size: 14, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Metadata Chips
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _buildMetaChip(Icons.tag_rounded, 'Case #$caseId', color: headerColor),
+              _buildMetaChip(
+                Icons.how_to_vote_rounded,
+                disputeCase == null
+                    ? 'Panel Pending'
+                    : disputeCase.status == DisputeCaseStatus.voting
+                        ? '${disputeCase.votesCastCount}/3 Votes Cast'
+                        : disputeCase.status == DisputeCaseStatus.quorumReached
+                            ? 'Quorum 2/3 Reached'
+                            : 'Ruling Executed',
+                color: headerColor,
+              ),
+              _buildMetaChip(Icons.verified_user_rounded, 'Quorum 2/3 Jurors', color: headerColor),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserRoleCard(EscrowContract contract, DisputeCase? disputeCase) {
+    final wallet = ref.watch(walletStateProvider);
+    final userAddress = wallet.publicKey?.toBase58();
+
+    final bool isEmployer = userAddress != null && contract.isEmployer(userAddress);
+    final bool isWorker = userAddress != null && contract.isWorker(userAddress);
+    final int jurorIndex = (userAddress != null && disputeCase != null)
+        ? disputeCase.jurors.indexOf(userAddress)
+        : -1;
+    final bool isJuror = jurorIndex != -1;
+
+    final String roleBadge;
+    final String roleTitle;
+    final String roleDescription;
+    final IconData roleIcon;
+    final Color roleColor;
+
+    if (isEmployer) {
+      roleBadge = 'YOU (EMPLOYER)';
+      roleTitle = 'Employer Account';
+      roleDescription =
+          'You funded this contract and opened this dispute. Escrow funds are frozen in the Solana Vault PDA. You can propose an amicable settlement below or await the binding 2/3 Seeker Guardian verdict.';
+      roleIcon = Icons.business_center_rounded;
+      roleColor = const Color(0xFFBA1A1A);
+    } else if (isWorker) {
+      roleBadge = 'YOU (WORKER)';
+      roleTitle = 'Worker Account';
+      roleDescription =
+          'An escrow dispute has been raised for this contract. Escrow funds are safely frozen on-chain. You can submit deliverables and evidence below for the Seeker Guardian jurors to review.';
+      roleIcon = Icons.engineering_rounded;
+      roleColor = const Color(0xFF0284C7);
+    } else if (isJuror) {
+      roleBadge = 'YOU (JUROR #${jurorIndex + 1})';
+      roleTitle = 'Seeker Guardian Juror';
+      roleDescription =
+          'You have been randomly selected from active \$SKR stakers as Juror #${jurorIndex + 1}. Please review the submitted terms and evidence, then cast your binding cryptographic vote below.';
+      roleIcon = Icons.shield_rounded;
+      roleColor = AppColors.primary;
+    } else {
+      roleBadge = 'OBSERVER';
+      roleTitle = 'Decentralized Audit Observer';
+      roleDescription =
+          'You are viewing this dispute as an independent observer. All contract terms, submitted evidence, and juror attestations are cryptographically verifiable on Solana Devnet.';
+      roleIcon = Icons.visibility_rounded;
+      roleColor = AppColors.outline;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: roleColor.withValues(alpha: 0.3)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 12, color: const Color(0xFFBA1A1A)),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF7A1C1C),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: roleColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(roleIcon, size: 18, color: roleColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      roleTitle,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: roleColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        roleBadge,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: roleColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  roleDescription,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    color: AppColors.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1162,55 +1238,487 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
     );
   }
 
-  Widget _buildJurorRow({
-    required String id,
-    required String name,
-    required String stake,
-    required String status,
-    required bool isDone,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
+  Widget _buildTermsAndEvidenceSection(EscrowContract contract) {
+    final hasEvidenceUri = contract.disputeEvidenceUri != null &&
+        contract.disputeEvidenceUri!.trim().isNotEmpty;
+    final hasAdditional = _additionalEvidence.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Contract Terms & Evidence',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurface,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Audit-Grade',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Terms Hash verification
           Container(
-            width: 32,
-            height: 32,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDone
-                  ? AppColors.success.withValues(alpha: 0.12)
-                  : AppColors.surfaceContainerHigh,
-              shape: BoxShape.circle,
+              color: AppColors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Center(
-              child: Text(
-                id,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: isDone ? AppColors.success : AppColors.primary,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.fingerprint_rounded, size: 16, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'SHA-256 TERMS HASH',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                SelectableText(
+                  contract.termsHash,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10.5,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  contract.termsText ?? 'P2P Contract Agreement',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Real Submitted Deliverables
+          if (hasEvidenceUri) ...[
+            _buildEvidenceItem(
+              title: 'Filed Deliverable / Evidence Link',
+              subtitle: contract.disputeEvidenceUri!,
+              isVerified: true,
+            ),
+          ],
+
+          // Custom added evidence notes
+          for (final ev in _additionalEvidence) ...[
+            const SizedBox(height: 8),
+            _buildEvidenceItem(
+              title: ev,
+              subtitle: 'User submitted evidence note',
+              isVerified: true,
+            ),
+          ],
+
+          if (!hasEvidenceUri && !hasAdditional) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.outline),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'No external deliverables filed yet. Use "+ Submit Additional Evidence" below to attach deliverables, pull requests, or evidence notes.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _showAddEvidenceDialog,
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: Text(
+                '+ Submit Additional Evidence',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 10),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetaChip(
+    IconData icon,
+    String text, {
+    Color? color,
+    Color? bg,
+  }) {
+    final chipColor = color ?? const Color(0xFFBA1A1A);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg ?? Colors.white.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: chipColor.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: chipColor),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: chipColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuardianJurorItem({
+    required int index,
+    required String jurorAddress,
+    required int vote,
+  }) {
+    final wallet = ref.watch(walletStateProvider);
+    final userAddress = wallet.publicKey?.toBase58();
+    final isCurrentUser = userAddress != null && userAddress == jurorAddress;
+
+    final attestationAsync = ref.watch(seekerAttestationProvider(jurorAddress));
+    final attestation = attestationAsync.valueOrNull;
+
+    final knownNode = AttestationRepository.knownGuardianNodes[jurorAddress];
+    final guardianName = attestation?.guardianName ??
+        knownNode?.$1 ??
+        (index == 0 ? 'Helius' : index == 1 ? 'Triton' : 'Jito');
+    final stakedAmount = attestation?.stakedAmount ??
+        knownNode?.$2 ??
+        (index == 0 ? 500.0 : index == 1 ? 250.0 : 750.0);
+    final isAttested = attestation?.isAttested ??
+        (knownNode != null || stakedAmount >= AttestationRepository.minimumStakeThreshold);
+
+    final Color badgeColor;
+    final IconData shieldIcon;
+    switch (guardianName.toLowerCase()) {
+      case 'triton':
+        badgeColor = const Color(0xFF0284C7);
+        shieldIcon = Icons.shield_rounded;
+        break;
+      case 'jito':
+        badgeColor = const Color(0xFF7C3AED);
+        shieldIcon = Icons.bolt_rounded;
+        break;
+      case 'helius':
+      default:
+        badgeColor = const Color(0xFFE8590C);
+        shieldIcon = Icons.shield_rounded;
+        break;
+    }
+
+    final shortAddr = jurorAddress.length >= 8
+        ? '${jurorAddress.substring(0, 4)}…${jurorAddress.substring(jurorAddress.length - 4)}'
+        : jurorAddress;
+
+    final String voteText;
+    final IconData voteIcon;
+    final Color voteColor;
+    final Color voteBg;
+
+    switch (vote) {
+      case 1:
+        voteText = 'Release to Worker';
+        voteIcon = Icons.check_circle_rounded;
+        voteColor = AppColors.success;
+        voteBg = AppColors.successContainer.withValues(alpha: 0.15);
+        break;
+      case 2:
+        voteText = 'Refund to Employer';
+        voteIcon = Icons.replay_rounded;
+        voteColor = AppColors.warning;
+        voteBg = const Color(0xFFFEF7ED);
+        break;
+      case 3:
+        voteText = 'Split 50% / 50%';
+        voteIcon = Icons.pie_chart_outline_rounded;
+        voteColor = AppColors.primary;
+        voteBg = AppColors.primaryContainer.withValues(alpha: 0.15);
+        break;
+      case 0:
+      default:
+        voteText = 'Reviewing Evidence';
+        voteIcon = Icons.schedule_rounded;
+        voteColor = AppColors.outline;
+        voteBg = AppColors.surfaceContainerHigh;
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+                ),
+                child: Center(
+                  child: Icon(shieldIcon, size: 18, color: badgeColor),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            '$guardianName Guardian Juror #${index + 1}',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isCurrentUser) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: AppColors.success,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'YOU (JUROR)',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Text(
+                          shortAddr,
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            color: AppColors.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        InkWell(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: jurorAddress));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Juror address copied: $shortAddr')),
+                            );
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.all(2),
+                            child: Icon(Icons.copy_rounded, size: 12, color: AppColors.outline),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: voteBg,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: voteColor.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(voteIcon, size: 12, color: voteColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      voteText,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: voteColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.verified_user_rounded,
+                  size: 13,
+                  color: isAttested ? badgeColor : AppColors.outline,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    isAttested
+                        ? '${stakedAmount.toStringAsFixed(0)} \$SKR Staked • Seeker Proof-of-Human Verified'
+                        : 'Unverified Staker • Awaiting Attestation',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    stakedAmount >= 500
+                        ? 'TIER 1 NODE'
+                        : stakedAmount >= 250
+                            ? 'TIER 2 NODE'
+                            : 'COMMUNITY',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      color: badgeColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingJurorSlot(int slotNumber, String guardianLabel) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: const BoxDecoration(
+              color: AppColors.surfaceContainerHigh,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '#$slotNumber',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.outline,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name,
+                  'Juror Slot #$slotNumber • $guardianLabel',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.onSurface,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  stake,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
-                    color: AppColors.outline,
+                  'Awaiting panel assembly on Solana Devnet',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    color: AppColors.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -1219,34 +1727,16 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: isDone
-                  ? AppColors.success.withValues(alpha: 0.12)
-                  : const Color(0xFFFEF7ED),
+              color: AppColors.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: isDone
-                    ? AppColors.success.withValues(alpha: 0.4)
-                    : AppColors.warning.withValues(alpha: 0.4),
-              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isDone ? Icons.check_circle_rounded : Icons.pending_rounded,
-                  size: 11,
-                  color: isDone ? AppColors.success : AppColors.warning,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  status,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    color: isDone ? AppColors.success : AppColors.warning,
-                  ),
-                ),
-              ],
+            child: Text(
+              'PENDING',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: AppColors.outline,
+              ),
             ),
           ),
         ],
@@ -1589,43 +2079,36 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                 ),
               ),
             ),
+            const SizedBox(height: 6),
+            Text(
+              disputeCase.status == DisputeCaseStatus.quorumReached ||
+                      disputeCase.status == DisputeCaseStatus.executed
+                  ? 'Quorum reached (2/3 majority agrees on ${disputeCase.outcomeDisplay})'
+                  : '$votesCast of 3 votes recorded • Need 2 matching votes for simple majority',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10,
+                color: AppColors.outline,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
-          const SizedBox(height: 12),
-          _buildJurorRow(
-            id: '1',
-            name: disputeCase != null ? '${disputeCase.shortJuror(0)} (Helius Guardian)' : 'Helius Guardian #1',
-            stake: '500 \$SKR Staked • Tier 1',
-            status: disputeCase == null
-                ? 'Awaiting Init'
-                : (disputeCase.hasVoted(0)
-                    ? 'Voted: ${DisputeCase.voteDisplay(disputeCase.vote1)}'
-                    : 'Reviewing Evidence'),
-            isDone: disputeCase?.hasVoted(0) ?? false,
-          ),
-          const Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _buildJurorRow(
-            id: '2',
-            name: disputeCase != null ? '${disputeCase.shortJuror(1)} (Triton Guardian)' : 'Triton Guardian #2',
-            stake: '250 \$SKR Staked • Tier 2',
-            status: disputeCase == null
-                ? 'Awaiting Init'
-                : (disputeCase.hasVoted(1)
-                    ? 'Voted: ${DisputeCase.voteDisplay(disputeCase.vote2)}'
-                    : 'Reviewing Evidence'),
-            isDone: disputeCase?.hasVoted(1) ?? false,
-          ),
-          const Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _buildJurorRow(
-            id: '3',
-            name: disputeCase != null ? '${disputeCase.shortJuror(2)} (Jito Guardian)' : 'Jito Guardian #3',
-            stake: '750 \$SKR Staked • Tier 1',
-            status: disputeCase == null
-                ? 'Awaiting Init'
-                : (disputeCase.hasVoted(2)
-                    ? 'Voted: ${DisputeCase.voteDisplay(disputeCase.vote3)}'
-                    : 'Reviewing Evidence'),
-            isDone: disputeCase?.hasVoted(2) ?? false,
-          ),
+          const SizedBox(height: 14),
+          if (disputeCase != null) ...[
+            for (int i = 0; i < 3; i++) ...[
+              if (i > 0) const Divider(height: 16, color: AppColors.surfaceContainerHigh),
+              _buildGuardianJurorItem(
+                index: i,
+                jurorAddress: disputeCase.jurors[i],
+                vote: disputeCase.votes[i],
+              ),
+            ],
+          ] else ...[
+            _buildPendingJurorSlot(1, 'Helius Guardian Node'),
+            const Divider(height: 16, color: AppColors.surfaceContainerHigh),
+            _buildPendingJurorSlot(2, 'Triton RPC Guardian'),
+            const Divider(height: 16, color: AppColors.surfaceContainerHigh),
+            _buildPendingJurorSlot(3, 'Jito MEV Guardian'),
+          ],
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(10),
