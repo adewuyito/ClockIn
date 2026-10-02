@@ -337,6 +337,9 @@ class ContractRepository {
     required String contractId,
     required Ed25519HDPublicKey caller,
     required WalletAdapter walletAdapter,
+    String? disputeReason,
+    String? disputeDetails,
+    String? disputeEvidenceUri,
   }) async {
     final signature = await contractService.raiseDispute(
       caller: caller,
@@ -351,6 +354,11 @@ class ContractRepository {
         status: Value(domain.ContractStatus.disputed.name),
         lastTxSignature: Value(signature),
         syncedAt: Value(DateTime.now().toUtc()),
+        disputeReason: Value(disputeReason),
+        disputeDetails: Value(disputeDetails),
+        disputeEvidenceUri: Value(disputeEvidenceUri),
+        disputeRaisedBy: Value(caller.toBase58()),
+        disputeRaisedAt: Value(DateTime.now().toUtc()),
       ),
     );
 
@@ -366,6 +374,10 @@ class ContractRepository {
     domain.EscrowContract contract, {
     String? termsTextOverride,
   }) async {
+    final existing = await (db.select(db.escrowContracts)
+          ..where((tbl) => tbl.contractId.equals(contract.contractId)))
+        .getSingleOrNull();
+
     await db.into(db.escrowContracts).insertOnConflictUpdate(
           EscrowContractsCompanion.insert(
             contractId: contract.contractId,
@@ -373,7 +385,7 @@ class ContractRepository {
             worker: contract.worker,
             amount: contract.amount,
             termsHash: contract.termsHash,
-            termsText: Value(termsTextOverride ?? contract.termsText),
+            termsText: Value(termsTextOverride ?? existing?.termsText ?? contract.termsText),
             status: contract.status.name,
             deadline: contract.deadline != null
                 ? BigInt.from(contract.deadline!.millisecondsSinceEpoch ~/ 1000)
@@ -386,10 +398,15 @@ class ContractRepository {
                 ? BigInt.from(contract.completedAt!.millisecondsSinceEpoch ~/ 1000)
                 : BigInt.zero,
             rating: contract.rating,
-            lastTxSignature: Value(contract.lastTxSignature),
+            lastTxSignature: Value(contract.lastTxSignature ?? existing?.lastTxSignature),
             syncedAt: Value(DateTime.now().toUtc()),
             isToken: Value(contract.isToken),
             tokenMint: Value(contract.tokenMint),
+            disputeReason: Value(existing?.disputeReason ?? contract.disputeReason),
+            disputeDetails: Value(existing?.disputeDetails ?? contract.disputeDetails),
+            disputeEvidenceUri: Value(existing?.disputeEvidenceUri ?? contract.disputeEvidenceUri),
+            disputeRaisedBy: Value(existing?.disputeRaisedBy ?? contract.disputeRaisedBy),
+            disputeRaisedAt: Value(existing?.disputeRaisedAt ?? contract.disputeRaisedAt),
           ),
         );
   }
@@ -420,6 +437,11 @@ class ContractRepository {
       syncedAt: row.syncedAt,
       isToken: row.isToken,
       tokenMint: row.tokenMint,
+      disputeReason: row.disputeReason,
+      disputeDetails: row.disputeDetails,
+      disputeEvidenceUri: row.disputeEvidenceUri,
+      disputeRaisedBy: row.disputeRaisedBy,
+      disputeRaisedAt: row.disputeRaisedAt,
     );
   }
 

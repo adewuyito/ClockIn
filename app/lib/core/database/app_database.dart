@@ -69,6 +69,11 @@ class EscrowContracts extends Table {
   DateTimeColumn get syncedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isToken => boolean().withDefault(const Constant(false))();
   TextColumn get tokenMint => text().nullable()();
+  TextColumn get disputeReason => text().nullable()();
+  TextColumn get disputeDetails => text().nullable()();
+  TextColumn get disputeEvidenceUri => text().nullable()();
+  TextColumn get disputeRaisedBy => text().nullable()();
+  DateTimeColumn get disputeRaisedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {contractId};
@@ -115,7 +120,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -142,6 +147,13 @@ class AppDatabase extends _$AppDatabase {
           if (from < 7) {
             await m.deleteTable('seeker_attestations');
             await m.createTable(seekerAttestations);
+          }
+          if (from < 8) {
+            await m.addColumn(escrowContracts, escrowContracts.disputeReason);
+            await m.addColumn(escrowContracts, escrowContracts.disputeDetails);
+            await m.addColumn(escrowContracts, escrowContracts.disputeEvidenceUri);
+            await m.addColumn(escrowContracts, escrowContracts.disputeRaisedBy);
+            await m.addColumn(escrowContracts, escrowContracts.disputeRaisedAt);
           }
         },
       );

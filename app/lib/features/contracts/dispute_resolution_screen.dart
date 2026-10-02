@@ -454,6 +454,9 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
               ),
               const SizedBox(height: 18),
 
+              // Filed Dispute Claim & Statement
+              _buildDisputeClaimCard(contract),
+
               // Seeker Guardian Jurors Panel
               Container(
                 padding: const EdgeInsets.all(16),
@@ -667,6 +670,14 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                     const SizedBox(height: 12),
 
                     // Submitted Deliverables
+                    if (contract.disputeEvidenceUri != null) ...[
+                      _buildEvidenceItem(
+                        title: 'Filed Deliverable / Evidence Link',
+                        subtitle: contract.disputeEvidenceUri!,
+                        isVerified: true,
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     _buildEvidenceItem(
                       title: 'GitHub PR #42: Solana Anchor Core Deliverables',
                       subtitle: 'Merged commit sha #e8f9a2 • Verified on-chain',
@@ -940,6 +951,127 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDisputeClaimCard(EscrowContract contract) {
+    if (contract.disputeDetails == null && contract.disputeReason == null) {
+      return const SizedBox.shrink();
+    }
+
+    final reason = contract.disputeReason ?? 'General Grievance';
+    final details = contract.disputeDetails ?? 'No detailed statement provided.';
+    final raisedBy = contract.disputeRaisedBy != null && contract.disputeRaisedBy!.length >= 8
+        ? '${contract.disputeRaisedBy!.substring(0, 4)}…${contract.disputeRaisedBy!.substring(contract.disputeRaisedBy!.length - 4)}'
+        : (contract.disputeRaisedBy ?? 'Disputant');
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.report_problem_outlined, size: 18, color: Color(0xFFBA1A1A)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Filed Dispute Claim',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDE8E8),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFBA1A1A).withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  reason.toUpperCase(),
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFFBA1A1A),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Filed by $raisedBy • Escrow frozen on-chain',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11.5,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(10),
+              border: const Border(
+                left: BorderSide(color: Color(0xFFBA1A1A), width: 3),
+              ),
+            ),
+            child: Text(
+              details,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                color: AppColors.onSurface,
+                height: 1.45,
+              ),
+            ),
+          ),
+          if (contract.disputeEvidenceUri != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.link_rounded, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      contract.disputeEvidenceUri!,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 11.5,
+                        color: AppColors.primary,
+                        decoration: TextDecoration.underline,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

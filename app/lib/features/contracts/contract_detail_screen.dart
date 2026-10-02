@@ -10,6 +10,7 @@ import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
 import 'contract_share_screen.dart';
 import 'dispute_resolution_screen.dart';
+import 'raise_dispute_sheet.dart';
 import 'release_and_review_modal.dart';
 
 class ContractDetailScreen extends ConsumerStatefulWidget {
@@ -132,73 +133,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
   }
 
   Future<void> _handleDispute(EscrowContract contract) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Raise Dispute?',
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          'Raising a dispute marks this contract as Disputed on Solana. Vault funds will remain locked until resolved.',
-          style: GoogleFonts.plusJakartaSans(fontSize: 13.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warning,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Raise Dispute'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    setState(() {
-      _isActionLoading = true;
-      _actionError = null;
-    });
-
-    try {
-      final wallet = ref.read(walletStateProvider);
-      final walletAdapter = ref.read(walletAdapterProvider);
-      final contractRepo = ref.read(contractRepositoryProvider);
-
-      if (!wallet.isConnected || wallet.publicKey == null) {
-        throw Exception('Please connect your Solana wallet.');
-      }
-
-      await contractRepo.raiseDispute(
-        contractId: contract.contractId,
-        caller: wallet.publicKey!,
-        walletAdapter: walletAdapter,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dispute raised on Solana.')),
-        );
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => DisputeResolutionScreen(contractId: contract.contractId),
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() => _actionError = e.toString());
-    } finally {
-      if (mounted) {
-        setState(() => _isActionLoading = false);
-      }
-    }
+    await RaiseDisputeSheet.show(context, contract);
   }
 
   @override

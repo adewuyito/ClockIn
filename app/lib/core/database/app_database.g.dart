@@ -1667,6 +1667,62 @@ class $EscrowContractsTable extends EscrowContracts
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _disputeReasonMeta = const VerificationMeta(
+    'disputeReason',
+  );
+  @override
+  late final GeneratedColumn<String> disputeReason = GeneratedColumn<String>(
+    'dispute_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _disputeDetailsMeta = const VerificationMeta(
+    'disputeDetails',
+  );
+  @override
+  late final GeneratedColumn<String> disputeDetails = GeneratedColumn<String>(
+    'dispute_details',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _disputeEvidenceUriMeta =
+      const VerificationMeta('disputeEvidenceUri');
+  @override
+  late final GeneratedColumn<String> disputeEvidenceUri =
+      GeneratedColumn<String>(
+        'dispute_evidence_uri',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _disputeRaisedByMeta = const VerificationMeta(
+    'disputeRaisedBy',
+  );
+  @override
+  late final GeneratedColumn<String> disputeRaisedBy = GeneratedColumn<String>(
+    'dispute_raised_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _disputeRaisedAtMeta = const VerificationMeta(
+    'disputeRaisedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> disputeRaisedAt =
+      GeneratedColumn<DateTime>(
+        'dispute_raised_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     contractId,
@@ -1685,6 +1741,11 @@ class $EscrowContractsTable extends EscrowContracts
     syncedAt,
     isToken,
     tokenMint,
+    disputeReason,
+    disputeDetails,
+    disputeEvidenceUri,
+    disputeRaisedBy,
+    disputeRaisedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1822,6 +1883,51 @@ class $EscrowContractsTable extends EscrowContracts
         tokenMint.isAcceptableOrUnknown(data['token_mint']!, _tokenMintMeta),
       );
     }
+    if (data.containsKey('dispute_reason')) {
+      context.handle(
+        _disputeReasonMeta,
+        disputeReason.isAcceptableOrUnknown(
+          data['dispute_reason']!,
+          _disputeReasonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dispute_details')) {
+      context.handle(
+        _disputeDetailsMeta,
+        disputeDetails.isAcceptableOrUnknown(
+          data['dispute_details']!,
+          _disputeDetailsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dispute_evidence_uri')) {
+      context.handle(
+        _disputeEvidenceUriMeta,
+        disputeEvidenceUri.isAcceptableOrUnknown(
+          data['dispute_evidence_uri']!,
+          _disputeEvidenceUriMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dispute_raised_by')) {
+      context.handle(
+        _disputeRaisedByMeta,
+        disputeRaisedBy.isAcceptableOrUnknown(
+          data['dispute_raised_by']!,
+          _disputeRaisedByMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dispute_raised_at')) {
+      context.handle(
+        _disputeRaisedAtMeta,
+        disputeRaisedAt.isAcceptableOrUnknown(
+          data['dispute_raised_at']!,
+          _disputeRaisedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1895,6 +2001,26 @@ class $EscrowContractsTable extends EscrowContracts
         DriftSqlType.string,
         data['${effectivePrefix}token_mint'],
       ),
+      disputeReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dispute_reason'],
+      ),
+      disputeDetails: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dispute_details'],
+      ),
+      disputeEvidenceUri: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dispute_evidence_uri'],
+      ),
+      disputeRaisedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dispute_raised_by'],
+      ),
+      disputeRaisedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}dispute_raised_at'],
+      ),
     );
   }
 
@@ -1921,6 +2047,11 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
   final DateTime syncedAt;
   final bool isToken;
   final String? tokenMint;
+  final String? disputeReason;
+  final String? disputeDetails;
+  final String? disputeEvidenceUri;
+  final String? disputeRaisedBy;
+  final DateTime? disputeRaisedAt;
   const EscrowContract({
     required this.contractId,
     required this.employer,
@@ -1938,6 +2069,11 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
     required this.syncedAt,
     required this.isToken,
     this.tokenMint,
+    this.disputeReason,
+    this.disputeDetails,
+    this.disputeEvidenceUri,
+    this.disputeRaisedBy,
+    this.disputeRaisedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1963,6 +2099,21 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
     map['is_token'] = Variable<bool>(isToken);
     if (!nullToAbsent || tokenMint != null) {
       map['token_mint'] = Variable<String>(tokenMint);
+    }
+    if (!nullToAbsent || disputeReason != null) {
+      map['dispute_reason'] = Variable<String>(disputeReason);
+    }
+    if (!nullToAbsent || disputeDetails != null) {
+      map['dispute_details'] = Variable<String>(disputeDetails);
+    }
+    if (!nullToAbsent || disputeEvidenceUri != null) {
+      map['dispute_evidence_uri'] = Variable<String>(disputeEvidenceUri);
+    }
+    if (!nullToAbsent || disputeRaisedBy != null) {
+      map['dispute_raised_by'] = Variable<String>(disputeRaisedBy);
+    }
+    if (!nullToAbsent || disputeRaisedAt != null) {
+      map['dispute_raised_at'] = Variable<DateTime>(disputeRaisedAt);
     }
     return map;
   }
@@ -1991,6 +2142,21 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
       tokenMint: tokenMint == null && nullToAbsent
           ? const Value.absent()
           : Value(tokenMint),
+      disputeReason: disputeReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(disputeReason),
+      disputeDetails: disputeDetails == null && nullToAbsent
+          ? const Value.absent()
+          : Value(disputeDetails),
+      disputeEvidenceUri: disputeEvidenceUri == null && nullToAbsent
+          ? const Value.absent()
+          : Value(disputeEvidenceUri),
+      disputeRaisedBy: disputeRaisedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(disputeRaisedBy),
+      disputeRaisedAt: disputeRaisedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(disputeRaisedAt),
     );
   }
 
@@ -2016,6 +2182,13 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
       syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
       isToken: serializer.fromJson<bool>(json['isToken']),
       tokenMint: serializer.fromJson<String?>(json['tokenMint']),
+      disputeReason: serializer.fromJson<String?>(json['disputeReason']),
+      disputeDetails: serializer.fromJson<String?>(json['disputeDetails']),
+      disputeEvidenceUri: serializer.fromJson<String?>(
+        json['disputeEvidenceUri'],
+      ),
+      disputeRaisedBy: serializer.fromJson<String?>(json['disputeRaisedBy']),
+      disputeRaisedAt: serializer.fromJson<DateTime?>(json['disputeRaisedAt']),
     );
   }
   @override
@@ -2038,6 +2211,11 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
       'syncedAt': serializer.toJson<DateTime>(syncedAt),
       'isToken': serializer.toJson<bool>(isToken),
       'tokenMint': serializer.toJson<String?>(tokenMint),
+      'disputeReason': serializer.toJson<String?>(disputeReason),
+      'disputeDetails': serializer.toJson<String?>(disputeDetails),
+      'disputeEvidenceUri': serializer.toJson<String?>(disputeEvidenceUri),
+      'disputeRaisedBy': serializer.toJson<String?>(disputeRaisedBy),
+      'disputeRaisedAt': serializer.toJson<DateTime?>(disputeRaisedAt),
     };
   }
 
@@ -2058,6 +2236,11 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
     DateTime? syncedAt,
     bool? isToken,
     Value<String?> tokenMint = const Value.absent(),
+    Value<String?> disputeReason = const Value.absent(),
+    Value<String?> disputeDetails = const Value.absent(),
+    Value<String?> disputeEvidenceUri = const Value.absent(),
+    Value<String?> disputeRaisedBy = const Value.absent(),
+    Value<DateTime?> disputeRaisedAt = const Value.absent(),
   }) => EscrowContract(
     contractId: contractId ?? this.contractId,
     employer: employer ?? this.employer,
@@ -2077,6 +2260,21 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
     syncedAt: syncedAt ?? this.syncedAt,
     isToken: isToken ?? this.isToken,
     tokenMint: tokenMint.present ? tokenMint.value : this.tokenMint,
+    disputeReason: disputeReason.present
+        ? disputeReason.value
+        : this.disputeReason,
+    disputeDetails: disputeDetails.present
+        ? disputeDetails.value
+        : this.disputeDetails,
+    disputeEvidenceUri: disputeEvidenceUri.present
+        ? disputeEvidenceUri.value
+        : this.disputeEvidenceUri,
+    disputeRaisedBy: disputeRaisedBy.present
+        ? disputeRaisedBy.value
+        : this.disputeRaisedBy,
+    disputeRaisedAt: disputeRaisedAt.present
+        ? disputeRaisedAt.value
+        : this.disputeRaisedAt,
   );
   EscrowContract copyWithCompanion(EscrowContractsCompanion data) {
     return EscrowContract(
@@ -2102,6 +2300,21 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
       isToken: data.isToken.present ? data.isToken.value : this.isToken,
       tokenMint: data.tokenMint.present ? data.tokenMint.value : this.tokenMint,
+      disputeReason: data.disputeReason.present
+          ? data.disputeReason.value
+          : this.disputeReason,
+      disputeDetails: data.disputeDetails.present
+          ? data.disputeDetails.value
+          : this.disputeDetails,
+      disputeEvidenceUri: data.disputeEvidenceUri.present
+          ? data.disputeEvidenceUri.value
+          : this.disputeEvidenceUri,
+      disputeRaisedBy: data.disputeRaisedBy.present
+          ? data.disputeRaisedBy.value
+          : this.disputeRaisedBy,
+      disputeRaisedAt: data.disputeRaisedAt.present
+          ? data.disputeRaisedAt.value
+          : this.disputeRaisedAt,
     );
   }
 
@@ -2123,13 +2336,18 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
           ..write('lastTxSignature: $lastTxSignature, ')
           ..write('syncedAt: $syncedAt, ')
           ..write('isToken: $isToken, ')
-          ..write('tokenMint: $tokenMint')
+          ..write('tokenMint: $tokenMint, ')
+          ..write('disputeReason: $disputeReason, ')
+          ..write('disputeDetails: $disputeDetails, ')
+          ..write('disputeEvidenceUri: $disputeEvidenceUri, ')
+          ..write('disputeRaisedBy: $disputeRaisedBy, ')
+          ..write('disputeRaisedAt: $disputeRaisedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     contractId,
     employer,
     worker,
@@ -2146,7 +2364,12 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
     syncedAt,
     isToken,
     tokenMint,
-  );
+    disputeReason,
+    disputeDetails,
+    disputeEvidenceUri,
+    disputeRaisedBy,
+    disputeRaisedAt,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2166,7 +2389,12 @@ class EscrowContract extends DataClass implements Insertable<EscrowContract> {
           other.lastTxSignature == this.lastTxSignature &&
           other.syncedAt == this.syncedAt &&
           other.isToken == this.isToken &&
-          other.tokenMint == this.tokenMint);
+          other.tokenMint == this.tokenMint &&
+          other.disputeReason == this.disputeReason &&
+          other.disputeDetails == this.disputeDetails &&
+          other.disputeEvidenceUri == this.disputeEvidenceUri &&
+          other.disputeRaisedBy == this.disputeRaisedBy &&
+          other.disputeRaisedAt == this.disputeRaisedAt);
 }
 
 class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
@@ -2186,6 +2414,11 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
   final Value<DateTime> syncedAt;
   final Value<bool> isToken;
   final Value<String?> tokenMint;
+  final Value<String?> disputeReason;
+  final Value<String?> disputeDetails;
+  final Value<String?> disputeEvidenceUri;
+  final Value<String?> disputeRaisedBy;
+  final Value<DateTime?> disputeRaisedAt;
   final Value<int> rowid;
   const EscrowContractsCompanion({
     this.contractId = const Value.absent(),
@@ -2204,6 +2437,11 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
     this.syncedAt = const Value.absent(),
     this.isToken = const Value.absent(),
     this.tokenMint = const Value.absent(),
+    this.disputeReason = const Value.absent(),
+    this.disputeDetails = const Value.absent(),
+    this.disputeEvidenceUri = const Value.absent(),
+    this.disputeRaisedBy = const Value.absent(),
+    this.disputeRaisedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   EscrowContractsCompanion.insert({
@@ -2223,6 +2461,11 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
     this.syncedAt = const Value.absent(),
     this.isToken = const Value.absent(),
     this.tokenMint = const Value.absent(),
+    this.disputeReason = const Value.absent(),
+    this.disputeDetails = const Value.absent(),
+    this.disputeEvidenceUri = const Value.absent(),
+    this.disputeRaisedBy = const Value.absent(),
+    this.disputeRaisedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : contractId = Value(contractId),
        employer = Value(employer),
@@ -2252,6 +2495,11 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
     Expression<DateTime>? syncedAt,
     Expression<bool>? isToken,
     Expression<String>? tokenMint,
+    Expression<String>? disputeReason,
+    Expression<String>? disputeDetails,
+    Expression<String>? disputeEvidenceUri,
+    Expression<String>? disputeRaisedBy,
+    Expression<DateTime>? disputeRaisedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2271,6 +2519,12 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
       if (syncedAt != null) 'synced_at': syncedAt,
       if (isToken != null) 'is_token': isToken,
       if (tokenMint != null) 'token_mint': tokenMint,
+      if (disputeReason != null) 'dispute_reason': disputeReason,
+      if (disputeDetails != null) 'dispute_details': disputeDetails,
+      if (disputeEvidenceUri != null)
+        'dispute_evidence_uri': disputeEvidenceUri,
+      if (disputeRaisedBy != null) 'dispute_raised_by': disputeRaisedBy,
+      if (disputeRaisedAt != null) 'dispute_raised_at': disputeRaisedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2292,6 +2546,11 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
     Value<DateTime>? syncedAt,
     Value<bool>? isToken,
     Value<String?>? tokenMint,
+    Value<String?>? disputeReason,
+    Value<String?>? disputeDetails,
+    Value<String?>? disputeEvidenceUri,
+    Value<String?>? disputeRaisedBy,
+    Value<DateTime?>? disputeRaisedAt,
     Value<int>? rowid,
   }) {
     return EscrowContractsCompanion(
@@ -2311,6 +2570,11 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
       syncedAt: syncedAt ?? this.syncedAt,
       isToken: isToken ?? this.isToken,
       tokenMint: tokenMint ?? this.tokenMint,
+      disputeReason: disputeReason ?? this.disputeReason,
+      disputeDetails: disputeDetails ?? this.disputeDetails,
+      disputeEvidenceUri: disputeEvidenceUri ?? this.disputeEvidenceUri,
+      disputeRaisedBy: disputeRaisedBy ?? this.disputeRaisedBy,
+      disputeRaisedAt: disputeRaisedAt ?? this.disputeRaisedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2366,6 +2630,21 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
     if (tokenMint.present) {
       map['token_mint'] = Variable<String>(tokenMint.value);
     }
+    if (disputeReason.present) {
+      map['dispute_reason'] = Variable<String>(disputeReason.value);
+    }
+    if (disputeDetails.present) {
+      map['dispute_details'] = Variable<String>(disputeDetails.value);
+    }
+    if (disputeEvidenceUri.present) {
+      map['dispute_evidence_uri'] = Variable<String>(disputeEvidenceUri.value);
+    }
+    if (disputeRaisedBy.present) {
+      map['dispute_raised_by'] = Variable<String>(disputeRaisedBy.value);
+    }
+    if (disputeRaisedAt.present) {
+      map['dispute_raised_at'] = Variable<DateTime>(disputeRaisedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2391,6 +2670,11 @@ class EscrowContractsCompanion extends UpdateCompanion<EscrowContract> {
           ..write('syncedAt: $syncedAt, ')
           ..write('isToken: $isToken, ')
           ..write('tokenMint: $tokenMint, ')
+          ..write('disputeReason: $disputeReason, ')
+          ..write('disputeDetails: $disputeDetails, ')
+          ..write('disputeEvidenceUri: $disputeEvidenceUri, ')
+          ..write('disputeRaisedBy: $disputeRaisedBy, ')
+          ..write('disputeRaisedAt: $disputeRaisedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4339,6 +4623,11 @@ typedef $$EscrowContractsTableCreateCompanionBuilder =
       Value<DateTime> syncedAt,
       Value<bool> isToken,
       Value<String?> tokenMint,
+      Value<String?> disputeReason,
+      Value<String?> disputeDetails,
+      Value<String?> disputeEvidenceUri,
+      Value<String?> disputeRaisedBy,
+      Value<DateTime?> disputeRaisedAt,
       Value<int> rowid,
     });
 typedef $$EscrowContractsTableUpdateCompanionBuilder =
@@ -4359,6 +4648,11 @@ typedef $$EscrowContractsTableUpdateCompanionBuilder =
       Value<DateTime> syncedAt,
       Value<bool> isToken,
       Value<String?> tokenMint,
+      Value<String?> disputeReason,
+      Value<String?> disputeDetails,
+      Value<String?> disputeEvidenceUri,
+      Value<String?> disputeRaisedBy,
+      Value<DateTime?> disputeRaisedAt,
       Value<int> rowid,
     });
 
@@ -4448,6 +4742,31 @@ class $$EscrowContractsTableFilterComposer
 
   ColumnFilters<String> get tokenMint => $composableBuilder(
     column: $table.tokenMint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get disputeReason => $composableBuilder(
+    column: $table.disputeReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get disputeDetails => $composableBuilder(
+    column: $table.disputeDetails,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get disputeEvidenceUri => $composableBuilder(
+    column: $table.disputeEvidenceUri,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get disputeRaisedBy => $composableBuilder(
+    column: $table.disputeRaisedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get disputeRaisedAt => $composableBuilder(
+    column: $table.disputeRaisedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4540,6 +4859,31 @@ class $$EscrowContractsTableOrderingComposer
     column: $table.tokenMint,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get disputeReason => $composableBuilder(
+    column: $table.disputeReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get disputeDetails => $composableBuilder(
+    column: $table.disputeDetails,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get disputeEvidenceUri => $composableBuilder(
+    column: $table.disputeEvidenceUri,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get disputeRaisedBy => $composableBuilder(
+    column: $table.disputeRaisedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get disputeRaisedAt => $composableBuilder(
+    column: $table.disputeRaisedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$EscrowContractsTableAnnotationComposer
@@ -4604,6 +4948,31 @@ class $$EscrowContractsTableAnnotationComposer
 
   GeneratedColumn<String> get tokenMint =>
       $composableBuilder(column: $table.tokenMint, builder: (column) => column);
+
+  GeneratedColumn<String> get disputeReason => $composableBuilder(
+    column: $table.disputeReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get disputeDetails => $composableBuilder(
+    column: $table.disputeDetails,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get disputeEvidenceUri => $composableBuilder(
+    column: $table.disputeEvidenceUri,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get disputeRaisedBy => $composableBuilder(
+    column: $table.disputeRaisedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get disputeRaisedAt => $composableBuilder(
+    column: $table.disputeRaisedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$EscrowContractsTableTableManager
@@ -4659,6 +5028,11 @@ class $$EscrowContractsTableTableManager
                 Value<DateTime> syncedAt = const Value.absent(),
                 Value<bool> isToken = const Value.absent(),
                 Value<String?> tokenMint = const Value.absent(),
+                Value<String?> disputeReason = const Value.absent(),
+                Value<String?> disputeDetails = const Value.absent(),
+                Value<String?> disputeEvidenceUri = const Value.absent(),
+                Value<String?> disputeRaisedBy = const Value.absent(),
+                Value<DateTime?> disputeRaisedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EscrowContractsCompanion(
                 contractId: contractId,
@@ -4677,6 +5051,11 @@ class $$EscrowContractsTableTableManager
                 syncedAt: syncedAt,
                 isToken: isToken,
                 tokenMint: tokenMint,
+                disputeReason: disputeReason,
+                disputeDetails: disputeDetails,
+                disputeEvidenceUri: disputeEvidenceUri,
+                disputeRaisedBy: disputeRaisedBy,
+                disputeRaisedAt: disputeRaisedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4697,6 +5076,11 @@ class $$EscrowContractsTableTableManager
                 Value<DateTime> syncedAt = const Value.absent(),
                 Value<bool> isToken = const Value.absent(),
                 Value<String?> tokenMint = const Value.absent(),
+                Value<String?> disputeReason = const Value.absent(),
+                Value<String?> disputeDetails = const Value.absent(),
+                Value<String?> disputeEvidenceUri = const Value.absent(),
+                Value<String?> disputeRaisedBy = const Value.absent(),
+                Value<DateTime?> disputeRaisedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EscrowContractsCompanion.insert(
                 contractId: contractId,
@@ -4715,6 +5099,11 @@ class $$EscrowContractsTableTableManager
                 syncedAt: syncedAt,
                 isToken: isToken,
                 tokenMint: tokenMint,
+                disputeReason: disputeReason,
+                disputeDetails: disputeDetails,
+                disputeEvidenceUri: disputeEvidenceUri,
+                disputeRaisedBy: disputeRaisedBy,
+                disputeRaisedAt: disputeRaisedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -81,6 +81,11 @@ class EscrowContract {
   final DateTime? syncedAt;
   final bool isToken;
   final String? tokenMint;
+  final String? disputeReason;
+  final String? disputeDetails;
+  final String? disputeEvidenceUri;
+  final String? disputeRaisedBy;
+  final DateTime? disputeRaisedAt;
 
   const EscrowContract({
     required this.contractId,
@@ -99,6 +104,11 @@ class EscrowContract {
     this.syncedAt,
     this.isToken = false,
     this.tokenMint,
+    this.disputeReason,
+    this.disputeDetails,
+    this.disputeEvidenceUri,
+    this.disputeRaisedBy,
+    this.disputeRaisedAt,
   });
 
   /// Amount formatted in SOL (e.g. 1.5).
@@ -133,6 +143,10 @@ class EscrowContract {
       return formattedSol;
     }
   }
+
+  /// Truncated contract ID for UI display (e.g. "ctr_9x").
+  String get shortId =>
+      contractId.length >= 8 ? '${contractId.substring(0, 6)}…' : contractId;
 
   /// Truncated employer address for UI display.
   String get shortEmployer => _shortAddress(employer);
@@ -183,6 +197,11 @@ class EscrowContract {
     DateTime? syncedAt,
     bool? isToken,
     String? tokenMint,
+    String? disputeReason,
+    String? disputeDetails,
+    String? disputeEvidenceUri,
+    String? disputeRaisedBy,
+    DateTime? disputeRaisedAt,
   }) {
     return EscrowContract(
       contractId: contractId ?? this.contractId,
@@ -201,6 +220,11 @@ class EscrowContract {
       syncedAt: syncedAt ?? this.syncedAt,
       isToken: isToken ?? this.isToken,
       tokenMint: tokenMint ?? this.tokenMint,
+      disputeReason: disputeReason ?? this.disputeReason,
+      disputeDetails: disputeDetails ?? this.disputeDetails,
+      disputeEvidenceUri: disputeEvidenceUri ?? this.disputeEvidenceUri,
+      disputeRaisedBy: disputeRaisedBy ?? this.disputeRaisedBy,
+      disputeRaisedAt: disputeRaisedAt ?? this.disputeRaisedAt,
     );
   }
 
