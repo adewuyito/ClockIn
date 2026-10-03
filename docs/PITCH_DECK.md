@@ -23,6 +23,7 @@
 * **Badges:**
   * `LIVE ON SOLANA DEVNET`
   * `SOLANA MOBILE STACK (SMS) NATIVE`
+  * `ARWEAVE / IRYS PERMAWEB PROVENANCE`
   * `ZERO KEY CUSTODY • MWA v2.0`
 * **Footer:** Founder / Team Contact Info • Hackathon Submission 2026
 
@@ -45,7 +46,7 @@
 
 3. **Walled-Garden Reputation Sinks**
    * A freelancer with 5 years and 200 five-star reviews on Upwork starts at **zero** when moving to direct clients, DAOs, or international gigs.
-   * Marketplaces weaponize reputation to trap workers inside their walled gardens.
+   * Marketplaces weaponize reputation to trap workers inside their closed corporate silos.
 
 ---
 
@@ -58,39 +59,48 @@
 
 | Pillar | How It Works | The Benefit |
 |---|---|---|
-| **0% Platform Take-Rate** | Direct peer-to-peer agreements on Solana; only network gas fees apply. | Saves freelancers and clients **95%+ in platform fees**. |
-| **Programmatic PDA Escrow** | Client funds are locked in smart contract vaults (`EscrowVault` PDAs). | Zero risk of client default; funds release automatically or return on mutual terms. |
-| **Atomic Reputation Minting** | Fund release and 5-star rating generation execute in the **exact same block**. | **Zero fake reviews**. Review score requires real money on the line. |
+| **0% Platform Take-Rate** | Direct peer-to-peer agreements on Solana; only standard network gas fees apply. | Saves freelancers and clients **95%+ in platform fees**. |
+| **Programmatic PDA Escrow** | Client funds are locked in smart contract vaults (`EscrowVault` PDAs) supporting SOL & $SKR. | Zero risk of client default; funds release automatically or return on mutual terms. |
+| **Dual-Layer Atomic Reputation** | Fund release and 5-star rating mint atomically on Solana, while review feedback is inscribed to Arweave via Irys. | **Zero fake reviews**. Review score requires real money on the line, and feedback lasts forever on the permaweb. |
 
 ---
 
-## Slide 4: The Innovation — Atomic Settlement
+## Slide 4: The Innovation — Atomic Settlement & Dual-Layer Provenance
 
 ### Headline
 **Reputation cannot exist without skin in the game.**
 
-### How Atomic Settlement Works (Single Transaction)
+### How Atomic Settlement Works (Single Transaction Block)
 
 ```
-[ Employer Approves Work ]
-          │
-          ▼
+[ Employer Approves Work & Releases Payment ]
+                     │
+                     ▼
 ┌────────────────────────────────────────────────────────┐
 │           ClockIn Anchor Program Instruction            │
 │                 `release_and_review`                   │
 ├──────────────────────────┬─────────────────────────────┤
-│   1. Financial Action    │    2. Reputation Action     │
-│  Vault SOL ──▶ Worker    │  Mint Immutable Review PDA  │
-│  (Zero Custody Transfer) │  Update WorkerProfile Score │
+│   1. Financial Action    │    2. Solana Reputation     │
+│  Vault SOL/$SKR ──▶      │  Mint Immutable Review PDA  │
+│  Worker ATA / Address    │  Increment Aggregate Score  │
 └──────────────────────────┴─────────────────────────────┘
-          │
-          ▼
+                     │
+                     ▼
+┌────────────────────────────────────────────────────────┐
+│            3. Arweave / Irys Provenance Layer          │
+│  Inscribe Canonical Review Metadata & Deliverable Proof │
+│  Permaweb Receipt: gateway.irys.xyz/<arweave_tx_id>    │
+└────────────────────────────────────────────────────────┘
+                     │
+                     ▼
 [ Contract State: Completed • Zero Review Spoofing Possible ]
 ```
 
 ### The Key Differentiator
 * Standalone reputation systems fail due to Sybil attacks and fake reviews.
-* ClockIn ties reputation exclusively to settled escrow volume. Every 5-star rating on a worker's profile corresponds to an on-chain receipt with real economic weight.
+* ClockIn ties reputation exclusively to settled escrow volume:
+  * **Solana Anchor PDA**: Enforces economic finality, zero-rent score aggregation, and atomic fund transfer in a single block.
+  * **Arweave / Irys Permaweb**: Permanently preserves subjective feedback notes, rating categories, and deliverable cryptographic hashes without bloating Solana account rent.
 
 ---
 
@@ -104,7 +114,7 @@
 * The Solana dApp Store offers **0% platform fee**, bypassing Apple and Google's 30% in-app purchase monopoly.
 
 ### 2. Mobile Wallet Adapter v2.0 (Frictionless Web3 UX)
-* For the first time, users sign transactions natively through Phantom and Solflare using system biometrics.
+* Users sign transactions natively through Phantom and Solflare using system biometrics.
 * **Zero seed phrases in-app**, zero private key custody, zero desktop browser extensions.
 
 ### 3. The Borderless Gig Economy Explosion
@@ -118,16 +128,18 @@
 **Production-grade, hardware-tested, and live on Devnet.**
 
 ### Key Features (Featured UI Mockups)
-* **Dual-Role Contract Dashboard:** Toggle instantly between *As Employer* and *As Worker* with real-time locked SOL metrics.
+* **Dual-Role Contract Dashboard:** Toggle instantly between *As Employer* and *As Worker* with real-time active escrow value metrics.
+* **Dual-Currency Escrow Engine:** Seamless escrow vaults in native **SOL** and the Solana Seeker ecosystem SPL token (**$SKR**) with automatic token account lifecycle management.
+* **Seeker Guardian Attestation:** Proof-of-human verification via 250 $SKR staking with 48h cooldown, providing economic Sybil resistance ready for Seeker Genesis hardware.
+* **Arweave / Irys Permaweb Provenance:** Verifiable Arweave explorer badges and tap-to-copy permaweb links for every completed review.
+* **Apple-Style Pretty QR Codes:** Custom rounded, high-contrast scannable passes for mobile counterparty discovery and contract sharing.
 * **Built-in QR Camera Scanner:** Instant counterparty addressing via camera viewfinder (`mobile_scanner`), supporting base58 keys and Solana Pay URIs.
-* **Personal Profile QR Card:** Workers generate an in-app Solana QR code to get hired and receive escrows in person or over video call.
-* **Offline-First Resilience:** Drift SQLite (Schema v4) local database stores review drafts and contracts offline with auto-recovery sheets.
-* **Tactile Haptics & Celebrations:** Spring scale animations and radial particle bursts on atomic milestone completion.
+* **Offline-First Resilience:** Drift SQLite (Schema v10) local database stores review drafts and contracts offline with auto-recovery sheets.
 
 ### Live Metrics Callout Box
 * **Program ID:** `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` (Devnet)
-* **Test Coverage:** **22/22** Anchor Tests + **26/26** Flutter Tests Passing (100%)
-* **APK Sizing:** Optimized **27 MB** ARM64 Release APK (vs. 200MB standard debug builds)
+* **Test Coverage:** **28/28** Anchor Tests + **44/44** Flutter Tests Passing (**100%**)
+* **Binary Size:** Optimized **28 MB** ARM64 Release APK (vs. 200MB+ standard debug builds)
 
 ---
 
@@ -166,7 +178,7 @@
 |---|---|---|
 | **Platform Cut** | **10% – 20%** per job | **0.5% – 1%** at settlement (0% during Hackathon MVP) |
 | **Payout Delay** | 5 – 14 Days | **Instant (< 2 seconds)** |
-| **Reputation Portability** | Trapped in proprietary database | **100% Owned by Worker PDA** |
+| **Reputation Portability** | Trapped in proprietary database | **100% Owned by Worker PDA & Arweave** |
 | **Custody Risk** | Centralized Escrow Account | **Decentralized Solana Program PDA** |
 
 ### Future Monetization Streams
@@ -182,24 +194,24 @@
 **Once a worker builds on-chain reputation, they never leave.**
 
 ```
-[ Worker earns 5★ review on ClockIn ]
-                 │
-                 ▼
+[ Worker earns 5★ review & Arweave receipt on ClockIn ]
+                        │
+                        ▼
 [ Worker profile gains unforgeable on-chain credit ]
-                 │
-                 ▼
+                        │
+                        ▼
 [ Worker insists direct clients pay via ClockIn to build score ]
-                 │
-                 ▼
+                        │
+                        ▼
 [ New Employers onboarded to ClockIn with 0 Acquisition Cost ]
-                 │
-                 ▼
+                        │
+                        ▼
 [ Self-Reinforcing Viral Network Loop ]
 ```
 
 ### Why Competitors Can't Dislodge It
 * **High Switching Costs:** In Web2, leaving Upwork means abandoning your livelihood's proof. In ClockIn, workers build equity in their own wallet address.
-* **Composability:** Other Solana dApps can permissionlessly read a worker's `WorkerProfile` PDA to grant undercollateralized loans, DAO governance roles, or instant freelance job offers.
+* **Composability:** Other Solana dApps can permissionlessly read a worker's `WorkerProfile` PDA and Arweave permaweb metadata to grant undercollateralized loans, DAO governance roles, or instant freelance job offers.
 
 ---
 
@@ -208,13 +220,17 @@
 ### Milestones & Execution Plan
 
 * **Q3 2026 (Completed):**
-  * Anchor program deployed to Devnet (7 instructions).
-  * Flutter MWA v2.0 client built and tested on physical Android hardware.
-  * Drift SQLite v4 offline-first caching layer implemented.
+  * 7 Anchor escrow instructions deployed and tested on Solana Devnet.
+  * Dual-currency escrow engine live (Native SOL and Seeker $SKR token).
+  * Dual-layer provenance live (Solana PDA minting + Arweave permaweb via Irys).
+  * Seeker Guardian 250 $SKR staking attestation.
+  * Flutter MWA v2.0 mobile client tested on physical Samsung Galaxy / Seeker preview hardware.
+  * Drift SQLite Schema v10 offline-first caching engine.
+  * 100% automated test coverage (28 Anchor + 44 Flutter tests).
 * **Q4 2026 (Post-Hackathon):**
   * Solana Seeker dApp Store release (0% distribution fee).
-  * Multi-currency escrow vaults (SPL tokens: USDC, USDT).
-  * Decentralized community dispute resolution layer.
+  * Multi-currency escrow vaults for stablecoins (USDC, USDT).
+  * Decentralized community dispute arbitration layer.
 * **Q1 2027:**
   * Mainnet protocol deployment and DAO reputation query API launch.
 
@@ -228,4 +244,4 @@
 ### Contact & Links
 * **GitHub Repository:** `github.com/adewuyi/ClockIn`
 * **Program ID (Devnet):** `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9`
-* **Direct APK Download:** `app-arm64-v8a-release.apk` (27 MB)
+* **Direct APK Download:** `app-arm64-v8a-release.apk` (~28 MB)

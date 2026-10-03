@@ -2,7 +2,7 @@
 
 > **Lock funds. Do the work. Get paid and reviewed — atomically.**
 
-ClockIn is a mobile-first **P2P Work Contract & Escrow Protocol** built on Solana. It enables freelancers, gig workers, and clients to negotiate agreements, lock milestone deposits safely inside Program Derived Address (PDA) escrow vaults, and execute guaranteed payment releases that mint permanent on-chain reputation at the exact moment of settlement.
+ClockIn is a mobile-first **P2P Work Contract & Escrow Protocol** built on Solana. It enables freelancers, gig workers, and clients to negotiate agreements, lock milestone deposits safely inside Program Derived Address (PDA) escrow vaults, and execute guaranteed payment releases that mint permanent on-chain reputation and inscribe immutable review proofs to the **Arweave permaweb via Irys** at the exact moment of settlement.
 
 Built for the **[CLOCK IN](https://solanamobile.radiant.nexus/)** Solana Mobile Hackathon.
 
@@ -13,8 +13,8 @@ Built for the **[CLOCK IN](https://solanamobile.radiant.nexus/)** Solana Mobile 
 | Traditional Gig Economy | ClockIn Escrow Protocol |
 |---|---|
 | **High Middleman Fees**: Platforms take 10%–20% cuts on every invoice. | **Zero Platform Cut**: Peer-to-peer on Solana. Only standard network gas fees apply. |
-| **Payment Risk**: Freelancers risk non-payment; employers risk paying for incomplete work. | **Atomic Escrow PDAs**: Client locks SOL in a programmatic vault; funds can only be released upon completion or refunded on mutual cancellation. |
-| **Walled-Garden Reputation**: Upwork or Fiverr ratings are locked inside closed corporate silos and reset to zero on new platforms. | **Portable, Public Reputation**: Ratings and reviews are inscribed into Anchor program PDAs that follow your Solana address everywhere. |
+| **Payment Risk**: Freelancers risk non-payment; employers risk paying for incomplete work. | **Atomic Escrow PDAs**: Client locks SOL or $SKR in a programmatic vault; funds can only be released upon completion or refunded on mutual cancellation. |
+| **Walled-Garden Reputation**: Upwork or Fiverr ratings are locked inside closed corporate silos and reset to zero on new platforms. | **Portable, Public Reputation**: Ratings and reviews are inscribed into Solana Anchor PDAs and permanently archived to the **Arweave permaweb via Irys**. |
 | **Custodial Key Exposure**: Apps require custody of API keys or private keys. | **Zero Key Custody**: 100% Mobile Wallet Adapter (MWA) v2.0 authorization. Private keys never touch ClockIn. |
 
 ---
@@ -31,20 +31,23 @@ sequenceDiagram
     actor Worker as Worker (Freelancer)
     participant Profile as WorkerProfile PDA
     participant Review as Review PDA
+    participant Arweave as Arweave / Irys Permaweb
 
     Note over Employer,Worker: 1. Agreement & Funding
-    Employer->>Program: create_and_fund(contract_id, worker, amount, terms_hash, deadline)
+    Employer->>Program: create_and_fund (or create_and_fund_token)
     Program->>Escrow: Initialize state (status = Funded)
-    Program->>Vault: Transfer SOL into programmatic vault
+    Program->>Vault: Lock SOL or $SKR tokens into programmatic vault
 
     Note over Worker: 2. Acceptance & Execution
     Worker->>Program: accept_contract(contract_id)
     Program->>Escrow: Transition status -> InProgress
 
-    Note over Employer,Worker: 3. Atomic Settlement & Reputation
+    Note over Employer,Worker: 3. Dual-Layer Atomic Settlement & Reputation
+    Employer->>Arweave: Inscribe review note, ratings, & deliverable hashes via Irys
+    Arweave-->>Employer: Return permanent Arweave Tx ID receipt
     Employer->>Program: release_and_review(contract_id, rating: 1-5)
-    Program->>Vault: Transfer locked SOL directly to Worker
-    Program->>Review: Create immutable Review PDA
+    Program->>Vault: Transfer locked SOL / $SKR directly to Worker
+    Program->>Review: Create immutable Review PDA on Solana
     Program->>Profile: Increment total_jobs & rating_sum
     Program->>Escrow: Transition status -> Completed
 ```
@@ -68,8 +71,9 @@ sequenceDiagram
 | **Cluster** | Solana Devnet (`https://api.devnet.solana.com`) |
 | **Upgrade Tx (Token Escrow)** | [`PfvNF1J2LGhs4t3snPnucmZ5EPtVhdcUS22qnUuV4GBVHM635Mq3XayNWMu4sBp9bv49n2HFcyHkxv1sFPecFTY`](https://explorer.solana.com/tx/PfvNF1J2LGhs4t3snPnucmZ5EPtVhdcUS22qnUuV4GBVHM635Mq3XayNWMu4sBp9bv49n2HFcyHkxv1sFPecFTY?cluster=devnet) |
 | **Devnet $SKR Mint** | [`Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9`](https://explorer.solana.com/address/Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9?cluster=devnet) |
-| **Smart Contract Tests** | 28 automated Anchor integration test cases passing (SOL + $SKR token escrows) |
-| **Flutter Test Suite** | 38 automated unit, widget, and Drift SQLite tests passing |
+| **Permaweb Gateway** | Irys Provenance Gateway (`https://gateway.irys.xyz/<arweave_tx_id>`) |
+| **Smart Contract Tests** | **28 automated Anchor integration test cases passing** (SOL + $SKR token escrows) |
+| **Flutter Test Suite** | **44 automated unit, widget, Drift SQLite v10, and Irys tests passing** |
 | **Sample Escrow Contract** | [`ctr-mu4o1bhi`](https://explorer.solana.com/tx/2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT?cluster=devnet) (Status: `Completed`, 5★ review) |
 
 See [`program/DEPLOYED.md`](program/DEPLOYED.md) for the full on-chain deployment record and live transaction logs.
@@ -80,7 +84,10 @@ See [`program/DEPLOYED.md`](program/DEPLOYED.md) for the full on-chain deploymen
 
 - **Flutter / Dart**: High-performance mobile UI built with design tokens matching Google Stitch UI specifications.
 - **Solana Mobile Wallet Adapter (MWA)**: Zero key custody. Sessions and transactions are signed natively inside installed wallets (Phantom, Solflare) using Android intent handoffs.
-- **Drift (SQLite)**: Offline-first reactive local cache. Automatically mirrors on-chain contracts, worker profiles, and reviews for fast startup, offline draft review authoring, and low RPC overhead.
+- **Arweave & Irys Storage**: Decentralized provenance network for permanently archiving rich review notes, rating breakdowns, and deliverable cryptographic hashes to the Arweave permaweb.
+- **Drift (SQLite Schema v10)**: Offline-first reactive local cache. Automatically mirrors on-chain contracts, worker profiles, and reviews for fast startup, offline draft review authoring, and low RPC overhead.
+- **Seeker Guardian Attestation**: Economic proof-of-human via 250 $SKR staking with 48h unstaking cooldown, ready for Solana Seeker Genesis Token integration.
+- **Pretty QR**: Apple-style rounded scannable QR passes for in-person and video call reputation exchange.
 - **Riverpod 2.0**: Declarative reactive state management streaming contract updates and wallet session status.
 - **Anchor 1.2.0 / Solana SBF**: Rust program enforcing deterministic PDA derivation, space bounding, and atomicity.
 
@@ -92,17 +99,19 @@ See [`program/DEPLOYED.md`](program/DEPLOYED.md) for the full on-chain deploymen
 ClockIn/
 ├── program/                      # Solana Anchor smart contract
 │   ├── programs/reputation/      # Rust program source (7 instructions, 5 accounts)
-│   ├── tests/                    # Mocha/Chai test suite (22 unit test cases)
+│   ├── tests/                    # Mocha/Chai test suite (28 integration test cases)
 │   ├── scripts/                  # On-chain devnet lifecycle & seeding scripts
 │   └── Anchor.toml               # Anchor workspace configuration
 ├── app/                          # Flutter Android mobile application
 │   ├── lib/
-│   │   ├── core/                 # Database (Drift), Theme, Solana RPC & Providers
+│   │   ├── core/                 # Database (Drift v10), Irys storage, Theme, Solana RPC
 │   │   └── features/             # Contracts, Reviews, Profile, Look Up, Settings, Wallet
-│   ├── test/                     # Unit, Drift in-memory repository, & Widget tests
+│   ├── test/                     # Unit, Drift in-memory repository, & Widget tests (44 tests)
 │   └── android/                  # Native Android configuration & mipmap icons
 └── docs/                         # Specifications & Architectural Documentation
     ├── ARCHITECTURE.md           # System architecture, trust model, & data flow
+    ├── PITCH_DECK.md             # Complete 10-slide hackathon & investor pitch deck
+    ├── JUDGING_PLAN.md           # Judging criteria mapping & demo walkthrough script
     ├── ROADMAP.md                # Phase-by-phase implementation roadmap
     ├── PROGRAM_SPEC.md           # Smart contract account schemas & instruction specifications
     └── APP_SPEC.md               # Mobile screens, view states, & service layer
@@ -113,7 +122,7 @@ ClockIn/
 ## Getting Started
 
 ### Prerequisites
-- **Flutter SDK**: 3.29.x / Dart 3.7.x
+- **Flutter SDK**: 3.29.x / Dart 3.7.x (via FVM)
 - **Solana CLI**: 3.1.x / `solana-cli`
 - **Anchor CLI**: 1.2.0
 - **Android Device or Emulator** with [Phantom](https://phantom.app/) or [Solflare](https://solflare.com/) installed.
@@ -131,17 +140,16 @@ anchor test --skip-build --validator legacy
 ### 2. Run or Install the Flutter Mobile App
 ```bash
 cd app
-flutter pub get
+fvm flutter pub get
 
-# Run test suite (38 tests including Drift SQLite in-memory tests)
-flutter test
+# Run test suite (44 tests including Drift SQLite in-memory and Irys tests)
+fvm flutter test
 
 # Run app on connected Android device
-flutter run
+fvm flutter run -d <device_id>
 
 # Or build the release APK directly
-flutter build apk --release
-# Output: app/build/app/outputs/flutter-apk/app-release.apk (78 MB)
+fvm flutter build apk --release --target-platform android-arm64
 ```
 
 ### 3. Wallet Configuration (Crucial for Devnet Testing)
@@ -155,6 +163,7 @@ ClockIn is currently deployed on **Solana Devnet**. Ensure your mobile wallet is
 
 - **Dual-Currency Support (SOL & $SKR)**: Contracts support both native SOL and the Solana Seeker ecosystem SPL token ($SKR) with parallel, gas-optimized Anchor instructions. Additional SPL tokens (USDC/USDT) are roadmapped for Phase 2.
 - **Seeker Attested Proof-of-Human**: Workers can prove human identity and earn the "Seeker Attested" verification badge by staking 250 $SKR with a 48h unstaking cooldown, providing economic Sybil resistance without biometric surveillance. (Hardware Genesis Token attestation will be integrated once physical Seeker devices ship).
+- **Dual-Layer Provenance**: Lightweight on-chain Review PDAs store numerical scores and cryptographic seeds, while subjective feedback notes and deliverable proofs are stored on Arweave via Irys, preventing high Solana rent costs while guaranteeing permaweb permanence.
 - **Single-Milestone Delivery**: Escrows represent atomic full-delivery agreements. Multi-stage milestone payouts are roadmapped.
 - **On-Chain Dispute Recording**: Parties can raise disputes on-chain to freeze release. Automated dispute arbitration (e.g. Court DAO / multisig judges) is deferred to future protocol upgrades.
 - **Pseudonymous Public Keys**: ClockIn intentionally associates reputation strictly with cryptographic public keys, avoiding private personally identifiable information (PII) or centralized profile servers.
