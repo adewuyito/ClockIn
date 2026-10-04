@@ -286,90 +286,72 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isAttested
-            ? const Color(0xFFE8F8F0)
-            : AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
+        color: isAttested ? const Color(0xFFE8F8F0) : AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isAttested
-              ? const Color(0xFF1F9D5B).withValues(alpha: 0.4)
+              ? const Color(0xFF1F9D5B).withValues(alpha: 0.35)
               : AppColors.outlineVariant.withValues(alpha: 0.4),
-          width: isAttested ? 1.5 : 1.0,
+          width: 1.0,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: isAttested
-                      ? const Color(0xFF1F9D5B)
-                      : AppColors.surfaceContainerHigh,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isAttested ? Icons.shield_rounded : Icons.shield_outlined,
-                  size: 16,
-                  color: isAttested ? Colors.white : AppColors.onSurfaceVariant,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isAttested ? Icons.verified_user_rounded : Icons.shield_outlined,
+                    size: 17,
+                    color: isAttested ? const Color(0xFF1F9D5B) : AppColors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    isAttested ? 'SEEKER ATTESTED' : 'NOT SEEKER ATTESTED',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: isAttested ? const Color(0xFF0B5E36) : AppColors.onSurfaceVariant,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: isAttested ? const Color(0xFFD1F2DE) : AppColors.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isAttested
+                        ? const Color(0xFF1F9D5B).withValues(alpha: 0.35)
+                        : AppColors.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      isAttested ? 'SEEKER ATTESTED' : 'NOT SEEKER ATTESTED',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: isAttested
-                            ? const Color(0xFF0B5E36)
-                            : AppColors.onSurfaceVariant,
-                        letterSpacing: 0.8,
+                    Container(
+                      width: 5.5,
+                      height: 5.5,
+                      decoration: BoxDecoration(
+                        color: isAttested ? const Color(0xFF1F9D5B) : AppColors.outline,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isAttested ? Colors.white : AppColors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isAttested
-                              ? const Color(0xFF1F9D5B).withValues(alpha: 0.3)
-                              : AppColors.outlineVariant.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: isAttested
-                                  ? const Color(0xFF1F9D5B)
-                                  : AppColors.outline,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isAttested ? 'Guardian: ${attestation.guardianName}' : 'Unverified Stake',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: isAttested
-                                  ? const Color(0xFF0B5E36)
-                                  : AppColors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(width: 4.5),
+                    Text(
+                      isAttested ? 'Stake Active' : 'Unverified',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: isAttested ? const Color(0xFF0B5E36) : AppColors.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -377,59 +359,53 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            isAttested
-                ? 'Human-verified via $stakeDisplay Guardian Stake (Zero Bot Risk)'
-                : r'No active $SKR stake detected. Worker reputation is unverified for Sybil protection.',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isAttested ? const Color(0xFF12242A) : AppColors.onSurfaceVariant,
-              height: 1.3,
-            ),
-          ),
-          if (isAttested) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+          const SizedBox(height: 7),
+          if (isAttested)
+            Row(
               children: [
-                _buildMetaChip(Icons.lock_clock_rounded, '$stakeDisplay Staked'),
-                _buildMetaChip(Icons.hub_rounded, 'Guardian: ${attestation.guardianName}'),
-                _buildMetaChip(Icons.timer_outlined, '48h Cooldown Active'),
+                _buildCompactPill('$stakeDisplay Staked'),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 5),
+                  child: Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                ),
+                _buildCompactPill('Guardian: ${attestation.guardianName}'),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 5),
+                  child: Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                ),
+                _buildCompactPill('48h Cooldown'),
               ],
+            )
+          else
+            Text(
+              r'No active $SKR stake detected with a Solana Mobile Guardian.',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11.5,
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildMetaChip(IconData icon, String label) {
+  Widget _buildCompactPill(String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(
-          color: const Color(0xFF1F9D5B).withValues(alpha: 0.2),
+          color: const Color(0xFF1F9D5B).withValues(alpha: 0.18),
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: const Color(0xFF1F9D5B)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF0B5E36),
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF0B5E36),
+        ),
       ),
     );
   }

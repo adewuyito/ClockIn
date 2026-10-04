@@ -362,225 +362,206 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isAttested
-            ? const Color(0xFFE8F8F0)
-            : AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
+        color: isAttested ? const Color(0xFFE8F8F0) : AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isAttested
-              ? const Color(0xFF1F9D5B).withValues(alpha: 0.4)
+              ? const Color(0xFF1F9D5B).withValues(alpha: 0.35)
               : AppColors.outlineVariant.withValues(alpha: 0.4),
-          width: isAttested ? 1.5 : 1.0,
+          width: 1.0,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: isAttested
-                      ? const Color(0xFF1F9D5B)
-                      : AppColors.surfaceContainerHigh,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isAttested ? Icons.shield_rounded : Icons.shield_outlined,
-                  size: 16,
-                  color: isAttested ? Colors.white : AppColors.onSurfaceVariant,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isAttested ? Icons.verified_user_rounded : Icons.shield_outlined,
+                    size: 17,
+                    color: isAttested ? const Color(0xFF1F9D5B) : AppColors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    isAttested ? 'SEEKER ATTESTED' : 'SEEKER VERIFICATION',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: isAttested ? const Color(0xFF0B5E36) : AppColors.onSurface,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isAttested ? 'SEEKER ATTESTED' : 'SEEKER VERIFICATION',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: isAttested
-                            ? const Color(0xFF0B5E36)
-                            : AppColors.onSurface,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(6),
-                      onTap: () async {
-                        HapticFeedback.selectionClick();
-                        final repo = ref.read(attestationRepositoryProvider);
-                        if (isAttested) {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: Text(
-                                'Reset Attestation?',
-                                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-                              ),
-                              content: Text(
-                                'Resetting will mark your profile as unverified for demo/testing purposes.',
-                                style: GoogleFonts.plusJakartaSans(fontSize: 13),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(ctx).pop(false),
-                                  child: const Text('Cancel'),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.error,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  onPressed: () => Navigator.of(ctx).pop(true),
-                                  child: const Text('Reset'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            await repo.unstakeDevnetSkr(address: address);
-                            ref.invalidate(seekerAttestationProvider(address));
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Attestation reset. Profile marked unverified for testing.'),
-                                ),
-                              );
-                            }
-                          }
-                        } else {
-                          SeekerStakingSheet.show(context, address: address);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isAttested ? Colors.white : AppColors.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: isAttested
-                                ? const Color(0xFF1F9D5B).withValues(alpha: 0.3)
-                                : AppColors.outlineVariant.withValues(alpha: 0.5),
+              InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: () async {
+                  HapticFeedback.selectionClick();
+                  final repo = ref.read(attestationRepositoryProvider);
+                  if (isAttested) {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text(
+                          'Reset Attestation?',
+                          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                        ),
+                        content: Text(
+                          'Resetting will mark your profile as unverified for demo/testing purposes.',
+                          style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancel'),
                           ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: isAttested
-                                    ? const Color(0xFF1F9D5B)
-                                    : AppColors.outline,
-                                shape: BoxShape.circle,
-                              ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.error,
+                              foregroundColor: Colors.white,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              isAttested ? 'Guardian: ${attestation.guardianName}' : 'Unstaked',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: isAttested
-                                    ? const Color(0xFF0B5E36)
-                                    : AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: const Text('Reset'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await repo.unstakeDevnetSkr(address: address);
+                      ref.invalidate(seekerAttestationProvider(address));
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Attestation reset. Profile marked unverified for testing.'),
+                          ),
+                        );
+                      }
+                    }
+                  } else {
+                    SeekerStakingSheet.show(context, address: address);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                  decoration: BoxDecoration(
+                    color: isAttested ? const Color(0xFFD1F2DE) : AppColors.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isAttested
+                          ? const Color(0xFF1F9D5B).withValues(alpha: 0.35)
+                          : AppColors.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 5.5,
+                        height: 5.5,
+                        decoration: BoxDecoration(
+                          color: isAttested ? const Color(0xFF1F9D5B) : AppColors.outline,
+                          shape: BoxShape.circle,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4.5),
+                      Text(
+                        isAttested ? 'Stake Active' : 'Unverified',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          color: isAttested ? const Color(0xFF0B5E36) : AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            isAttested
-                ? 'You are Seeker Attested — $stakeDisplay Staked to Guardian: ${attestation.guardianName}'
-                : r'Boost Your Trust: Verify your 250 $SKR Solana Mobile Guardian stake to earn the Seeker Verified badge & unlock priority in employer lookups.',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isAttested ? const Color(0xFF12242A) : AppColors.onSurface,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (isAttested) ...[
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+          const SizedBox(height: 7),
+          if (isAttested)
+            Row(
               children: [
-                _buildStakingChip(Icons.lock_clock_rounded, '$stakeDisplay Staked'),
-                _buildStakingChip(Icons.shield_outlined, 'Anti-Bot Sybil Proof'),
-                _buildStakingChip(Icons.timer_outlined, '48h Cooldown Active'),
+                _buildCompactPill('$stakeDisplay Staked'),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 5),
+                  child: Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                ),
+                _buildCompactPill('Guardian: ${attestation.guardianName}'),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 5),
+                  child: Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                ),
+                _buildCompactPill('48h Cooldown'),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    r'Verify 250 $SKR Guardian stake for proof-of-human badge.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      SeekerStakingSheet.show(context, address: address);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1F9D5B),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    child: Text(
+                      'Verify',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
-          ] else ...[
-            SizedBox(
-              width: double.infinity,
-              height: 38,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  SeekerStakingSheet.show(context, address: address);
-                },
-                icon: const Icon(Icons.verified_user_rounded, size: 16),
-                label: Text(
-                  'Verify Seeker Attestation',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1F9D5B),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildStakingChip(IconData icon, String label) {
+  Widget _buildCompactPill(String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(
-          color: const Color(0xFF1F9D5B).withValues(alpha: 0.2),
+          color: const Color(0xFF1F9D5B).withValues(alpha: 0.18),
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: const Color(0xFF1F9D5B)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF0B5E36),
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF0B5E36),
+        ),
       ),
     );
   }
