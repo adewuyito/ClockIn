@@ -420,11 +420,11 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: Text(
-                                r'Unstake $SKR?',
+                                'Reset Attestation?',
                                 style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
                               ),
                               content: Text(
-                                'Unstaking will initiate a 48-hour cooldown and remove your verified Seeker Attestation badge.',
+                                'Resetting will mark your profile as unverified for demo/testing purposes.',
                                 style: GoogleFonts.plusJakartaSans(fontSize: 13),
                               ),
                               actions: [
@@ -438,7 +438,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                     foregroundColor: Colors.white,
                                   ),
                                   onPressed: () => Navigator.of(ctx).pop(true),
-                                  child: const Text('Unstake'),
+                                  child: const Text('Reset'),
                                 ),
                               ],
                             ),
@@ -449,7 +449,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Unstaked \$SKR. Profile marked unverified for testing.'),
+                                  content: Text('Attestation reset. Profile marked unverified for testing.'),
                                 ),
                               );
                             }
@@ -506,7 +506,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           Text(
             isAttested
                 ? 'You are Seeker Attested — $stakeDisplay Staked to Guardian: ${attestation.guardianName}'
-                : r'Boost Your Trust: Stake 250 $SKR to earn the Seeker Verified badge & unlock priority in employer lookups.',
+                : r'Boost Your Trust: Verify your 250 $SKR Solana Mobile Guardian stake to earn the Seeker Verified badge & unlock priority in employer lookups.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -534,9 +534,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   HapticFeedback.lightImpact();
                   SeekerStakingSheet.show(context, address: address);
                 },
-                icon: const Icon(Icons.shield_rounded, size: 16),
+                icon: const Icon(Icons.verified_user_rounded, size: 16),
                 label: Text(
-                  r'Stake 250 $SKR Now',
+                  'Verify Seeker Attestation',
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,

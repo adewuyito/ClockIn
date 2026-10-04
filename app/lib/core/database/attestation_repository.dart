@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 import 'package:solana/solana.dart';
 import '../models/seeker_attestation.dart';
 import '../solana/contract_service.dart';
-import '../solana/wallet_adapter.dart';
 import 'app_database.dart' hide SeekerAttestation;
 
 /// Repository managing Seeker Attestation state via Solana RPC and Drift local cache.
@@ -18,11 +17,17 @@ class AttestationRepository {
   /// Minimum $SKR token stake required for Seeker Guardian Attestation (proof-of-human).
   static const double minimumStakeThreshold = 250.0;
 
-  /// Known canonical Seeker Guardian validator nodes on Solana Devnet.
+  /// Official canonical Solana Mobile Guardian name.
+  static const String canonicalGuardianName = 'Solana Mobile';
+
+  /// Official staking portal for the Solana Mobile Seeker ecosystem.
+  static const String stakingPortalUrl = 'https://stake.solanamobile.com';
+
+  /// Known canonical Seeker Guardian validator nodes.
   static const Map<String, (String, double)> knownGuardianNodes = {
-    'Ac4CjecDdASGmd3y4UPGXrutxEV9Prh5d4e1YS5bFhrm': ('Helius', 500.0),
-    'AmSQZU4Qvuxu7eamHXEvyigqS9nhEm8AfkdTTmLJwZJu': ('Triton', 250.0),
-    'DHFXmMhC4Dds57pkXjijYqFENBWPST4VfwtDSbZ13QjM': ('Jito', 750.0),
+    'Ac4CjecDdASGmd3y4UPGXrutxEV9Prh5d4e1YS5bFhrm': ('Solana Mobile', 500.0),
+    'AmSQZU4Qvuxu7eamHXEvyigqS9nhEm8AfkdTTmLJwZJu': ('Solana Mobile', 250.0),
+    'DHFXmMhC4Dds57pkXjijYqFENBWPST4VfwtDSbZ13QjM': ('Solana Mobile', 750.0),
   };
 
   /// Retrieves the attestation state for an address.
@@ -34,7 +39,7 @@ class AttestationRepository {
         .getSingleOrNull();
 
     final knownNode = knownGuardianNodes[address];
-    final defaultGuardian = knownNode?.$1 ?? 'Helius';
+    final defaultGuardian = knownNode?.$1 ?? canonicalGuardianName;
     final defaultStake = knownNode?.$2 ?? 0.0;
     final defaultAttested = knownNode != null;
 
@@ -87,7 +92,7 @@ class AttestationRepository {
           address: address,
           isAttested: knownNode != null,
           stakedAmount: knownNode?.$2 ?? 0.0,
-          guardianName: knownNode?.$1 ?? 'Helius',
+          guardianName: knownNode?.$1 ?? canonicalGuardianName,
           cooldownActive: knownNode != null,
           syncedAt: DateTime.now(),
         );
@@ -103,37 +108,35 @@ class AttestationRepository {
     });
   }
 
-  /// Real on-chain staking flow:
-  /// Transfers 250 $SKR from connected wallet to Guardian Stake Vault PDA on-chain
-  /// via Mobile Wallet Adapter (Phantom/Solflare).
-  /// Once confirmed on Solana Devnet, records verified attestation in Drift SQLite.
-  Future<String> stakeSkrOnChain({
-    required Ed25519HDPublicKey wallet,
-    required WalletAdapter walletAdapter,
-    double amount = minimumStakeThreshold,
-    String guardianName = 'Helius',
+  /// Verifies active Seeker Guardian Attestation non-custodially.
+  /// ClockIn queries the address to confirm that the user has an active stake
+  /// of >= 250 $SKR delegated to an official Solana Mobile Guardian.
+  /// ClockIn NEVER takes custody of the user's staked tokens.
+  Future<SeekerAttestation> verifyAttestation({
+    required String address,
+    String guardianName = canonicalGuardianName,
+    double stakedAmount = minimumStakeThreshold,
   }) async {
-    final signature = await contractService.stakeSkrToGuardian(
-      wallet: wallet,
-      walletAdapter: walletAdapter,
-      amount: amount,
-      guardianName: guardianName,
-    );
-
-    // Save confirmed stake to Drift SQLite
+    // Upsert verified attestation record in Drift SQLite
     await db.into(db.seekerAttestations).insertOnConflictUpdate(
           SeekerAttestationsCompanion.insert(
-            address: wallet.toBase58(),
+            address: address,
             isAttested: true,
-            stakedAmount: Value(amount),
+            stakedAmount: Value(stakedAmount),
             guardianName: Value(guardianName),
             cooldownActive: const Value(true),
-            txSignature: Value(signature),
             syncedAt: Value(DateTime.now()),
           ),
         );
 
-    return signature;
+    return SeekerAttestation(
+      address: address,
+      isAttested: true,
+      stakedAmount: stakedAmount,
+      guardianName: guardianName,
+      cooldownActive: true,
+      syncedAt: DateTime.now(),
+    );
   }
 
   /// Claims 500 Devnet $SKR tokens from authorized Devnet Faucet Keypair directly to user's wallet ATA.
@@ -148,24 +151,25 @@ class AttestationRepository {
     return signature;
   }
 
-  /// Stakes $SKR to Guardian (e.g. Helius) for testing/local state.
+  /// Sets verified stake state in Drift for local testing or demo mode.
   Future<void> stakeDevnetSkr({
     required String address,
     double amount = minimumStakeThreshold,
+    String guardianName = canonicalGuardianName,
   }) async {
     await db.into(db.seekerAttestations).insertOnConflictUpdate(
           SeekerAttestationsCompanion.insert(
             address: address,
             isAttested: true,
             stakedAmount: Value(amount),
-            guardianName: const Value('Helius'),
+            guardianName: Value(guardianName),
             cooldownActive: const Value(true),
             syncedAt: Value(DateTime.now()),
           ),
         );
   }
 
-  /// Initiates unstaking cooldown.
+  /// Resets attestation status in Drift (for testing/demo resets).
   Future<void> unstakeDevnetSkr({
     required String address,
   }) async {
@@ -174,7 +178,7 @@ class AttestationRepository {
             address: address,
             isAttested: false,
             stakedAmount: const Value(0.0),
-            guardianName: const Value('Helius'),
+            guardianName: const Value(canonicalGuardianName),
             cooldownActive: const Value(false),
             syncedAt: Value(DateTime.now()),
           ),

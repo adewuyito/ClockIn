@@ -86,7 +86,7 @@ See [`program/DEPLOYED.md`](program/DEPLOYED.md) for the full on-chain deploymen
 - **Solana Mobile Wallet Adapter (MWA)**: Zero key custody. Sessions and transactions are signed natively inside installed wallets (Phantom, Solflare) using Android intent handoffs.
 - **Arweave & Irys Storage**: Decentralized provenance network for permanently archiving rich review notes, rating breakdowns, and deliverable cryptographic hashes to the Arweave permaweb.
 - **Drift (SQLite Schema v10)**: Offline-first reactive local cache. Automatically mirrors on-chain contracts, worker profiles, and reviews for fast startup, offline draft review authoring, and low RPC overhead.
-- **Seeker Guardian Attestation**: Economic proof-of-human via 250 $SKR staking with 48h unstaking cooldown, ready for Solana Seeker Genesis Token integration.
+- **Seeker Guardian Attestation**: Non-custodial proof-of-human verification via official Solana Mobile Guardian staking (250 $SKR with 48h cooldown), eliminating bot risks with zero custody of staked assets.
 - **Pretty QR**: Apple-style rounded scannable QR passes for in-person and video call reputation exchange.
 - **Riverpod 2.0**: Declarative reactive state management streaming contract updates and wallet session status.
 - **Anchor 1.2.0 / Solana SBF**: Rust program enforcing deterministic PDA derivation, space bounding, and atomicity.

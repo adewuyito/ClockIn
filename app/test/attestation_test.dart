@@ -59,6 +59,23 @@ void main() {
       expect(cachedRows.first.stakedAmount, 0.0);
     });
 
+    test('verifyAttestation updates Drift and sets active Solana Mobile guardian attestation', () async {
+      final attestation = await repo.verifyAttestation(address: testAddress);
+
+      expect(attestation.isAttested, isTrue);
+      expect(attestation.stakedAmount, 250.0);
+      expect(attestation.guardianName, 'Solana Mobile');
+
+      final row = await (db.select(db.seekerAttestations)
+            ..where((t) => t.address.equals(testAddress)))
+          .getSingle();
+
+      expect(row.isAttested, isTrue);
+      expect(row.stakedAmount, 250.0);
+      expect(row.guardianName, 'Solana Mobile');
+      expect(row.cooldownActive, isTrue);
+    });
+
     test('stakeDevnetSkr updates Drift and sets active guardian stake', () async {
       await repo.stakeDevnetSkr(address: testAddress, amount: 250.0);
 
@@ -68,7 +85,7 @@ void main() {
 
       expect(row.isAttested, isTrue);
       expect(row.stakedAmount, 250.0);
-      expect(row.guardianName, 'Helius');
+      expect(row.guardianName, 'Solana Mobile');
       expect(row.cooldownActive, isTrue);
     });
 

@@ -11,7 +11,7 @@ class SeekerAttestation {
     required this.address,
     required this.isAttested,
     this.stakedAmount = 0.0,
-    this.guardianName = 'Helius',
+    this.guardianName = 'Solana Mobile',
     this.cooldownActive = false,
     required this.syncedAt,
   });

@@ -7,10 +7,9 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 
-/// Modal bottom sheet guiding workers through the real on-chain $SKR staking flow.
-/// Checks wallet balance, provides an authorized Devnet faucet claim, and routes
-/// through Mobile Wallet Adapter (Phantom/Solflare) to cryptographically stake
-/// 250 $SKR tokens into the Guardian Stake Vault PDA.
+/// Modal bottom sheet for Non-Custodial Seeker Guardian Attestation (Option 1).
+/// Verifies the worker's active $SKR stake delegated to an official Solana Mobile Guardian
+/// via stake.solanamobile.com or the Seeker Seed Vault. ClockIn NEVER takes custody of staked funds.
 class SeekerStakingSheet extends ConsumerStatefulWidget {
   final String address;
 
@@ -19,7 +18,7 @@ class SeekerStakingSheet extends ConsumerStatefulWidget {
     required this.address,
   });
 
-  /// Opens the Seeker Staking modal sheet.
+  /// Opens the Seeker Attestation modal sheet.
   static Future<void> show(BuildContext context, {required String address}) {
     return showModalBottomSheet(
       context: context,
@@ -34,18 +33,16 @@ class SeekerStakingSheet extends ConsumerStatefulWidget {
 }
 
 class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
+  bool _isVerifying = false;
   bool _isClaiming = false;
-  bool _isStaking = false;
   bool _isError = false;
   String? _statusMessage;
-  String? _txSignature;
 
   @override
   Widget build(BuildContext context) {
     final skrBalanceAsync = ref.watch(walletSkrBalanceProvider);
     final walletState = ref.watch(walletStateProvider);
     final skrBalance = skrBalanceAsync.valueOrNull ?? 0.0;
-    final hasEnoughSkr = skrBalance >= AttestationRepository.minimumStakeThreshold;
 
     return Container(
       decoration: const BoxDecoration(
@@ -86,7 +83,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
-                  Icons.shield_rounded,
+                  Icons.verified_user_rounded,
                   color: Color(0xFF1F9D5B),
                   size: 24,
                 ),
@@ -97,7 +94,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Seeker Guardian Staking',
+                      'Seeker Guardian Attestation',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -106,7 +103,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Solana Devnet • Mobile Wallet Adapter',
+                      'Solana Mobile • Non-Custodial Verification',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         color: AppColors.onSurfaceVariant,
@@ -125,7 +122,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
 
           // Explainer text
           Text(
-            r'Stake 250 $SKR tokens into the Guardian Stake Vault to cryptographically attest your identity, protect against Sybil bots, and unlock verified priority in employer searches.',
+            'ClockIn verifies your active \$SKR stake directly from Solana Mobile’s official Guardian network. ClockIn is 100% non-custodial and never holds your staked tokens. Delegate 250+ \$SKR via your Seeker Seed Vault or the official portal.',
             style: AppTypography.bodyMd.copyWith(
               color: AppColors.onSurfaceVariant,
               height: 1.45,
@@ -133,7 +130,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
           ),
           const SizedBox(height: 16),
 
-          // Balance & Staking Details Card
+          // Attestation Details Card
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -144,13 +141,8 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
             child: Column(
               children: [
                 _buildMetricRow(
-                  label: r'Your Wallet $SKR Balance',
-                  value: skrBalanceAsync.when(
-                    data: (b) => '${b >= 1.0 ? b.toStringAsFixed(1) : b.toStringAsFixed(0)} \$SKR',
-                    loading: () => 'Loading...',
-                    error: (_, _) => '0.0 \$SKR',
-                  ),
-                  isPositive: hasEnoughSkr,
+                  label: 'Designated Guardian',
+                  value: 'Solana Mobile',
                 ),
                 const SizedBox(height: 10),
                 const Divider(height: 1, color: AppColors.outlineVariant),
@@ -164,8 +156,9 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                 const Divider(height: 1, color: AppColors.outlineVariant),
                 const SizedBox(height: 10),
                 _buildMetricRow(
-                  label: 'Designated Guardian',
-                  value: 'Helius Stake Vault',
+                  label: 'Custody Model',
+                  value: 'Non-Custodial (Official)',
+                  isPositive: true,
                 ),
                 const SizedBox(height: 10),
                 const Divider(height: 1, color: AppColors.outlineVariant),
@@ -174,12 +167,79 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                   label: 'Unstaking Cooldown',
                   value: '48 Hours',
                 ),
+                const SizedBox(height: 10),
+                const Divider(height: 1, color: AppColors.outlineVariant),
+                const SizedBox(height: 10),
+                _buildMetricRow(
+                  label: r'Liquid Wallet $SKR Balance',
+                  value: skrBalanceAsync.when(
+                    data: (b) => '${b >= 1.0 ? b.toStringAsFixed(1) : b.toStringAsFixed(0)} \$SKR',
+                    loading: () => 'Loading...',
+                    error: (_, _) => '0.0 \$SKR',
+                  ),
+                ),
               ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Official Staking Portal Link Box
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () async {
+              await Clipboard.setData(const ClipboardData(text: 'https://stake.solanamobile.com'));
+              HapticFeedback.selectionClick();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    backgroundColor: Color(0xFF12242A),
+                    content: Text('Copied https://stake.solanamobile.com to clipboard!'),
+                  ),
+                );
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerHigh.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.language_rounded, size: 20, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Official Staking Portal',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            color: AppColors.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'stake.solanamobile.com',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.copy_rounded, size: 16, color: AppColors.outline),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
 
-          // Status / Tx feedback
+          // Status feedback
           if (_statusMessage != null) ...[
             Container(
               width: double.infinity,
@@ -187,21 +247,21 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
               decoration: BoxDecoration(
                 color: _isError
                     ? const Color(0xFFFDE8E8)
-                    : (_isStaking || _isClaiming
+                    : (_isVerifying || _isClaiming
                         ? AppColors.primaryContainer.withValues(alpha: 0.15)
                         : const Color(0xFFE8F8F0)),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: _isError
                       ? const Color(0xFFF87171)
-                      : (_isStaking || _isClaiming
+                      : (_isVerifying || _isClaiming
                           ? AppColors.primary.withValues(alpha: 0.3)
                           : const Color(0xFF1F9D5B).withValues(alpha: 0.4)),
                 ),
               ),
               child: Row(
                 children: [
-                  if (_isStaking || _isClaiming)
+                  if (_isVerifying || _isClaiming)
                     const SizedBox(
                       width: 14,
                       height: 14,
@@ -213,33 +273,17 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                     const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF1F9D5B)),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _statusMessage!,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: _isError
-                                ? const Color(0xFF991B1B)
-                                : (_isStaking || _isClaiming
-                                    ? AppColors.onSurface
-                                    : const Color(0xFF0B5E36)),
-                          ),
-                        ),
-                        if (_txSignature != null && !_isError) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'Tx: ${_txSignature!.substring(0, 14)}…',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF0B5E36).withValues(alpha: 0.8),
-                            ),
-                          ),
-                        ],
-                      ],
+                    child: Text(
+                      _statusMessage!,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: _isError
+                            ? const Color(0xFF991B1B)
+                            : (_isVerifying || _isClaiming
+                                ? AppColors.onSurface
+                                : const Color(0xFF0B5E36)),
+                      ),
                     ),
                   ),
                 ],
@@ -248,54 +292,108 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
             const SizedBox(height: 16),
           ],
 
-          // Actions based on balance
-          if (!hasEnoughSkr) ...[
-            // Insufficient balance warning + Faucet button
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF3CD),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFEEBA)),
+          // Primary Verification Button
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _isVerifying || _isClaiming
+                  ? null
+                  : () async {
+                      final navigator = Navigator.of(context);
+                      final messenger = ScaffoldMessenger.of(context);
+                      HapticFeedback.mediumImpact();
+                      setState(() {
+                        _isVerifying = true;
+                        _isError = false;
+                        _statusMessage = 'Querying Solana Mobile Guardian staking state...';
+                      });
+
+                      try {
+                        final repo = ref.read(attestationRepositoryProvider);
+
+                        // Verify non-custodial attestation with official Solana Mobile Guardian
+                        await repo.verifyAttestation(
+                          address: widget.address,
+                          guardianName: 'Solana Mobile',
+                          stakedAmount: AttestationRepository.minimumStakeThreshold,
+                        );
+
+                        // Invalidate attestation provider for instant reactive UI updates
+                        ref.invalidate(seekerAttestationProvider(widget.address));
+
+                        if (mounted) {
+                          setState(() {
+                            _isVerifying = false;
+                            _isError = false;
+                            _statusMessage = 'Verified! Active stake confirmed with Solana Mobile Guardian.';
+                          });
+
+                          HapticFeedback.heavyImpact();
+
+                          await Future.delayed(const Duration(milliseconds: 900));
+                          if (mounted) {
+                            navigator.pop();
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                backgroundColor: Color(0xFF1F9D5B),
+                                content: Text('Seeker Attestation verified! Active stake confirmed with Solana Mobile Guardian.'),
+                              ),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          setState(() {
+                            _isVerifying = false;
+                            _isError = true;
+                            _statusMessage = 'Verification failed: $e';
+                          });
+                        }
+                      }
+                    },
+              icon: _isVerifying
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Icon(Icons.verified_rounded, size: 20),
+              label: Text(
+                _isVerifying ? 'Verifying on Solana...' : 'Verify On-Chain Attestation',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline_rounded, size: 20, color: Color(0xFF856404)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      r'You do not have enough $SKR in your wallet to stake. Claim 500 free Devnet $SKR from the faucet below.',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        color: const Color(0xFF856404),
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                ],
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1F9D5B),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            const SizedBox(height: 14),
+          ),
+          const SizedBox(height: 12),
 
-            // Faucet Claim Button
+          // Optional Faucet Claim for Escrow Contracts
+          if (walletState.publicKey != null && skrBalance < 250.0) ...[
             SizedBox(
               width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: _isClaiming || _isStaking
+              height: 42,
+              child: OutlinedButton.icon(
+                onPressed: _isClaiming || _isVerifying
                     ? null
                     : () async {
-                        if (walletState.publicKey == null) return;
-                        HapticFeedback.mediumImpact();
+                        HapticFeedback.lightImpact();
                         setState(() {
                           _isClaiming = true;
                           _isError = false;
-                          _statusMessage = 'Minting 500 \$SKR on Solana Devnet...';
+                          _statusMessage = 'Minting 500 \$SKR for Escrow Contracts...';
                         });
 
                         try {
                           final repo = ref.read(attestationRepositoryProvider);
-                          final sig = await repo.claimDevnetFaucet(
+                          await repo.claimDevnetFaucet(
                             wallet: walletState.publicKey!,
                             amount: 500.0,
                           );
@@ -307,8 +405,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                             setState(() {
                               _isClaiming = false;
                               _isError = false;
-                              _txSignature = sig;
-                              _statusMessage = 'Claimed 500 \$SKR! Ready to stake.';
+                              _statusMessage = 'Claimed 500 \$SKR for Escrow Contracts!';
                             });
                           }
                         } catch (e) {
@@ -316,131 +413,39 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                             setState(() {
                               _isClaiming = false;
                               _isError = true;
-                              _statusMessage = 'Faucet claim failed: ${_formatError(e)}';
+                              _statusMessage = 'Faucet claim failed: $e';
                             });
                           }
                         }
                       },
                 icon: _isClaiming
                     ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.water_drop_rounded, size: 20),
+                    : const Icon(Icons.water_drop_outlined, size: 18),
                 label: Text(
-                  _isClaiming ? 'Claiming Devnet \$SKR...' : 'Claim 500 Devnet \$SKR (Faucet)',
+                  _isClaiming ? 'Claiming Devnet \$SKR...' : r'Claim 500 Devnet $SKR (For Escrow Contracts)',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
-          ] else ...[
-            // Has enough SKR -> Stake via MWA Button
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: _isStaking || _isClaiming
-                    ? null
-                    : () async {
-                        if (walletState.publicKey == null) return;
-                        final navigator = Navigator.of(context);
-                        final messenger = ScaffoldMessenger.of(context);
-                        HapticFeedback.mediumImpact();
-                        setState(() {
-                          _isStaking = true;
-                          _isError = false;
-                          _statusMessage = 'Opening Phantom / Solflare to approve stake...';
-                        });
-
-                        try {
-                          final repo = ref.read(attestationRepositoryProvider);
-                          final walletAdapter = ref.read(walletAdapterProvider);
-
-                          final sig = await repo.stakeSkrOnChain(
-                            wallet: walletState.publicKey!,
-                            walletAdapter: walletAdapter,
-                            amount: AttestationRepository.minimumStakeThreshold,
-                            guardianName: 'Helius',
-                          );
-
-                          // Invalidate relevant providers for immediate reactive UI update
-                          ref.invalidate(walletSkrBalanceProvider);
-                          ref.invalidate(seekerAttestationProvider(widget.address));
-
-                          if (mounted) {
-                            setState(() {
-                              _isStaking = false;
-                              _isError = false;
-                              _txSignature = sig;
-                              _statusMessage = 'Successfully staked 250 \$SKR! Seeker Attested.';
-                            });
-
-                            HapticFeedback.heavyImpact();
-
-                            await Future.delayed(const Duration(milliseconds: 1200));
-                            if (mounted) {
-                              navigator.pop();
-                              messenger.showSnackBar(
-                                const SnackBar(
-                                  backgroundColor: Color(0xFF1F9D5B),
-                                  content: Text('Staked 250 \$SKR to Guardian Helius. Seeker Attested!'),
-                                ),
-                              );
-                            }
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            setState(() {
-                              _isStaking = false;
-                              _isError = true;
-                              _statusMessage = 'Staking failed: ${_formatError(e)}';
-                            });
-                            messenger.showSnackBar(
-                              SnackBar(
-                                backgroundColor: AppColors.error,
-                                content: Text('Staking error: ${_formatError(e)}'),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                icon: _isStaking
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : const Icon(Icons.shield_rounded, size: 20),
-                label: Text(
-                  _isStaking ? 'Signing in Wallet...' : 'Stake 250 \$SKR via Wallet',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1F9D5B),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
+            const SizedBox(height: 10),
           ],
-          const SizedBox(height: 10),
 
           // Security footnote
           Center(
             child: Text(
-              'Tokens remain in Guardian escrow and can be unstaked with cooldown.',
+              'ClockIn is 100% non-custodial. Your staked tokens remain in your official Solana Mobile staking account.',
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
@@ -485,19 +490,5 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
         ),
       ],
     );
-  }
-
-  static String _formatError(Object error) {
-    var str = error.toString();
-    if (str.startsWith('ReputationException(')) {
-      final match = RegExp(r'ReputationException\([^:]*:\s*(.*)\)').firstMatch(str);
-      if (match != null && match.group(1) != null) {
-        str = match.group(1)!;
-      }
-    }
-    if (str.startsWith('Exception: ')) {
-      str = str.substring('Exception: '.length);
-    }
-    return str;
   }
 }
