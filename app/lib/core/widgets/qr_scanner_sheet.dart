@@ -11,12 +11,14 @@ class QrScanResult {
   final String? solanaAddress;
   final double? amountSol;
   final String? contractId;
+  final String? deliverableKey;
 
   const QrScanResult({
     required this.raw,
     this.solanaAddress,
     this.amountSol,
     this.contractId,
+    this.deliverableKey,
   });
 
   /// Extracts Solana addresses, Solana Pay URIs, or ClockIn contract IDs.
@@ -24,8 +26,16 @@ class QrScanResult {
     final trimmed = raw.trim();
 
     // 1. ClockIn deep links:
+    // - deliverable key: clockin://deliverable/<id>#key=<key>
     // - contract: clockin://contract/<id> or clockin:contract:<id>
     // - worker profile: clockin://worker/<address> or clockin:worker:<address>
+    if (trimmed.startsWith('clockin://deliverable/')) {
+      final withoutScheme = trimmed.substring('clockin://deliverable/'.length);
+      final parts = withoutScheme.split('#key=');
+      final id = parts[0];
+      final key = parts.length > 1 ? parts[1] : null;
+      return QrScanResult(raw: trimmed, contractId: id, deliverableKey: key);
+    }
     if (trimmed.startsWith('clockin://contract/')) {
       final id = trimmed.substring('clockin://contract/'.length);
       return QrScanResult(raw: trimmed, contractId: id);

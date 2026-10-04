@@ -129,6 +129,25 @@ class DisputeCases extends Table {
   Set<Column> get primaryKey => {contractId};
 }
 
+/// E2EE deliverable submissions from workers to employers.
+/// Encrypted payload is AES-256-GCM ciphertext; the key is never stored here.
+@DataClassName('DeliverableSubmissionData')
+class DeliverableSubmissions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get contractId => text()();
+  TextColumn get submitterAddress => text()();
+  TextColumn get encryptedPayload => text()(); // base64 AES-256-GCM ciphertext
+  TextColumn get iv => text()(); // base64 12-byte initialization vector
+  TextColumn get authTag => text().withDefault(const Constant(''))(); // base64 GCM auth tag
+  TextColumn get plaintextHash => text()(); // SHA-256 hex digest of original plaintext
+  TextColumn get arweaveTxId => text().nullable()();
+  DateTimeColumn get submittedAt => dateTime().withDefault(currentDateAndTime)();
+  TextColumn get status => text().withDefault(const Constant('submitted'))(); // 'submitted', 'reviewed', 'revision_requested'
+  TextColumn get decryptionKeyHash => text().nullable()(); // SHA-256 of AES key (never the key itself)
+  TextColumn get completionNote => text().nullable()(); // optional unencrypted worker summary
+  DateTimeColumn get syncedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 @DriftDatabase(tables: [
   WorkerProfiles,
   Reviews,
@@ -138,13 +157,14 @@ class DisputeCases extends Table {
   DraftContracts,
   SeekerAttestations,
   DisputeCases,
+  DeliverableSubmissions,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -186,6 +206,9 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(reviews, reviews.reviewNote);
             await m.addColumn(reviews, reviews.arweaveTxId);
             await m.addColumn(draftReviews, draftReviews.arweaveTxId);
+          }
+          if (from < 11) {
+            await m.createTable(deliverableSubmissions);
           }
         },
       );

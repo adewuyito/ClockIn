@@ -4,11 +4,15 @@ import '../database/app_database.dart' hide WorkerProfile, Review, EscrowContrac
 import '../database/reputation_repository.dart';
 import '../database/contract_repository.dart';
 import '../database/attestation_repository.dart';
+import '../database/deliverable_repository.dart';
 import '../models/escrow_contract.dart';
 import '../models/dispute_case.dart';
+import '../models/deliverable_submission.dart';
 import '../models/review.dart';
 import '../models/seeker_attestation.dart';
 import '../models/worker_profile.dart';
+import '../services/deliverable_encryption_service.dart';
+import '../services/irys_storage_service.dart';
 import '../solana/network_config.dart';
 import '../solana/reputation_service.dart';
 import '../solana/contract_service.dart';
@@ -67,6 +71,23 @@ final attestationRepositoryProvider = Provider<AttestationRepository>((ref) {
   final db = ref.watch(databaseProvider);
   final contractService = ref.watch(contractServiceProvider);
   return AttestationRepository(db: db, contractService: contractService);
+});
+
+/// Service providing AES-256-GCM symmetric encryption for deliverables.
+final deliverableEncryptionServiceProvider = Provider<DeliverableEncryptionService>((ref) {
+  return DeliverableEncryptionService();
+});
+
+/// Repository coordinating local encrypted deliverable submissions and Irys storage.
+final deliverableRepositoryProvider = Provider<DeliverableRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  final encryptionService = ref.watch(deliverableEncryptionServiceProvider);
+  final irysService = ref.watch(irysStorageServiceProvider);
+  return DeliverableRepository(
+    db: db,
+    encryptionService: encryptionService,
+    irysService: irysService,
+  );
 });
 
 // ==================== WALLET STATE MANAGEMENT ====================
@@ -236,6 +257,20 @@ final disputeCaseProvider = StreamProvider.family<DisputeCase?, String>((ref, co
 final draftContractsProvider = StreamProvider<List<DraftContract>>((ref) {
   final repository = ref.watch(contractRepositoryProvider);
   return repository.watchDraftContracts();
+});
+
+/// Watches all encrypted deliverable submissions for a contract from Drift database.
+final contractDeliverablesProvider =
+    StreamProvider.family<List<DeliverableSubmission>, String>((ref, contractId) {
+  final repository = ref.watch(deliverableRepositoryProvider);
+  return repository.watchSubmissionsForContract(contractId);
+});
+
+/// Watches the latest encrypted deliverable submission for a contract from Drift database.
+final latestDeliverableProvider =
+    StreamProvider.family<DeliverableSubmission?, String>((ref, contractId) {
+  final repository = ref.watch(deliverableRepositoryProvider);
+  return repository.watchLatestSubmission(contractId);
 });
 
 // ==================== SETTINGS SCREEN: REAL NETWORK DATA ====================

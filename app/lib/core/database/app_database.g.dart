@@ -4593,6 +4593,787 @@ class DisputeCasesCompanion extends UpdateCompanion<DisputeCaseData> {
   }
 }
 
+class $DeliverableSubmissionsTable extends DeliverableSubmissions
+    with TableInfo<$DeliverableSubmissionsTable, DeliverableSubmissionData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DeliverableSubmissionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _contractIdMeta = const VerificationMeta(
+    'contractId',
+  );
+  @override
+  late final GeneratedColumn<String> contractId = GeneratedColumn<String>(
+    'contract_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _submitterAddressMeta = const VerificationMeta(
+    'submitterAddress',
+  );
+  @override
+  late final GeneratedColumn<String> submitterAddress = GeneratedColumn<String>(
+    'submitter_address',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _encryptedPayloadMeta = const VerificationMeta(
+    'encryptedPayload',
+  );
+  @override
+  late final GeneratedColumn<String> encryptedPayload = GeneratedColumn<String>(
+    'encrypted_payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ivMeta = const VerificationMeta('iv');
+  @override
+  late final GeneratedColumn<String> iv = GeneratedColumn<String>(
+    'iv',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _authTagMeta = const VerificationMeta(
+    'authTag',
+  );
+  @override
+  late final GeneratedColumn<String> authTag = GeneratedColumn<String>(
+    'auth_tag',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _plaintextHashMeta = const VerificationMeta(
+    'plaintextHash',
+  );
+  @override
+  late final GeneratedColumn<String> plaintextHash = GeneratedColumn<String>(
+    'plaintext_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _arweaveTxIdMeta = const VerificationMeta(
+    'arweaveTxId',
+  );
+  @override
+  late final GeneratedColumn<String> arweaveTxId = GeneratedColumn<String>(
+    'arweave_tx_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _submittedAtMeta = const VerificationMeta(
+    'submittedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> submittedAt = GeneratedColumn<DateTime>(
+    'submitted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('submitted'),
+  );
+  static const VerificationMeta _decryptionKeyHashMeta = const VerificationMeta(
+    'decryptionKeyHash',
+  );
+  @override
+  late final GeneratedColumn<String> decryptionKeyHash =
+      GeneratedColumn<String>(
+        'decryption_key_hash',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _completionNoteMeta = const VerificationMeta(
+    'completionNote',
+  );
+  @override
+  late final GeneratedColumn<String> completionNote = GeneratedColumn<String>(
+    'completion_note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncedAtMeta = const VerificationMeta(
+    'syncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> syncedAt = GeneratedColumn<DateTime>(
+    'synced_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    contractId,
+    submitterAddress,
+    encryptedPayload,
+    iv,
+    authTag,
+    plaintextHash,
+    arweaveTxId,
+    submittedAt,
+    status,
+    decryptionKeyHash,
+    completionNote,
+    syncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'deliverable_submissions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DeliverableSubmissionData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('contract_id')) {
+      context.handle(
+        _contractIdMeta,
+        contractId.isAcceptableOrUnknown(data['contract_id']!, _contractIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contractIdMeta);
+    }
+    if (data.containsKey('submitter_address')) {
+      context.handle(
+        _submitterAddressMeta,
+        submitterAddress.isAcceptableOrUnknown(
+          data['submitter_address']!,
+          _submitterAddressMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_submitterAddressMeta);
+    }
+    if (data.containsKey('encrypted_payload')) {
+      context.handle(
+        _encryptedPayloadMeta,
+        encryptedPayload.isAcceptableOrUnknown(
+          data['encrypted_payload']!,
+          _encryptedPayloadMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_encryptedPayloadMeta);
+    }
+    if (data.containsKey('iv')) {
+      context.handle(_ivMeta, iv.isAcceptableOrUnknown(data['iv']!, _ivMeta));
+    } else if (isInserting) {
+      context.missing(_ivMeta);
+    }
+    if (data.containsKey('auth_tag')) {
+      context.handle(
+        _authTagMeta,
+        authTag.isAcceptableOrUnknown(data['auth_tag']!, _authTagMeta),
+      );
+    }
+    if (data.containsKey('plaintext_hash')) {
+      context.handle(
+        _plaintextHashMeta,
+        plaintextHash.isAcceptableOrUnknown(
+          data['plaintext_hash']!,
+          _plaintextHashMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_plaintextHashMeta);
+    }
+    if (data.containsKey('arweave_tx_id')) {
+      context.handle(
+        _arweaveTxIdMeta,
+        arweaveTxId.isAcceptableOrUnknown(
+          data['arweave_tx_id']!,
+          _arweaveTxIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('submitted_at')) {
+      context.handle(
+        _submittedAtMeta,
+        submittedAt.isAcceptableOrUnknown(
+          data['submitted_at']!,
+          _submittedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('decryption_key_hash')) {
+      context.handle(
+        _decryptionKeyHashMeta,
+        decryptionKeyHash.isAcceptableOrUnknown(
+          data['decryption_key_hash']!,
+          _decryptionKeyHashMeta,
+        ),
+      );
+    }
+    if (data.containsKey('completion_note')) {
+      context.handle(
+        _completionNoteMeta,
+        completionNote.isAcceptableOrUnknown(
+          data['completion_note']!,
+          _completionNoteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(
+        _syncedAtMeta,
+        syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DeliverableSubmissionData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DeliverableSubmissionData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      contractId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}contract_id'],
+      )!,
+      submitterAddress: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}submitter_address'],
+      )!,
+      encryptedPayload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}encrypted_payload'],
+      )!,
+      iv: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}iv'],
+      )!,
+      authTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}auth_tag'],
+      )!,
+      plaintextHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plaintext_hash'],
+      )!,
+      arweaveTxId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}arweave_tx_id'],
+      ),
+      submittedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}submitted_at'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      decryptionKeyHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}decryption_key_hash'],
+      ),
+      completionNote: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}completion_note'],
+      ),
+      syncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}synced_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DeliverableSubmissionsTable createAlias(String alias) {
+    return $DeliverableSubmissionsTable(attachedDatabase, alias);
+  }
+}
+
+class DeliverableSubmissionData extends DataClass
+    implements Insertable<DeliverableSubmissionData> {
+  final int id;
+  final String contractId;
+  final String submitterAddress;
+  final String encryptedPayload;
+  final String iv;
+  final String authTag;
+  final String plaintextHash;
+  final String? arweaveTxId;
+  final DateTime submittedAt;
+  final String status;
+  final String? decryptionKeyHash;
+  final String? completionNote;
+  final DateTime syncedAt;
+  const DeliverableSubmissionData({
+    required this.id,
+    required this.contractId,
+    required this.submitterAddress,
+    required this.encryptedPayload,
+    required this.iv,
+    required this.authTag,
+    required this.plaintextHash,
+    this.arweaveTxId,
+    required this.submittedAt,
+    required this.status,
+    this.decryptionKeyHash,
+    this.completionNote,
+    required this.syncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['contract_id'] = Variable<String>(contractId);
+    map['submitter_address'] = Variable<String>(submitterAddress);
+    map['encrypted_payload'] = Variable<String>(encryptedPayload);
+    map['iv'] = Variable<String>(iv);
+    map['auth_tag'] = Variable<String>(authTag);
+    map['plaintext_hash'] = Variable<String>(plaintextHash);
+    if (!nullToAbsent || arweaveTxId != null) {
+      map['arweave_tx_id'] = Variable<String>(arweaveTxId);
+    }
+    map['submitted_at'] = Variable<DateTime>(submittedAt);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || decryptionKeyHash != null) {
+      map['decryption_key_hash'] = Variable<String>(decryptionKeyHash);
+    }
+    if (!nullToAbsent || completionNote != null) {
+      map['completion_note'] = Variable<String>(completionNote);
+    }
+    map['synced_at'] = Variable<DateTime>(syncedAt);
+    return map;
+  }
+
+  DeliverableSubmissionsCompanion toCompanion(bool nullToAbsent) {
+    return DeliverableSubmissionsCompanion(
+      id: Value(id),
+      contractId: Value(contractId),
+      submitterAddress: Value(submitterAddress),
+      encryptedPayload: Value(encryptedPayload),
+      iv: Value(iv),
+      authTag: Value(authTag),
+      plaintextHash: Value(plaintextHash),
+      arweaveTxId: arweaveTxId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(arweaveTxId),
+      submittedAt: Value(submittedAt),
+      status: Value(status),
+      decryptionKeyHash: decryptionKeyHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(decryptionKeyHash),
+      completionNote: completionNote == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completionNote),
+      syncedAt: Value(syncedAt),
+    );
+  }
+
+  factory DeliverableSubmissionData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DeliverableSubmissionData(
+      id: serializer.fromJson<int>(json['id']),
+      contractId: serializer.fromJson<String>(json['contractId']),
+      submitterAddress: serializer.fromJson<String>(json['submitterAddress']),
+      encryptedPayload: serializer.fromJson<String>(json['encryptedPayload']),
+      iv: serializer.fromJson<String>(json['iv']),
+      authTag: serializer.fromJson<String>(json['authTag']),
+      plaintextHash: serializer.fromJson<String>(json['plaintextHash']),
+      arweaveTxId: serializer.fromJson<String?>(json['arweaveTxId']),
+      submittedAt: serializer.fromJson<DateTime>(json['submittedAt']),
+      status: serializer.fromJson<String>(json['status']),
+      decryptionKeyHash: serializer.fromJson<String?>(
+        json['decryptionKeyHash'],
+      ),
+      completionNote: serializer.fromJson<String?>(json['completionNote']),
+      syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'contractId': serializer.toJson<String>(contractId),
+      'submitterAddress': serializer.toJson<String>(submitterAddress),
+      'encryptedPayload': serializer.toJson<String>(encryptedPayload),
+      'iv': serializer.toJson<String>(iv),
+      'authTag': serializer.toJson<String>(authTag),
+      'plaintextHash': serializer.toJson<String>(plaintextHash),
+      'arweaveTxId': serializer.toJson<String?>(arweaveTxId),
+      'submittedAt': serializer.toJson<DateTime>(submittedAt),
+      'status': serializer.toJson<String>(status),
+      'decryptionKeyHash': serializer.toJson<String?>(decryptionKeyHash),
+      'completionNote': serializer.toJson<String?>(completionNote),
+      'syncedAt': serializer.toJson<DateTime>(syncedAt),
+    };
+  }
+
+  DeliverableSubmissionData copyWith({
+    int? id,
+    String? contractId,
+    String? submitterAddress,
+    String? encryptedPayload,
+    String? iv,
+    String? authTag,
+    String? plaintextHash,
+    Value<String?> arweaveTxId = const Value.absent(),
+    DateTime? submittedAt,
+    String? status,
+    Value<String?> decryptionKeyHash = const Value.absent(),
+    Value<String?> completionNote = const Value.absent(),
+    DateTime? syncedAt,
+  }) => DeliverableSubmissionData(
+    id: id ?? this.id,
+    contractId: contractId ?? this.contractId,
+    submitterAddress: submitterAddress ?? this.submitterAddress,
+    encryptedPayload: encryptedPayload ?? this.encryptedPayload,
+    iv: iv ?? this.iv,
+    authTag: authTag ?? this.authTag,
+    plaintextHash: plaintextHash ?? this.plaintextHash,
+    arweaveTxId: arweaveTxId.present ? arweaveTxId.value : this.arweaveTxId,
+    submittedAt: submittedAt ?? this.submittedAt,
+    status: status ?? this.status,
+    decryptionKeyHash: decryptionKeyHash.present
+        ? decryptionKeyHash.value
+        : this.decryptionKeyHash,
+    completionNote: completionNote.present
+        ? completionNote.value
+        : this.completionNote,
+    syncedAt: syncedAt ?? this.syncedAt,
+  );
+  DeliverableSubmissionData copyWithCompanion(
+    DeliverableSubmissionsCompanion data,
+  ) {
+    return DeliverableSubmissionData(
+      id: data.id.present ? data.id.value : this.id,
+      contractId: data.contractId.present
+          ? data.contractId.value
+          : this.contractId,
+      submitterAddress: data.submitterAddress.present
+          ? data.submitterAddress.value
+          : this.submitterAddress,
+      encryptedPayload: data.encryptedPayload.present
+          ? data.encryptedPayload.value
+          : this.encryptedPayload,
+      iv: data.iv.present ? data.iv.value : this.iv,
+      authTag: data.authTag.present ? data.authTag.value : this.authTag,
+      plaintextHash: data.plaintextHash.present
+          ? data.plaintextHash.value
+          : this.plaintextHash,
+      arweaveTxId: data.arweaveTxId.present
+          ? data.arweaveTxId.value
+          : this.arweaveTxId,
+      submittedAt: data.submittedAt.present
+          ? data.submittedAt.value
+          : this.submittedAt,
+      status: data.status.present ? data.status.value : this.status,
+      decryptionKeyHash: data.decryptionKeyHash.present
+          ? data.decryptionKeyHash.value
+          : this.decryptionKeyHash,
+      completionNote: data.completionNote.present
+          ? data.completionNote.value
+          : this.completionNote,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeliverableSubmissionData(')
+          ..write('id: $id, ')
+          ..write('contractId: $contractId, ')
+          ..write('submitterAddress: $submitterAddress, ')
+          ..write('encryptedPayload: $encryptedPayload, ')
+          ..write('iv: $iv, ')
+          ..write('authTag: $authTag, ')
+          ..write('plaintextHash: $plaintextHash, ')
+          ..write('arweaveTxId: $arweaveTxId, ')
+          ..write('submittedAt: $submittedAt, ')
+          ..write('status: $status, ')
+          ..write('decryptionKeyHash: $decryptionKeyHash, ')
+          ..write('completionNote: $completionNote, ')
+          ..write('syncedAt: $syncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    contractId,
+    submitterAddress,
+    encryptedPayload,
+    iv,
+    authTag,
+    plaintextHash,
+    arweaveTxId,
+    submittedAt,
+    status,
+    decryptionKeyHash,
+    completionNote,
+    syncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DeliverableSubmissionData &&
+          other.id == this.id &&
+          other.contractId == this.contractId &&
+          other.submitterAddress == this.submitterAddress &&
+          other.encryptedPayload == this.encryptedPayload &&
+          other.iv == this.iv &&
+          other.authTag == this.authTag &&
+          other.plaintextHash == this.plaintextHash &&
+          other.arweaveTxId == this.arweaveTxId &&
+          other.submittedAt == this.submittedAt &&
+          other.status == this.status &&
+          other.decryptionKeyHash == this.decryptionKeyHash &&
+          other.completionNote == this.completionNote &&
+          other.syncedAt == this.syncedAt);
+}
+
+class DeliverableSubmissionsCompanion
+    extends UpdateCompanion<DeliverableSubmissionData> {
+  final Value<int> id;
+  final Value<String> contractId;
+  final Value<String> submitterAddress;
+  final Value<String> encryptedPayload;
+  final Value<String> iv;
+  final Value<String> authTag;
+  final Value<String> plaintextHash;
+  final Value<String?> arweaveTxId;
+  final Value<DateTime> submittedAt;
+  final Value<String> status;
+  final Value<String?> decryptionKeyHash;
+  final Value<String?> completionNote;
+  final Value<DateTime> syncedAt;
+  const DeliverableSubmissionsCompanion({
+    this.id = const Value.absent(),
+    this.contractId = const Value.absent(),
+    this.submitterAddress = const Value.absent(),
+    this.encryptedPayload = const Value.absent(),
+    this.iv = const Value.absent(),
+    this.authTag = const Value.absent(),
+    this.plaintextHash = const Value.absent(),
+    this.arweaveTxId = const Value.absent(),
+    this.submittedAt = const Value.absent(),
+    this.status = const Value.absent(),
+    this.decryptionKeyHash = const Value.absent(),
+    this.completionNote = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+  });
+  DeliverableSubmissionsCompanion.insert({
+    this.id = const Value.absent(),
+    required String contractId,
+    required String submitterAddress,
+    required String encryptedPayload,
+    required String iv,
+    this.authTag = const Value.absent(),
+    required String plaintextHash,
+    this.arweaveTxId = const Value.absent(),
+    this.submittedAt = const Value.absent(),
+    this.status = const Value.absent(),
+    this.decryptionKeyHash = const Value.absent(),
+    this.completionNote = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+  }) : contractId = Value(contractId),
+       submitterAddress = Value(submitterAddress),
+       encryptedPayload = Value(encryptedPayload),
+       iv = Value(iv),
+       plaintextHash = Value(plaintextHash);
+  static Insertable<DeliverableSubmissionData> custom({
+    Expression<int>? id,
+    Expression<String>? contractId,
+    Expression<String>? submitterAddress,
+    Expression<String>? encryptedPayload,
+    Expression<String>? iv,
+    Expression<String>? authTag,
+    Expression<String>? plaintextHash,
+    Expression<String>? arweaveTxId,
+    Expression<DateTime>? submittedAt,
+    Expression<String>? status,
+    Expression<String>? decryptionKeyHash,
+    Expression<String>? completionNote,
+    Expression<DateTime>? syncedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (contractId != null) 'contract_id': contractId,
+      if (submitterAddress != null) 'submitter_address': submitterAddress,
+      if (encryptedPayload != null) 'encrypted_payload': encryptedPayload,
+      if (iv != null) 'iv': iv,
+      if (authTag != null) 'auth_tag': authTag,
+      if (plaintextHash != null) 'plaintext_hash': plaintextHash,
+      if (arweaveTxId != null) 'arweave_tx_id': arweaveTxId,
+      if (submittedAt != null) 'submitted_at': submittedAt,
+      if (status != null) 'status': status,
+      if (decryptionKeyHash != null) 'decryption_key_hash': decryptionKeyHash,
+      if (completionNote != null) 'completion_note': completionNote,
+      if (syncedAt != null) 'synced_at': syncedAt,
+    });
+  }
+
+  DeliverableSubmissionsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? contractId,
+    Value<String>? submitterAddress,
+    Value<String>? encryptedPayload,
+    Value<String>? iv,
+    Value<String>? authTag,
+    Value<String>? plaintextHash,
+    Value<String?>? arweaveTxId,
+    Value<DateTime>? submittedAt,
+    Value<String>? status,
+    Value<String?>? decryptionKeyHash,
+    Value<String?>? completionNote,
+    Value<DateTime>? syncedAt,
+  }) {
+    return DeliverableSubmissionsCompanion(
+      id: id ?? this.id,
+      contractId: contractId ?? this.contractId,
+      submitterAddress: submitterAddress ?? this.submitterAddress,
+      encryptedPayload: encryptedPayload ?? this.encryptedPayload,
+      iv: iv ?? this.iv,
+      authTag: authTag ?? this.authTag,
+      plaintextHash: plaintextHash ?? this.plaintextHash,
+      arweaveTxId: arweaveTxId ?? this.arweaveTxId,
+      submittedAt: submittedAt ?? this.submittedAt,
+      status: status ?? this.status,
+      decryptionKeyHash: decryptionKeyHash ?? this.decryptionKeyHash,
+      completionNote: completionNote ?? this.completionNote,
+      syncedAt: syncedAt ?? this.syncedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (contractId.present) {
+      map['contract_id'] = Variable<String>(contractId.value);
+    }
+    if (submitterAddress.present) {
+      map['submitter_address'] = Variable<String>(submitterAddress.value);
+    }
+    if (encryptedPayload.present) {
+      map['encrypted_payload'] = Variable<String>(encryptedPayload.value);
+    }
+    if (iv.present) {
+      map['iv'] = Variable<String>(iv.value);
+    }
+    if (authTag.present) {
+      map['auth_tag'] = Variable<String>(authTag.value);
+    }
+    if (plaintextHash.present) {
+      map['plaintext_hash'] = Variable<String>(plaintextHash.value);
+    }
+    if (arweaveTxId.present) {
+      map['arweave_tx_id'] = Variable<String>(arweaveTxId.value);
+    }
+    if (submittedAt.present) {
+      map['submitted_at'] = Variable<DateTime>(submittedAt.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (decryptionKeyHash.present) {
+      map['decryption_key_hash'] = Variable<String>(decryptionKeyHash.value);
+    }
+    if (completionNote.present) {
+      map['completion_note'] = Variable<String>(completionNote.value);
+    }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<DateTime>(syncedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeliverableSubmissionsCompanion(')
+          ..write('id: $id, ')
+          ..write('contractId: $contractId, ')
+          ..write('submitterAddress: $submitterAddress, ')
+          ..write('encryptedPayload: $encryptedPayload, ')
+          ..write('iv: $iv, ')
+          ..write('authTag: $authTag, ')
+          ..write('plaintextHash: $plaintextHash, ')
+          ..write('arweaveTxId: $arweaveTxId, ')
+          ..write('submittedAt: $submittedAt, ')
+          ..write('status: $status, ')
+          ..write('decryptionKeyHash: $decryptionKeyHash, ')
+          ..write('completionNote: $completionNote, ')
+          ..write('syncedAt: $syncedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4607,6 +5388,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SeekerAttestationsTable seekerAttestations =
       $SeekerAttestationsTable(this);
   late final $DisputeCasesTable disputeCases = $DisputeCasesTable(this);
+  late final $DeliverableSubmissionsTable deliverableSubmissions =
+      $DeliverableSubmissionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4620,6 +5403,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     draftContracts,
     seekerAttestations,
     disputeCases,
+    deliverableSubmissions,
   ];
 }
 
@@ -6973,6 +7757,399 @@ typedef $$DisputeCasesTableProcessedTableManager =
       DisputeCaseData,
       PrefetchHooks Function()
     >;
+typedef $$DeliverableSubmissionsTableCreateCompanionBuilder =
+    DeliverableSubmissionsCompanion Function({
+      Value<int> id,
+      required String contractId,
+      required String submitterAddress,
+      required String encryptedPayload,
+      required String iv,
+      Value<String> authTag,
+      required String plaintextHash,
+      Value<String?> arweaveTxId,
+      Value<DateTime> submittedAt,
+      Value<String> status,
+      Value<String?> decryptionKeyHash,
+      Value<String?> completionNote,
+      Value<DateTime> syncedAt,
+    });
+typedef $$DeliverableSubmissionsTableUpdateCompanionBuilder =
+    DeliverableSubmissionsCompanion Function({
+      Value<int> id,
+      Value<String> contractId,
+      Value<String> submitterAddress,
+      Value<String> encryptedPayload,
+      Value<String> iv,
+      Value<String> authTag,
+      Value<String> plaintextHash,
+      Value<String?> arweaveTxId,
+      Value<DateTime> submittedAt,
+      Value<String> status,
+      Value<String?> decryptionKeyHash,
+      Value<String?> completionNote,
+      Value<DateTime> syncedAt,
+    });
+
+class $$DeliverableSubmissionsTableFilterComposer
+    extends Composer<_$AppDatabase, $DeliverableSubmissionsTable> {
+  $$DeliverableSubmissionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get submitterAddress => $composableBuilder(
+    column: $table.submitterAddress,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get encryptedPayload => $composableBuilder(
+    column: $table.encryptedPayload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iv => $composableBuilder(
+    column: $table.iv,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get authTag => $composableBuilder(
+    column: $table.authTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get plaintextHash => $composableBuilder(
+    column: $table.plaintextHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get arweaveTxId => $composableBuilder(
+    column: $table.arweaveTxId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get submittedAt => $composableBuilder(
+    column: $table.submittedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get decryptionKeyHash => $composableBuilder(
+    column: $table.decryptionKeyHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get completionNote => $composableBuilder(
+    column: $table.completionNote,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DeliverableSubmissionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DeliverableSubmissionsTable> {
+  $$DeliverableSubmissionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get submitterAddress => $composableBuilder(
+    column: $table.submitterAddress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get encryptedPayload => $composableBuilder(
+    column: $table.encryptedPayload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iv => $composableBuilder(
+    column: $table.iv,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get authTag => $composableBuilder(
+    column: $table.authTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get plaintextHash => $composableBuilder(
+    column: $table.plaintextHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get arweaveTxId => $composableBuilder(
+    column: $table.arweaveTxId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get submittedAt => $composableBuilder(
+    column: $table.submittedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get decryptionKeyHash => $composableBuilder(
+    column: $table.decryptionKeyHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get completionNote => $composableBuilder(
+    column: $table.completionNote,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DeliverableSubmissionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DeliverableSubmissionsTable> {
+  $$DeliverableSubmissionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get contractId => $composableBuilder(
+    column: $table.contractId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get submitterAddress => $composableBuilder(
+    column: $table.submitterAddress,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get encryptedPayload => $composableBuilder(
+    column: $table.encryptedPayload,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get iv =>
+      $composableBuilder(column: $table.iv, builder: (column) => column);
+
+  GeneratedColumn<String> get authTag =>
+      $composableBuilder(column: $table.authTag, builder: (column) => column);
+
+  GeneratedColumn<String> get plaintextHash => $composableBuilder(
+    column: $table.plaintextHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get arweaveTxId => $composableBuilder(
+    column: $table.arweaveTxId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get submittedAt => $composableBuilder(
+    column: $table.submittedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get decryptionKeyHash => $composableBuilder(
+    column: $table.decryptionKeyHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get completionNote => $composableBuilder(
+    column: $table.completionNote,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get syncedAt =>
+      $composableBuilder(column: $table.syncedAt, builder: (column) => column);
+}
+
+class $$DeliverableSubmissionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DeliverableSubmissionsTable,
+          DeliverableSubmissionData,
+          $$DeliverableSubmissionsTableFilterComposer,
+          $$DeliverableSubmissionsTableOrderingComposer,
+          $$DeliverableSubmissionsTableAnnotationComposer,
+          $$DeliverableSubmissionsTableCreateCompanionBuilder,
+          $$DeliverableSubmissionsTableUpdateCompanionBuilder,
+          (
+            DeliverableSubmissionData,
+            BaseReferences<
+              _$AppDatabase,
+              $DeliverableSubmissionsTable,
+              DeliverableSubmissionData
+            >,
+          ),
+          DeliverableSubmissionData,
+          PrefetchHooks Function()
+        > {
+  $$DeliverableSubmissionsTableTableManager(
+    _$AppDatabase db,
+    $DeliverableSubmissionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DeliverableSubmissionsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$DeliverableSubmissionsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$DeliverableSubmissionsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> contractId = const Value.absent(),
+                Value<String> submitterAddress = const Value.absent(),
+                Value<String> encryptedPayload = const Value.absent(),
+                Value<String> iv = const Value.absent(),
+                Value<String> authTag = const Value.absent(),
+                Value<String> plaintextHash = const Value.absent(),
+                Value<String?> arweaveTxId = const Value.absent(),
+                Value<DateTime> submittedAt = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> decryptionKeyHash = const Value.absent(),
+                Value<String?> completionNote = const Value.absent(),
+                Value<DateTime> syncedAt = const Value.absent(),
+              }) => DeliverableSubmissionsCompanion(
+                id: id,
+                contractId: contractId,
+                submitterAddress: submitterAddress,
+                encryptedPayload: encryptedPayload,
+                iv: iv,
+                authTag: authTag,
+                plaintextHash: plaintextHash,
+                arweaveTxId: arweaveTxId,
+                submittedAt: submittedAt,
+                status: status,
+                decryptionKeyHash: decryptionKeyHash,
+                completionNote: completionNote,
+                syncedAt: syncedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String contractId,
+                required String submitterAddress,
+                required String encryptedPayload,
+                required String iv,
+                Value<String> authTag = const Value.absent(),
+                required String plaintextHash,
+                Value<String?> arweaveTxId = const Value.absent(),
+                Value<DateTime> submittedAt = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> decryptionKeyHash = const Value.absent(),
+                Value<String?> completionNote = const Value.absent(),
+                Value<DateTime> syncedAt = const Value.absent(),
+              }) => DeliverableSubmissionsCompanion.insert(
+                id: id,
+                contractId: contractId,
+                submitterAddress: submitterAddress,
+                encryptedPayload: encryptedPayload,
+                iv: iv,
+                authTag: authTag,
+                plaintextHash: plaintextHash,
+                arweaveTxId: arweaveTxId,
+                submittedAt: submittedAt,
+                status: status,
+                decryptionKeyHash: decryptionKeyHash,
+                completionNote: completionNote,
+                syncedAt: syncedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $DeliverableSubmissionsTable,
+                    DeliverableSubmissionData
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DeliverableSubmissionsTable,
+                    DeliverableSubmissionData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DeliverableSubmissionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DeliverableSubmissionsTable,
+      DeliverableSubmissionData,
+      $$DeliverableSubmissionsTableFilterComposer,
+      $$DeliverableSubmissionsTableOrderingComposer,
+      $$DeliverableSubmissionsTableAnnotationComposer,
+      $$DeliverableSubmissionsTableCreateCompanionBuilder,
+      $$DeliverableSubmissionsTableUpdateCompanionBuilder,
+      (
+        DeliverableSubmissionData,
+        BaseReferences<
+          _$AppDatabase,
+          $DeliverableSubmissionsTable,
+          DeliverableSubmissionData
+        >,
+      ),
+      DeliverableSubmissionData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6993,4 +8170,9 @@ class $AppDatabaseManager {
       $$SeekerAttestationsTableTableManager(_db, _db.seekerAttestations);
   $$DisputeCasesTableTableManager get disputeCases =>
       $$DisputeCasesTableTableManager(_db, _db.disputeCases);
+  $$DeliverableSubmissionsTableTableManager get deliverableSubmissions =>
+      $$DeliverableSubmissionsTableTableManager(
+        _db,
+        _db.deliverableSubmissions,
+      );
 }

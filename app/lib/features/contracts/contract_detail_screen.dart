@@ -12,6 +12,8 @@ import 'contract_share_screen.dart';
 import 'dispute_resolution_screen.dart';
 import 'raise_dispute_sheet.dart';
 import 'release_and_review_modal.dart';
+import 'review_deliverable_card.dart';
+import 'submit_deliverables_sheet.dart';
 
 class ContractDetailScreen extends ConsumerStatefulWidget {
   final String contractId;
@@ -408,7 +410,29 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
+
+        // E2EE Deliverables Card / Submission Status
+        ref.watch(latestDeliverableProvider(contract.contractId)).when(
+          data: (submission) {
+            if (submission != null) {
+              return ReviewDeliverableCard(
+                contract: contract,
+                submission: submission,
+                isEmployer: isEmployer,
+                isWorker: isWorker,
+              );
+            }
+            if (isWorker && contract.status == ContractStatus.inProgress) {
+              return _buildWorkerDeliverablePrompt(contract);
+            }
+            return const SizedBox.shrink();
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (err, stack) => const SizedBox.shrink(),
+        ),
+
+        const SizedBox(height: 4),
 
         // Participant Addresses Card
         Container(
@@ -577,6 +601,34 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
             ),
           ),
 
+        // Primary Action: Worker Submit Deliverables
+        if (contract.status == ContractStatus.inProgress &&
+            contract.isWorker(currentAddress)) ...[
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () => SubmitDeliverablesSheet.show(context, contract),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryContainer,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.lock_outline_rounded),
+              label: Text(
+                'Submit Deliverables & Notify Employer',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+
         // Primary Action: Employer Release & Review
         if (contract.canRelease(currentAddress))
           SizedBox(
@@ -690,6 +742,97 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
 
         const SizedBox(height: 32),
       ],
+    );
+  }
+
+  Widget _buildWorkerDeliverablePrompt(EscrowContract contract) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryContainer.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.upload_file_rounded,
+                  color: AppColors.primaryContainer,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ready to Submit Deliverables?',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'AES-256-GCM Private Worker Submission',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Encrypt and submit your project links (GitHub PR, Figma, drive files) privately so only the employer can decrypt and review them.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: ElevatedButton.icon(
+              onPressed: () => SubmitDeliverablesSheet.show(context, contract),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryContainer,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              icon: const Icon(Icons.lock_rounded, size: 16),
+              label: Text(
+                'Submit Deliverables Privately',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

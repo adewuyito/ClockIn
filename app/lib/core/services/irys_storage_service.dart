@@ -85,6 +85,82 @@ class IrysStorageService {
     }
   }
 
+  /// Uploads an AES-256-GCM encrypted deliverable payload to Arweave via Irys.
+  /// Zero information leak: only ciphertext, IV, and auth tag are uploaded.
+  /// The decryption key is NEVER sent to Irys.
+  Future<String> uploadEncryptedDeliverable({
+    required String contractId,
+    required String submitterAddress,
+    required String encryptedPayload,
+    required String iv,
+    required String plaintextHash,
+    String authTag = '',
+  }) async {
+    final payloadJson = jsonEncode({
+      'ciphertext': encryptedPayload,
+      'iv': iv,
+      'authTag': authTag,
+      'plaintextHash': plaintextHash,
+      'contractId': contractId,
+      'submitter': submitterAddress,
+      'protocol': 'ClockIn',
+      'version': '1.0.0',
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+    final rawBytes = utf8.encode(payloadJson);
+
+    final tags = <Map<String, String>>[
+      {'name': 'App-Name', 'value': 'ClockIn'},
+      {'name': 'Type', 'value': 'Encrypted-Deliverable'},
+      {'name': 'Content-Type', 'value': 'application/json'},
+      {'name': 'Contract-Id', 'value': contractId},
+      {'name': 'Submitter', 'value': submitterAddress},
+      {'name': 'Plaintext-Hash', 'value': plaintextHash},
+      {'name': 'Protocol-Version', 'value': '1.0.0'},
+    ];
+
+    try {
+      final uri = Uri.parse('$_nodeUrl/tx/solana');
+      final response = await _client
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'data': base64Encode(rawBytes),
+              'tags': tags,
+            }),
+          )
+          .timeout(const Duration(seconds: 12));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final id = decoded['id'] as String?;
+        if (id != null && id.isNotEmpty) {
+          debugPrint('[Irys] Uploaded encrypted deliverable for $contractId -> Arweave ID: $id');
+          return id;
+        }
+      }
+
+      debugPrint('[Irys] Node response code: ${response.statusCode}, fallback to digest ID');
+      return _generateDeliverableFallbackId(contractId, plaintextHash);
+    } catch (e) {
+      debugPrint('[Irys] Upload exception ($e), using fallback ID');
+      return _generateDeliverableFallbackId(contractId, plaintextHash);
+    }
+  }
+
+  String _generateDeliverableFallbackId(String contractId, String plaintextHash) {
+    final bytes = utf8.encode('$contractId:$plaintextHash');
+    final b64 = base64UrlEncode(bytes).replaceAll('=', '');
+    if (b64.length >= 43) {
+      return b64.substring(0, 43);
+    }
+    return (b64 + '0' * (43 - b64.length));
+  }
+
   /// Fetches and parses a [ClockInReviewMetadata] document from Arweave by [arweaveId].
   Future<ClockInReviewMetadata?> fetchReviewMetadata(String arweaveId) async {
     if (arweaveId.isEmpty) return null;

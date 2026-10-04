@@ -44,4 +44,10 @@ class AppColors {
   static const Color onSurfaceVariant = Color(0xFF3F484D);
   static const Color outline = Color(0xFF6F787D);
   static const Color outlineVariant = Color(0xFFBFC8CD);
+
+  // Semantic aliases
+  static const Color textPrimary = onSurface;
+  static const Color textSecondary = onSurfaceVariant;
+  static const Color border = outlineVariant;
+  static const Color surfaceElevated = surfaceContainerLowest;
 }
