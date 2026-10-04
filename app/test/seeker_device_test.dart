@@ -162,5 +162,65 @@ void main() {
       expect(find.textContaining('Cooldown'), findsNothing);
       expect(find.textContaining('48h'), findsNothing);
     });
+
+    testWidgets('Profile banner renders cleanly on narrow screen (320dp) with NO flex overflow',
+        (tester) async {
+      tester.view.physicalSize = const Size(320 * 2, 640 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final mockService = MockSeekerDeviceService(
+        isSeeker: true,
+        mockInfo: const DeviceInfo(isSeeker: true, model: 'Seeker'),
+      );
+
+      const testAddress = 'ClockInTestWorker1111111111111111111111111';
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            deviceServiceProvider.overrideWithValue(mockService),
+            walletStateProvider.overrideWith((ref) => TestWalletNotifier(testAddress)),
+            walletBalanceProvider.overrideWith((ref) => Future.value(1000000000)),
+            walletSkrBalanceProvider.overrideWith((ref) => Future.value(500.0)),
+            myProfileProvider.overrideWith(
+              (ref) => Stream.value(
+                WorkerProfile(
+                  address: testAddress,
+                  totalJobs: 5,
+                  ratingSum: BigInt.from(24),
+                  createdAt: DateTime.now(),
+                ),
+              ),
+            ),
+            workerReviewsProvider(testAddress).overrideWith(
+              (ref) => Stream.value(<Review>[]),
+            ),
+            seekerAttestationProvider(testAddress).overrideWith(
+              (ref) => Stream.value(
+                SeekerAttestation(
+                  address: testAddress,
+                  isAttested: true,
+                  stakedAmount: 250.0,
+                  guardianName: 'Solana Mobile Guardian Juror',
+                  cooldownActive: false,
+                  syncedAt: DateTime.now(),
+                ),
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: MyProfileScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Ensure no exceptions (e.g. RenderFlex overflow) occurred during layout
+      expect(tester.takeException(), isNull);
+      expect(find.text('SEEKER ATTESTED'), findsOneWidget);
+      expect(find.text('SEEKER HARDWARE'), findsOneWidget);
+    });
   });
 }

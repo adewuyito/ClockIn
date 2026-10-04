@@ -305,51 +305,60 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SeekerLogo(
-                    size: 16,
-                    isActive: isSeekerHardware,
-                    withGlow: isSeekerHardware,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    isAttested ? 'SEEKER ATTESTED' : 'NOT SEEKER ATTESTED',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: isAttested ? const Color(0xFF0B5E36) : AppColors.onSurfaceVariant,
-                      letterSpacing: 0.8,
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SeekerLogo(
+                          size: 16,
+                          isActive: isSeekerHardware,
+                          withGlow: isSeekerHardware,
+                        ),
+                        const SizedBox(width: 7),
+                        Text(
+                          isAttested ? 'SEEKER ATTESTED' : 'SEEKER VERIFICATION',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: isAttested ? const Color(0xFF0B5E36) : AppColors.onSurfaceVariant,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  if (isSeekerHardware) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF14F195).withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: const Color(0xFF00D18C).withValues(alpha: 0.4),
-                          width: 0.6,
+                    if (isSeekerHardware)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF14F195).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: const Color(0xFF00D18C).withValues(alpha: 0.4),
+                            width: 0.6,
+                          ),
+                        ),
+                        child: Text(
+                          'SEEKER HARDWARE',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0B5E36),
+                            letterSpacing: 0.4,
+                          ),
                         ),
                       ),
-                      child: Text(
-                        'SEEKER HARDWARE',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0B5E36),
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ),
                   ],
-                ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                 decoration: BoxDecoration(
@@ -388,13 +397,13 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
           ),
           const SizedBox(height: 7),
           if (isAttested)
-            Row(
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 6,
+              runSpacing: 4,
               children: [
                 _buildCompactPill('$stakeDisplay Staked'),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 5),
-                  child: Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
-                ),
+                const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
                 _buildCompactPill('Guardian: ${attestation.guardianName}'),
               ],
             )

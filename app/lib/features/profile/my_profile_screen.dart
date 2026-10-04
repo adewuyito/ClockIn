@@ -381,51 +381,27 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SeekerLogo(
-                    size: 16,
-                    isActive: isSeekerHardware,
-                    withGlow: isSeekerHardware,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    isAttested ? 'SEEKER ATTESTED' : 'SEEKER VERIFICATION',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: isAttested ? const Color(0xFF0B5E36) : AppColors.onSurface,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  if (isSeekerHardware) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF14F195).withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: const Color(0xFF00D18C).withValues(alpha: 0.4),
-                          width: 0.6,
-                        ),
-                      ),
-                      child: Text(
-                        'SEEKER HARDWARE',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0B5E36),
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+              SeekerLogo(
+                size: 16,
+                isActive: isSeekerHardware,
+                withGlow: isSeekerHardware,
               ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  isAttested ? 'SEEKER ATTESTED' : 'SEEKER VERIFICATION',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: isAttested ? const Color(0xFF0B5E36) : AppColors.onSurface,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               InkWell(
                 borderRadius: BorderRadius.circular(999),
                 onTap: () async {
@@ -512,18 +488,41 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
             ],
           ),
           const SizedBox(height: 7),
-          if (isAttested)
-            Row(
-              children: [
-                _buildCompactPill('$stakeDisplay Staked'),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 5),
-                  child: Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              if (isSeekerHardware)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF14F195).withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: const Color(0xFF00D18C).withValues(alpha: 0.4),
+                      width: 0.6,
+                    ),
+                  ),
+                  child: Text(
+                    'SEEKER HARDWARE',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0B5E36),
+                      letterSpacing: 0.4,
+                    ),
+                  ),
                 ),
+              if (isAttested) ...[
+                _buildCompactPill('$stakeDisplay Staked'),
+                const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
                 _buildCompactPill('Guardian: ${attestation.guardianName}'),
               ],
-            )
-          else
+            ],
+          ),
+          if (!isAttested) ...[
+            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -549,19 +548,22 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       visualDensity: VisualDensity.compact,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: Text(
-                      'Verify',
+                      'Stake',
                       style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.w700,
                         fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
                 ),
               ],
             ),
+          ],
         ],
       ),
     );
@@ -663,28 +665,34 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _trustMetaColumn(
-                  'REGISTERED',
-                  DateFormat.yMd().format(profile.createdAt),
-                  color: AppColors.onSurface,
+                Expanded(
+                  child: _trustMetaColumn(
+                    'REGISTERED',
+                    DateFormat.yMd().format(profile.createdAt),
+                    color: AppColors.onSurface,
+                  ),
                 ),
                 Container(width: 1, height: 24, color: AppColors.surfaceContainerHighest),
-                _trustMetaColumn(
-                  'ON-CHAIN',
-                  'Verified',
-                  color: AppColors.tertiary,
-                  showDot: true,
+                Expanded(
+                  child: _trustMetaColumn(
+                    'ON-CHAIN',
+                    'Verified',
+                    color: AppColors.tertiary,
+                    showDot: true,
+                  ),
                 ),
                 Container(width: 1, height: 24, color: AppColors.surfaceContainerHighest),
-                _trustMetaColumn(
-                  'GUARDIAN',
-                  attestation.isAttested
-                      ? (attestation.stakedAmount >= 1.0
-                          ? '${attestation.stakedAmount.toStringAsFixed(0)} \$SKR'
-                          : r'250 $SKR')
-                      : 'Unstaked',
-                  color: attestation.isAttested ? const Color(0xFF1F9D5B) : AppColors.outline,
-                  showDot: attestation.isAttested,
+                Expanded(
+                  child: _trustMetaColumn(
+                    'GUARDIAN',
+                    attestation.isAttested
+                        ? (attestation.stakedAmount >= 1.0
+                            ? '${attestation.stakedAmount.toStringAsFixed(0)} \$SKR'
+                            : r'250 $SKR')
+                        : 'Unstaked',
+                    color: attestation.isAttested ? const Color(0xFF1F9D5B) : AppColors.outline,
+                    showDot: attestation.isAttested,
+                  ),
                 ),
               ],
             ),
@@ -713,6 +721,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       children: [
         Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: AppTypography.labelSm.copyWith(
             color: AppColors.outline,
             letterSpacing: 0.6,
@@ -730,9 +740,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
             ],
-            Text(
-              value,
-              style: AppTypography.labelMd.copyWith(color: color, fontWeight: FontWeight.w600),
+            Flexible(
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.labelMd.copyWith(color: color, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),
