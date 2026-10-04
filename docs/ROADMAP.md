@@ -144,6 +144,36 @@ Everything from the original Phases 0–6 that still applies after the pivot. No
 
 ---
 
+## Pre-Mainnet Deployment Checklist (Production Roadmap)
+
+Tasks prioritized for post-hackathon mainnet readiness:
+
+### 1. Protocol Fee Switch & Treasury Architecture (2% – 3% Take-Rate)
+- [ ] **`ProtocolConfig` PDA (`seeds = [b"protocol_config"]`)**:
+  - Store `admin: Pubkey` (Squads multisig / governance authority)
+  - Store `treasury: Pubkey` (protocol fee accumulator wallet or SPL ATA)
+  - Store `fee_basis_points: u16` (configurable 200–300 bps for 2.0% – 3.0%, hard-capped at 500 bps / 5.0%)
+  - Store `is_paused: bool` (circuit-breaker emergency pause)
+- [ ] **Admin Instructions**:
+  - `initialize_protocol_config(admin, treasury, fee_bps)`
+  - `update_protocol_fee(new_fee_bps)` — allows dynamic fee adjustment without contract redeployment
+  - `update_treasury(new_treasury)`
+- [ ] **Atomic Fee Splitting in Settlement Instructions**:
+  - In `release_and_review` (SOL): deduct `fee = (amount * fee_bps) / 10000;`, transfer `fee` to `treasury`, transfer `amount - fee` to `worker`.
+  - In `release_and_review_token` ($SKR / SPL): transfer token fee to treasury ATA with idempotent ATA creation, remaining tokens to worker ATA.
+- [ ] **Client & UI Updates**:
+  - Pass `protocol_config` and `treasury` accounts in `ContractService.releaseAndReview()` and `releaseAndReviewToken()`.
+  - Update `CreateContractScreen` and `ReleaseAndReviewModal` to fetch dynamic on-chain fee and display live breakdown (e.g. `Platform Fee: 2.5%`).
+- [ ] **Anchor Integration Tests**:
+  - Automated tests verifying accurate math, treasury balance increment, worker receipt, and admin-only fee modification.
+
+### 2. Mainnet Security & Infrastructure
+- [ ] Squads v4 multisig setup for program upgrade authority (`GBZqh...` dev keypair transfer).
+- [ ] Formal Anchor security audit (reentrancy, PDA seed validation, arithmetic overflow).
+- [ ] Mainnet deployment to Solana cluster and Seeker dApp Store publishing.
+
+---
+
 ## Risk register
 
 | Risk | Impact | Mitigation |
