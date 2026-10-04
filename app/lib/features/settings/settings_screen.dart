@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:solana/solana.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/device_service.dart';
 import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_header.dart';
 import '../../core/widgets/devnet_setup_sheet.dart';
+import '../../core/widgets/seeker_logo.dart';
 
 /// Screen 6: Settings & Network. Matches Stitch's "6. Settings & Network
 /// (Devnet)" screen, with real data used wherever the source design
@@ -81,6 +84,8 @@ class SettingsScreen extends ConsumerWidget {
               _buildConnectedWalletSection(context, ref, wallet, balanceAsync),
               const SizedBox(height: 20),
             ],
+            _buildSeekerDeviceSection(context, ref),
+            const SizedBox(height: 20),
             _buildDiagnosticsSection(diagnosticsAsync),
             const SizedBox(height: 20),
             _buildVersionStamp(),
@@ -555,6 +560,175 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSeekerDeviceSection(BuildContext context, WidgetRef ref) {
+    final seekerDevice = ref.watch(seekerDeviceProvider);
+    final isSeeker = seekerDevice.isSeeker;
+    final info = seekerDevice.deviceInfo;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'SOLANA MOBILE & HARDWARE',
+              style: AppTypography.labelSm.copyWith(color: AppColors.outline),
+            ),
+            if (isSeeker)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14F195).withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0xFF00D18C).withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SeekerLogo(size: 10, isActive: true),
+                    const SizedBox(width: 4),
+                    Text(
+                      seekerDevice.isPhysicalSeeker ? 'HARDWARE ACTIVE' : 'SIMULATED ACTIVE',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0B5E36),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.surfaceContainerHigh),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isSeeker
+                          ? const Color(0xFF14F195).withValues(alpha: 0.15)
+                          : AppColors.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(10),
+                      border: isSeeker
+                          ? Border.all(color: const Color(0xFF00D18C).withValues(alpha: 0.4))
+                          : null,
+                    ),
+                    child: Center(
+                      child: SeekerLogo(
+                        size: 20,
+                        isActive: isSeeker,
+                        withGlow: isSeeker,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Solana Seeker Device',
+                          style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          seekerDevice.isPhysicalSeeker
+                              ? 'Native Seeker Hardware Detected'
+                              : (seekerDevice.isSimulated
+                                  ? 'Simulated Seeker Device for Demo'
+                                  : 'Standard Android Device'),
+                          style: AppTypography.bodySm.copyWith(
+                            color: isSeeker ? const Color(0xFF0B5E36) : AppColors.onSurfaceVariant,
+                            fontWeight: isSeeker ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(height: 1, color: AppColors.surfaceContainerHigh),
+              const SizedBox(height: 12),
+              _buildMetricDetailRow('Detected Model', info.model.isNotEmpty ? info.model : 'Android Generic'),
+              const SizedBox(height: 8),
+              _buildMetricDetailRow('Manufacturer / Brand', '${info.manufacturer.isNotEmpty ? info.manufacturer : 'Android'} / ${info.brand.isNotEmpty ? info.brand : 'Google'}'),
+              const SizedBox(height: 8),
+              _buildMetricDetailRow('Seed Vault Service', info.hasSeedVault ? 'Hardware Supported' : 'Software MWA Fallback'),
+              const SizedBox(height: 14),
+              const Divider(height: 1, color: AppColors.surfaceContainerHigh),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Simulate Seeker Device',
+                          style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          'Activate Seeker Mobile logo and hardware badges for video demo recording on non-Seeker devices.',
+                          style: AppTypography.bodySm.copyWith(
+                            color: AppColors.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: seekerDevice.isSimulated,
+                    activeTrackColor: const Color(0xFF1F9D5B),
+                    onChanged: (val) {
+                      HapticFeedback.selectionClick();
+                      ref.read(seekerDeviceProvider.notifier).toggleSimulation(val);
+                      _showSnack(
+                        context,
+                        val ? 'Seeker Device mode simulated' : 'Seeker simulation turned off',
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricDetailRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+        Text(
+          value,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.onSurface,
           ),
         ),
       ],

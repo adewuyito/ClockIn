@@ -6,9 +6,11 @@ import '../../core/models/review.dart';
 import '../../core/models/seeker_attestation.dart';
 import '../../core/models/worker_profile.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/device_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/profile_qr_sheet.dart';
+import '../../core/widgets/seeker_logo.dart';
 import '../contracts/create_contract_screen.dart';
 
 /// Screen 4a/4b: Worker Profile (Loaded / Not Registered) — pushed from
@@ -280,6 +282,8 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
 
   Widget _buildSeekerAttestedCard(SeekerAttestation attestation) {
     final isAttested = attestation.isAttested;
+    final seekerDevice = ref.watch(seekerDeviceProvider);
+    final isSeekerHardware = seekerDevice.isSeeker;
     final stakeDisplay = attestation.stakedAmount >= 1.0
         ? '${attestation.stakedAmount.toStringAsFixed(0)} \$SKR'
         : r'250 $SKR';
@@ -306,10 +310,10 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    isAttested ? Icons.verified_user_rounded : Icons.shield_outlined,
-                    size: 17,
-                    color: isAttested ? const Color(0xFF1F9D5B) : AppColors.onSurfaceVariant,
+                  SeekerLogo(
+                    size: 16,
+                    isActive: isSeekerHardware,
+                    withGlow: isSeekerHardware,
                   ),
                   const SizedBox(width: 7),
                   Text(
@@ -321,6 +325,29 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                       letterSpacing: 0.8,
                     ),
                   ),
+                  if (isSeekerHardware) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF14F195).withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: const Color(0xFF00D18C).withValues(alpha: 0.4),
+                          width: 0.6,
+                        ),
+                      ),
+                      child: Text(
+                        'SEEKER HARDWARE',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0B5E36),
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               Container(
@@ -369,11 +396,6 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                   child: Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
                 ),
                 _buildCompactPill('Guardian: ${attestation.guardianName}'),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 5),
-                  child: Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
-                ),
-                _buildCompactPill('48h Cooldown'),
               ],
             )
           else

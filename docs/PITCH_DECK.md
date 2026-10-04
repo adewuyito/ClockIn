@@ -120,7 +120,7 @@ Users sign Solana transactions using their phone's native biometrics — Face ID
 
 - **Dual-Role Contract Dashboard** — Toggle instantly between Employer and Worker view, with live escrow value tracking per contract.
 - **Dual-Currency Escrow** — Native SOL and Seeker's $SKR token, with automatic ATA (Associated Token Account) lifecycle management — workers don't need to pre-create token accounts.
-- **Seeker Guardian Attestation** — Non-custodial verification of active 250 $SKR stake delegated to official Solana Mobile Guardians (48h cooldown), eliminating fake bots with zero custody risk.
+- **Seeker Guardian Attestation** — Non-custodial verification of active 250 $SKR stake delegated to official Solana Mobile Guardians with native Seeker hardware detection, eliminating fake bots with zero custody risk.
 - **Arweave Provenance Badges** — Every completed review displays a tappable permaweb badge. Tap to copy the permanent Arweave receipt URL.
 - **Pretty QR Contract Sharing** — Rounded, high-contrast QR codes for instant counterparty discovery. Built-in scanner (`mobile_scanner`) supports base58 keys and Solana Pay URIs.
 - **Offline-First Caching** — Drift SQLite (Schema v10) stores drafts and contract state locally with auto-recovery. Works on spotty mobile connections.

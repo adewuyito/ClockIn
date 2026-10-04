@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/database/attestation_repository.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/device_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/seeker_logo.dart';
 
 /// Modal bottom sheet for Non-Custodial Seeker Guardian Attestation (Option 1).
 /// Verifies the worker's active $SKR stake delegated to an official Solana Mobile Guardian
@@ -43,6 +45,8 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
     final skrBalanceAsync = ref.watch(walletSkrBalanceProvider);
     final walletState = ref.watch(walletStateProvider);
     final skrBalance = skrBalanceAsync.valueOrNull ?? 0.0;
+    final seekerDevice = ref.watch(seekerDeviceProvider);
+    final isSeekerHardware = seekerDevice.isSeeker;
 
     return Container(
       decoration: const BoxDecoration(
@@ -72,20 +76,27 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
           ),
           const SizedBox(height: 16),
 
-          // Header with shield icon
+          // Header with Seeker Mobile logo
           Row(
             children: [
               Container(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1F9D5B).withValues(alpha: 0.12),
+                  color: isSeekerHardware
+                      ? const Color(0xFF14F195).withValues(alpha: 0.16)
+                      : const Color(0xFF1F9D5B).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
+                  border: isSeekerHardware
+                      ? Border.all(color: const Color(0xFF00D18C).withValues(alpha: 0.4), width: 1)
+                      : null,
                 ),
-                child: const Icon(
-                  Icons.verified_user_rounded,
-                  color: Color(0xFF1F9D5B),
-                  size: 24,
+                child: Center(
+                  child: SeekerLogo(
+                    size: 24,
+                    isActive: isSeekerHardware,
+                    withGlow: isSeekerHardware,
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -160,13 +171,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                   value: 'Non-Custodial (Official)',
                   isPositive: true,
                 ),
-                const SizedBox(height: 10),
-                const Divider(height: 1, color: AppColors.outlineVariant),
-                const SizedBox(height: 10),
-                _buildMetricRow(
-                  label: 'Unstaking Cooldown',
-                  value: '48 Hours',
-                ),
+
                 const SizedBox(height: 10),
                 const Divider(height: 1, color: AppColors.outlineVariant),
                 const SizedBox(height: 10),
