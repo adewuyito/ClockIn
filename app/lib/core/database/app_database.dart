@@ -227,12 +227,12 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 11) {
             await m.createTable(deliverableSubmissions);
+          } else if (from < 12) {
+            await m.addColumn(deliverableSubmissions, deliverableSubmissions.wrappedKey);
           }
           if (from < 12) {
             await m.createTable(userEncryptionKeys);
-            await m.addColumn(deliverableSubmissions, deliverableSubmissions.wrappedKey);
-          }
-          if (from < 13) {
+          } else if (from < 13) {
             await m.addColumn(
               userEncryptionKeys,
               userEncryptionKeys.attestationSignature,

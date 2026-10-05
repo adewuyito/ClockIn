@@ -47,4 +47,17 @@ void main() {
     expect(drafts.first.status, 'draft');
     expect(drafts.first.rating, 5);
   });
+
+  test('migration from schema v10 to v13 executes cleanly without duplicate columns', () async {
+    final migrator = db.createMigrator();
+    // Simulate upgrading an existing v10 database to v13
+    await db.migration.onUpgrade(migrator, 10, 13);
+
+    // Verify both tables and columns exist and can be queried
+    final submissions = await db.select(db.deliverableSubmissions).get();
+    expect(submissions, isEmpty);
+
+    final keys = await db.select(db.userEncryptionKeys).get();
+    expect(keys, isEmpty);
+  });
 }
