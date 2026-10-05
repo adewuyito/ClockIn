@@ -60,4 +60,10 @@ void main() {
     final keys = await db.select(db.userEncryptionKeys).get();
     expect(keys, isEmpty);
   });
+
+  test('PRAGMA table_info can be queried via customSelect', () async {
+    final rows = await db.customSelect('PRAGMA table_info("worker_profiles")').get();
+    final columnNames = rows.map((r) => r.read<String>('name')).toList();
+    expect(columnNames, contains('address'));
+  });
 }

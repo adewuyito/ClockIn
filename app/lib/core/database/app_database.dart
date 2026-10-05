@@ -225,14 +225,14 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(reviews, reviews.arweaveTxId);
             await m.addColumn(draftReviews, draftReviews.arweaveTxId);
           }
-          if (from < 11) {
+          if (!await _hasTable('deliverable_submissions')) {
             await m.createTable(deliverableSubmissions);
-          } else if (from < 12) {
+          } else if (!await _hasColumn('deliverable_submissions', 'wrapped_key')) {
             await m.addColumn(deliverableSubmissions, deliverableSubmissions.wrappedKey);
           }
-          if (from < 12) {
+          if (!await _hasTable('user_encryption_keys')) {
             await m.createTable(userEncryptionKeys);
-          } else if (from < 13) {
+          } else if (!await _hasColumn('user_encryption_keys', 'attestation_signature')) {
             await m.addColumn(
               userEncryptionKeys,
               userEncryptionKeys.attestationSignature,
@@ -240,6 +240,19 @@ class AppDatabase extends _$AppDatabase {
           }
         },
       );
+
+  Future<bool> _hasColumn(String tableName, String columnName) async {
+    final rows = await customSelect('PRAGMA table_info("$tableName")').get();
+    return rows.any((r) => r.read<String>('name') == columnName);
+  }
+
+  Future<bool> _hasTable(String tableName) async {
+    final rows = await customSelect(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+      variables: [Variable.withString(tableName)],
+    ).get();
+    return rows.isNotEmpty;
+  }
 }
 
 
