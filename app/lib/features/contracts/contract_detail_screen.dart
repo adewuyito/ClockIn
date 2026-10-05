@@ -41,13 +41,46 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
   void initState() {
     super.initState();
     _activeDecryptionKey = widget.initialDecryptionKey;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(firebaseSyncServiceProvider).subscribeToContract(widget.contractId);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncSubscriptions());
+  }
+
+  /// Attaches live sync for this contract, but only while it can still change.
+  ///
+  /// Two separate lifetimes are at play and they are easy to conflate:
+  ///
+  ///  * the Firestore deliverables listener is a *view* concern — it exists to
+  ///    hydrate this screen, so it is torn down in [dispose].
+  ///  * the FCM topic subscription is a *participation* concern — the user wants
+  ///    pushes about an active contract whether or not this screen is open, so
+  ///    it must NOT be torn down in [dispose], and must be released once the
+  ///    contract settles.
+  ///
+  /// Subscribing to a settled contract's topic would leave the device enrolled
+  /// permanently, since nothing else ever unsubscribes it.
+  Future<void> _syncSubscriptions() async {
+    final sync = ref.read(firebaseSyncServiceProvider);
+
+    ContractStatus? status;
+    try {
+      final contract =
+          await ref.read(contractRepositoryProvider).getContract(widget.contractId);
+      status = contract?.status;
+    } catch (e) {
+      debugPrint('[FCM] Could not resolve ${widget.contractId} status: $e');
+    }
+
+    if (status != null && status.isTerminal) {
+      await sync.unsubscribeFromContract(widget.contractId);
+      return;
+    }
+
+    await sync.subscribeToContract(widget.contractId);
   }
 
   @override
   void dispose() {
+    // Only the view-scoped Firestore listener is released here; the FCM topic
+    // subscription deliberately outlives this screen. See [_syncSubscriptions].
     ref.read(firebaseSyncServiceProvider).stopListeningToContract(widget.contractId);
     super.dispose();
   }
@@ -164,6 +197,23 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
     final contractAsync = ref.watch(contractProvider(widget.contractId));
     final wallet = ref.watch(walletStateProvider);
     final currentAddress = wallet.address;
+
+    // Release the FCM topic the moment this contract settles — whether it
+    // settled here (the employer just released payment) or elsewhere. Without
+    // this, a contract that reaches a terminal state while open stays
+    // subscribed, because [dispose] intentionally leaves the topic alone.
+    ref.listen<AsyncValue<EscrowContract?>>(
+      contractProvider(widget.contractId),
+      (previous, next) {
+        final wasTerminal = previous?.valueOrNull?.status.isTerminal ?? false;
+        final isTerminal = next.valueOrNull?.status.isTerminal ?? false;
+        if (isTerminal && !wasTerminal) {
+          ref
+              .read(firebaseSyncServiceProvider)
+              .unsubscribeFromContract(widget.contractId);
+        }
+      },
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,

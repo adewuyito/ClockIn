@@ -109,14 +109,58 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _setupNotificationListener(String walletAddress) {
     ref.read(firebaseSyncServiceProvider).listenToUserNotifications(
       walletAddress,
-      (notification) {
-        if (!mounted) return;
-        final title = notification['title'] as String? ?? 'Contract Alert';
-        final body = notification['body'] as String? ?? '';
-        final contractId = notification['contractId'] as String?;
-        _showNotificationBanner(title, body, contractId);
-      },
+      (notification) => _handleNotification(walletAddress, notification),
     );
+  }
+
+  /// Handles one inbound notification: suppresses it if it is about a contract
+  /// that has already settled, then marks it read either way.
+  ///
+  /// Marking read is what stops redelivery — the listener queries
+  /// `isRead == false`, and Firestore replays every matching document as an
+  /// `added` change each time that listener attaches. An unconsumed notification
+  /// is therefore shown again on every wallet connect, forever.
+  ///
+  /// The status check exists because a notification is a point-in-time event
+  /// while the contract keeps moving: "deliverables ready for review" is
+  /// meaningless once the employer has already released payment, so the banner
+  /// is dropped rather than shown against a completed contract.
+  Future<void> _handleNotification(
+    String walletAddress,
+    Map<String, dynamic> notification,
+  ) async {
+    final notificationId = notification['id'] as String?;
+    final contractId = notification['contractId'] as String?;
+    final title = notification['title'] as String? ?? 'Contract Alert';
+    final body = notification['body'] as String? ?? '';
+
+    var isStale = false;
+    if (contractId != null && contractId.isNotEmpty) {
+      try {
+        final contract = await ref
+            .read(contractRepositoryProvider)
+            .getContract(contractId);
+        isStale = contract?.status.isTerminal ?? false;
+      } catch (e) {
+        // Can't determine status (offline, RPC error) — show it rather than
+        // silently swallowing a potentially live event.
+        debugPrint('[Notifications] Could not resolve $contractId status: $e');
+      }
+    }
+
+    if (isStale) {
+      debugPrint(
+        '[Notifications] Suppressing notification for settled contract $contractId.',
+      );
+    } else if (mounted) {
+      _showNotificationBanner(title, body, contractId);
+    }
+
+    if (notificationId != null) {
+      await ref
+          .read(firebaseSyncServiceProvider)
+          .markNotificationRead(walletAddress, notificationId);
+    }
   }
 
   void _showNotificationBanner(String title, String body, String? contractId) {

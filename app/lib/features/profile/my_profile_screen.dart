@@ -487,44 +487,45 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 7),
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              if (isSeekerHardware)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF14F195).withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: const Color(0xFF00D18C).withValues(alpha: 0.4),
-                      width: 0.6,
+          if (isSeekerHardware || isAttested) ...[
+            const SizedBox(height: 7),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (isSeekerHardware)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF14F195).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: const Color(0xFF00D18C).withValues(alpha: 0.4),
+                        width: 0.6,
+                      ),
+                    ),
+                    child: Text(
+                      'SEEKER HARDWARE',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0B5E36),
+                        letterSpacing: 0.4,
+                      ),
                     ),
                   ),
-                  child: Text(
-                    'SEEKER HARDWARE',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF0B5E36),
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                ),
-              if (isAttested) ...[
-                _buildCompactPill('$stakeDisplay Staked'),
-                const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
-                _buildCompactPill('Guardian: ${attestation.guardianName}'),
+                if (isAttested) ...[
+                  _buildCompactPill('$stakeDisplay Staked'),
+                  const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                  _buildCompactPill('Guardian: ${attestation.guardianName}'),
+                ],
               ],
-            ],
-          ),
+            ),
+          ],
           if (!isAttested) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
@@ -532,32 +533,32 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11.5,
                       color: AppColors.onSurfaceVariant,
+                      height: 1.3,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: 28,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      SeekerStakingSheet.show(context, address: address);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1F9D5B),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      visualDensity: VisualDensity.compact,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    SeekerStakingSheet.show(context, address: address);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1F9D5B),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(60, 28),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      'Stake',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  ),
+                  child: Text(
+                    'Stake',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),

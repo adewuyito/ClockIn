@@ -222,5 +222,75 @@ void main() {
       expect(find.text('SEEKER ATTESTED'), findsOneWidget);
       expect(find.text('SEEKER HARDWARE'), findsOneWidget);
     });
+
+    testWidgets(
+        'Unverified profile banner renders cleanly on 360dp screen with normal word wrapping and compact Stake button',
+        (tester) async {
+      tester.view.physicalSize = const Size(360 * 2, 640 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final mockService = MockSeekerDeviceService(
+        isSeeker: false,
+        mockInfo: const DeviceInfo(isSeeker: false, model: 'SM-G570F'),
+      );
+
+      const testAddress = 'ClockInTestWorker1111111111111111111111111';
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            deviceServiceProvider.overrideWithValue(mockService),
+            walletStateProvider.overrideWith((ref) => TestWalletNotifier(testAddress)),
+            walletBalanceProvider.overrideWith((ref) => Future.value(1000000000)),
+            walletSkrBalanceProvider.overrideWith((ref) => Future.value(500.0)),
+            myProfileProvider.overrideWith(
+              (ref) => Stream.value(
+                WorkerProfile(
+                  address: testAddress,
+                  totalJobs: 5,
+                  ratingSum: BigInt.from(24),
+                  createdAt: DateTime.now(),
+                ),
+              ),
+            ),
+            workerReviewsProvider(testAddress).overrideWith(
+              (ref) => Stream.value(<Review>[]),
+            ),
+            seekerAttestationProvider(testAddress).overrideWith(
+              (ref) => Stream.value(
+                SeekerAttestation(
+                  address: testAddress,
+                  isAttested: false,
+                  syncedAt: DateTime.now(),
+                ),
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: MyProfileScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('SEEKER VERIFICATION'), findsOneWidget);
+      expect(find.text('Unverified'), findsOneWidget);
+      expect(find.text('Stake'), findsOneWidget);
+      expect(
+        find.text(r'Verify 250 $SKR Guardian stake for proof-of-human badge.'),
+        findsOneWidget,
+      );
+
+      final textRenderObject = tester.renderObject(
+        find.text(r'Verify 250 $SKR Guardian stake for proof-of-human badge.'),
+      );
+      final textWidth = textRenderObject.paintBounds.size.width;
+      expect(textWidth, greaterThan(200.0));
+    });
   });
 }

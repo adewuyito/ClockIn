@@ -25,66 +25,77 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isCompact = screenWidth < 380;
+
     return AppBar(
       automaticallyImplyLeading: false,
       titleSpacing: 16,
       title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: AppColors.primary,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.verified_rounded, color: Colors.white, size: 20),
+            child: const Icon(Icons.verified_rounded, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'ClockIn',
-                style: AppTypography.headlineSm.copyWith(color: AppColors.primary, height: 1),
-              ),
-              Text(
-                'SOLANA PASS',
-                style: AppTypography.labelSm.copyWith(color: AppColors.outline, letterSpacing: 1),
-              ),
-            ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'ClockIn',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.headlineSm.copyWith(color: AppColors.primary, height: 1),
+                ),
+                Text(
+                  'SOLANA PASS',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelSm.copyWith(color: AppColors.outline, letterSpacing: 0.8),
+                ),
+              ],
+            ),
           ),
         ],
       ),
       actions: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          height: 24,
-          decoration: BoxDecoration(
-            color: AppColors.warning.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(color: AppColors.warning, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'DEVNET',
-                style: AppTypography.labelSm.copyWith(
-                  color: AppColors.warning,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.6,
+        if (!isCompact || address == null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            height: 24,
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(color: AppColors.warning, shape: BoxShape.circle),
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  'DEVNET',
+                  style: AppTypography.labelSm.copyWith(
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
         if (address != null) ...[
           const SizedBox(width: 8),
           InkWell(

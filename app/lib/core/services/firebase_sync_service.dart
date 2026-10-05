@@ -423,6 +423,32 @@ class FirebaseSyncService {
     });
   }
 
+  /// Marks one notification as read so it is not redelivered.
+  ///
+  /// [listenToUserNotifications] queries `isRead == false`, and a Firestore
+  /// `snapshots()` listener reports every already-matching document as an
+  /// `added` change when it first attaches. So without this, the unread set is
+  /// a permanent backlog that is replayed in full on every wallet connect —
+  /// including notifications about contracts that settled long ago.
+  Future<void> markNotificationRead(
+    String walletAddress,
+    String notificationId,
+  ) async {
+    final fs = firestore;
+    if (fs == null) return;
+
+    try {
+      await fs
+          .collection('users')
+          .doc(walletAddress)
+          .collection('notifications')
+          .doc(notificationId)
+          .update({'isRead': true});
+    } catch (e) {
+      debugPrint('[Firestore] Error marking notification $notificationId read: $e');
+    }
+  }
+
   /// Dispose all active subscriptions.
   void dispose() {
     for (final sub in _contractSubscriptions.values) {

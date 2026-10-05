@@ -25,6 +25,15 @@ enum ContractStatus {
     }
   }
 
+  /// True once the contract has reached a settled end state, so no further
+  /// action or notification about it is meaningful.
+  ///
+  /// `disputed` is deliberately NOT terminal — a dispute is still live work
+  /// (direct resolution or juror arbitration) and both parties still need
+  /// events about it.
+  bool get isTerminal =>
+      this == ContractStatus.completed || this == ContractStatus.cancelled;
+
   static ContractStatus fromString(String str) {
     switch (str.toLowerCase()) {
       case 'created':

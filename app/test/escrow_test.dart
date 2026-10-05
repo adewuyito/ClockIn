@@ -29,6 +29,35 @@ void main() {
     });
   });
 
+  group('ContractStatus.isTerminal — notification suppression gate', () {
+    test('settled states are terminal', () {
+      expect(ContractStatus.completed.isTerminal, isTrue);
+      expect(ContractStatus.cancelled.isTerminal, isTrue);
+    });
+
+    test('in-flight states are not terminal', () {
+      expect(ContractStatus.created.isTerminal, isFalse);
+      expect(ContractStatus.funded.isTerminal, isFalse);
+      expect(ContractStatus.inProgress.isTerminal, isFalse);
+    });
+
+    test('disputed is NOT terminal — a dispute is still live work', () {
+      // Both parties still need events while a dispute is open, whether it
+      // resolves directly or through juror arbitration.
+      expect(ContractStatus.disputed.isTerminal, isFalse);
+    });
+
+    test('every status is classified', () {
+      for (final status in ContractStatus.values) {
+        expect(status.isTerminal, isA<bool>());
+      }
+      expect(
+        ContractStatus.values.where((s) => s.isTerminal).length,
+        equals(2),
+      );
+    });
+  });
+
   group('Escrow AccountDecoders', () {
     test('Decodes valid EscrowContract binary account data', () {
       final employerKey = Ed25519HDPublicKey.fromBase58(
