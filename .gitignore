@@ -6,6 +6,12 @@ test-ledger/
 # Node
 node_modules/
 
+# Firebase emulator artifacts
+firestore-debug.log
+firebase-debug.log
+*-debug.log
+.firebase/
+
 # Flutter / Dart
 .dart_tool/
 .flutter-plugins

@@ -85,7 +85,10 @@ service cloud.firestore {
           && request.resource.data.body.size() <= 1000
           && request.resource.data.isRead == false;
 
-        allow update: if request.resource.data.diff(resource.data)
+        // `resource != null` guards against an evaluation error: Firestore
+        // evaluates the update rule even for a create, where `resource` is null.
+        allow update: if resource != null
+          && request.resource.data.diff(resource.data)
                              .affectedKeys().hasOnly(['isRead']);
 
         allow delete: if false;
@@ -135,7 +138,10 @@ service cloud.firestore {
         && request.resource.data.status is string;
 
       // Review outcome only — ciphertext and hashes stay as submitted.
-      allow update: if request.resource.data.diff(resource.data)
+      // `resource != null` guards against an evaluation error on create, where
+      // Firestore still evaluates this rule but `resource` does not yet exist.
+      allow update: if resource != null
+        && request.resource.data.diff(resource.data)
                            .affectedKeys().hasOnly(['status', 'statusUpdatedAt'])
         && request.resource.data.status is string
         && request.resource.data.status.size() <= 32;

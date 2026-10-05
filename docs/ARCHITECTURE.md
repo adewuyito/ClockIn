@@ -297,7 +297,19 @@ Clients discover and display full review feedback using a two-stage read pattern
 
   This matters because the alternative was a live man-in-the-middle: with world-writable rules and unsigned keys, anyone could overwrite `/users/{employer}` with their own X25519 key and the worker's app would wrap the deliverable key for the attacker. Signature binding makes that forgery impossible without the victim's wallet key, independent of how permissive the rules are. The wallet signing prompt is a one-time cost per device keypair — the signature is cached in Drift (`UserEncryptionKeys.attestationSignature`).
 
-  `firestore.rules` is still tightened as defence in depth (document shapes, size caps, append-only notifications, no deletes, push tokens write-only in a separate `deviceTokens` collection) but deliberately carries **no expiry date** — the previous default test rule would have silently denied all traffic on expiry, breaking key exchange with no user-visible error. Restricting *writes* to the wallet owner needs server-side signature verification minting a Firebase custom token; that is a tracked pre-mainnet task, not a hackathon-scope item.
+  `firestore.rules` is covered by 25 behavioural tests in `firestore-tests/rules.test.js`, run against the Firestore emulator:
+
+  ```bash
+  cd firestore-tests && npm install && cd ..
+  # Invoke mocha directly — `npm test` inside emulators:exec fails on
+  # npm 11 + node 26 with "Cannot read properties of undefined (reading 'stdin')".
+  CI=true firebase emulators:exec --only firestore --project clockin-rules-test \
+    "node firestore-tests/node_modules/mocha/bin/mocha.js --timeout 20000 firestore-tests/rules.test.js"
+  ```
+
+  The suite asserts the security-relevant behaviour directly: keys are world-readable but shape-validated, a wallet address mismatched against its document id is rejected, an `fcmToken` cannot be smuggled into the public key document, `deviceTokens` is unreadable, notifications are append-only with only `isRead` mutable, deliverable ciphertext and hashes cannot be rewritten after submission, nothing anywhere can be deleted, and unmatched paths are denied. One test also fails the build if any executable rule ever gates on `request.time` again.
+
+  `firestore.rules` is tightened as defence in depth (document shapes, size caps, append-only notifications, no deletes, push tokens write-only in a separate `deviceTokens` collection) but deliberately carries **no expiry date** — the previous default test rule would have silently denied all traffic on expiry, breaking key exchange with no user-visible error. Restricting *writes* to the wallet owner needs server-side signature verification minting a Firebase custom token; that is a tracked pre-mainnet task, not a hackathon-scope item.
 - **The X25519 private key never leaves the device.** It lives in the Drift database and is excluded from Android backup and device-to-device transfer (`allowBackup=false`, `fullBackupContent=false`, plus `data_extraction_rules.xml` for API 31+), so cloud backup cannot export a key that decrypts deliverable envelopes. Encrypting the database itself (SQLCipher) is a further step not yet taken.
 
 ## Build & test toolchain

@@ -273,9 +273,19 @@ describe('suite integrity', () => {
   it('ran against the real rules file', () => {
     const rules = fs.readFileSync(path.resolve(__dirname, '../firestore.rules'), 'utf8');
     assert.ok(rules.includes('deviceTokens'), 'rules file should define deviceTokens');
+
+    // Strip comments before scanning: the rules file documents *why* the old
+    // `request.time < timestamp.date(...)` test rule was removed, so a naive
+    // substring search matches that prose and fails on a correct file.
+    const executable = rules
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('//'))
+      .join('\n');
+
     assert.ok(
-      !rules.includes('request.time < timestamp.date'),
-      'rules must not contain a time-bomb expiry clause',
+      !executable.includes('request.time'),
+      'no executable rule may gate access on request.time — an expiry clause ' +
+        'silently denies all traffic once it passes',
     );
   });
 });
