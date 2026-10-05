@@ -91,7 +91,11 @@ class _SubmitDeliverablesSheetState
           );
           debugPrint('[X25519] Wrapped symmetric key for employer ${widget.contract.employer}');
         } else {
-          debugPrint('[X25519] Employer has not published public key yet, falling back to out-of-band');
+          debugPrint(
+            '[X25519] No wallet-attested public key for employer '
+            '${widget.contract.employer} (absent, or its attestation failed '
+            'verification) — falling back to out-of-band key exchange.',
+          );
         }
       } catch (e) {
         debugPrint('[X25519] Error wrapping key for employer: $e');
@@ -481,8 +485,8 @@ class _SubmitDeliverablesSheetState
         const SizedBox(height: 6),
         Text(
           _wrappedKey != null
-              ? 'Encrypted with AES-256-GCM and sealed with Employer’s X25519 public key. Employer will decrypt automatically with zero interaction.'
-              : 'Encrypted with AES-256-GCM. Share this key or QR code with your employer so they can decrypt your work.',
+              ? 'Encrypted with AES-256-GCM and sealed with the employer’s X25519 key, verified as signed by their wallet. They will decrypt automatically with zero interaction.'
+              : 'Encrypted with AES-256-GCM. Your employer has not published a wallet-verified encryption key, so share this key or QR code with them directly to let them decrypt your work.',
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 12.5,
@@ -505,7 +509,7 @@ class _SubmitDeliverablesSheetState
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Zero-Knowledge Envelope: Key safely relayed to employer via Firestore. Offline QR code is provided below as backup.',
+                    'Zero-Knowledge Envelope: key sealed to the employer’s wallet-verified X25519 key before relay, so only they can open it. Offline QR code is provided below as backup.',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,

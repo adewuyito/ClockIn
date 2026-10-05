@@ -12,6 +12,7 @@ import '../models/review.dart';
 import '../models/seeker_attestation.dart';
 import '../models/worker_profile.dart';
 import '../services/deliverable_encryption_service.dart';
+import '../services/encryption_key_registry.dart';
 import '../services/firebase_sync_service.dart';
 import '../services/irys_storage_service.dart';
 import '../solana/network_config.dart';
@@ -97,6 +98,16 @@ final firebaseSyncServiceProvider = Provider<FirebaseSyncService>((ref) {
   final service = FirebaseSyncService(deliverableRepository: deliverableRepo);
   ref.onDispose(() => service.dispose());
   return service;
+});
+
+/// Publishes this device's wallet-attested X25519 public key so counterparties
+/// can encrypt deliverable keys for it.
+final encryptionKeyRegistryProvider = Provider<EncryptionKeyRegistry>((ref) {
+  return EncryptionKeyRegistry(
+    walletAdapter: ref.watch(walletAdapterProvider),
+    deliverableRepository: ref.watch(deliverableRepositoryProvider),
+    syncService: ref.watch(firebaseSyncServiceProvider),
+  );
 });
 
 // ==================== WALLET STATE MANAGEMENT ====================

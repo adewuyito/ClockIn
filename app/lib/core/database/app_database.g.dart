@@ -5464,6 +5464,17 @@ class $UserEncryptionKeysTable extends UserEncryptionKeys
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _attestationSignatureMeta =
+      const VerificationMeta('attestationSignature');
+  @override
+  late final GeneratedColumn<String> attestationSignature =
+      GeneratedColumn<String>(
+        'attestation_signature',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -5481,6 +5492,7 @@ class $UserEncryptionKeysTable extends UserEncryptionKeys
     walletAddress,
     publicKey,
     privateKey,
+    attestationSignature,
     createdAt,
   ];
   @override
@@ -5522,6 +5534,15 @@ class $UserEncryptionKeysTable extends UserEncryptionKeys
     } else if (isInserting) {
       context.missing(_privateKeyMeta);
     }
+    if (data.containsKey('attestation_signature')) {
+      context.handle(
+        _attestationSignatureMeta,
+        attestationSignature.isAcceptableOrUnknown(
+          data['attestation_signature']!,
+          _attestationSignatureMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -5549,6 +5570,10 @@ class $UserEncryptionKeysTable extends UserEncryptionKeys
         DriftSqlType.string,
         data['${effectivePrefix}private_key'],
       )!,
+      attestationSignature: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}attestation_signature'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -5567,11 +5592,17 @@ class UserEncryptionKeyData extends DataClass
   final String walletAddress;
   final String publicKey;
   final String privateKey;
+
+  /// base64 Ed25519 signature by [walletAddress] over the canonical
+  /// KeyAttestationService message binding that wallet to [publicKey].
+  /// Null until the user has approved the one-time wallet signing prompt.
+  final String? attestationSignature;
   final DateTime createdAt;
   const UserEncryptionKeyData({
     required this.walletAddress,
     required this.publicKey,
     required this.privateKey,
+    this.attestationSignature,
     required this.createdAt,
   });
   @override
@@ -5580,6 +5611,9 @@ class UserEncryptionKeyData extends DataClass
     map['wallet_address'] = Variable<String>(walletAddress);
     map['public_key'] = Variable<String>(publicKey);
     map['private_key'] = Variable<String>(privateKey);
+    if (!nullToAbsent || attestationSignature != null) {
+      map['attestation_signature'] = Variable<String>(attestationSignature);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -5589,6 +5623,9 @@ class UserEncryptionKeyData extends DataClass
       walletAddress: Value(walletAddress),
       publicKey: Value(publicKey),
       privateKey: Value(privateKey),
+      attestationSignature: attestationSignature == null && nullToAbsent
+          ? const Value.absent()
+          : Value(attestationSignature),
       createdAt: Value(createdAt),
     );
   }
@@ -5602,6 +5639,9 @@ class UserEncryptionKeyData extends DataClass
       walletAddress: serializer.fromJson<String>(json['walletAddress']),
       publicKey: serializer.fromJson<String>(json['publicKey']),
       privateKey: serializer.fromJson<String>(json['privateKey']),
+      attestationSignature: serializer.fromJson<String?>(
+        json['attestationSignature'],
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -5612,6 +5652,7 @@ class UserEncryptionKeyData extends DataClass
       'walletAddress': serializer.toJson<String>(walletAddress),
       'publicKey': serializer.toJson<String>(publicKey),
       'privateKey': serializer.toJson<String>(privateKey),
+      'attestationSignature': serializer.toJson<String?>(attestationSignature),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -5620,11 +5661,15 @@ class UserEncryptionKeyData extends DataClass
     String? walletAddress,
     String? publicKey,
     String? privateKey,
+    Value<String?> attestationSignature = const Value.absent(),
     DateTime? createdAt,
   }) => UserEncryptionKeyData(
     walletAddress: walletAddress ?? this.walletAddress,
     publicKey: publicKey ?? this.publicKey,
     privateKey: privateKey ?? this.privateKey,
+    attestationSignature: attestationSignature.present
+        ? attestationSignature.value
+        : this.attestationSignature,
     createdAt: createdAt ?? this.createdAt,
   );
   UserEncryptionKeyData copyWithCompanion(UserEncryptionKeysCompanion data) {
@@ -5636,6 +5681,9 @@ class UserEncryptionKeyData extends DataClass
       privateKey: data.privateKey.present
           ? data.privateKey.value
           : this.privateKey,
+      attestationSignature: data.attestationSignature.present
+          ? data.attestationSignature.value
+          : this.attestationSignature,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -5646,14 +5694,20 @@ class UserEncryptionKeyData extends DataClass
           ..write('walletAddress: $walletAddress, ')
           ..write('publicKey: $publicKey, ')
           ..write('privateKey: $privateKey, ')
+          ..write('attestationSignature: $attestationSignature, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(walletAddress, publicKey, privateKey, createdAt);
+  int get hashCode => Object.hash(
+    walletAddress,
+    publicKey,
+    privateKey,
+    attestationSignature,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5661,6 +5715,7 @@ class UserEncryptionKeyData extends DataClass
           other.walletAddress == this.walletAddress &&
           other.publicKey == this.publicKey &&
           other.privateKey == this.privateKey &&
+          other.attestationSignature == this.attestationSignature &&
           other.createdAt == this.createdAt);
 }
 
@@ -5669,12 +5724,14 @@ class UserEncryptionKeysCompanion
   final Value<String> walletAddress;
   final Value<String> publicKey;
   final Value<String> privateKey;
+  final Value<String?> attestationSignature;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const UserEncryptionKeysCompanion({
     this.walletAddress = const Value.absent(),
     this.publicKey = const Value.absent(),
     this.privateKey = const Value.absent(),
+    this.attestationSignature = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -5682,6 +5739,7 @@ class UserEncryptionKeysCompanion
     required String walletAddress,
     required String publicKey,
     required String privateKey,
+    this.attestationSignature = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : walletAddress = Value(walletAddress),
@@ -5691,6 +5749,7 @@ class UserEncryptionKeysCompanion
     Expression<String>? walletAddress,
     Expression<String>? publicKey,
     Expression<String>? privateKey,
+    Expression<String>? attestationSignature,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -5698,6 +5757,8 @@ class UserEncryptionKeysCompanion
       if (walletAddress != null) 'wallet_address': walletAddress,
       if (publicKey != null) 'public_key': publicKey,
       if (privateKey != null) 'private_key': privateKey,
+      if (attestationSignature != null)
+        'attestation_signature': attestationSignature,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -5707,6 +5768,7 @@ class UserEncryptionKeysCompanion
     Value<String>? walletAddress,
     Value<String>? publicKey,
     Value<String>? privateKey,
+    Value<String?>? attestationSignature,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -5714,6 +5776,7 @@ class UserEncryptionKeysCompanion
       walletAddress: walletAddress ?? this.walletAddress,
       publicKey: publicKey ?? this.publicKey,
       privateKey: privateKey ?? this.privateKey,
+      attestationSignature: attestationSignature ?? this.attestationSignature,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -5731,6 +5794,11 @@ class UserEncryptionKeysCompanion
     if (privateKey.present) {
       map['private_key'] = Variable<String>(privateKey.value);
     }
+    if (attestationSignature.present) {
+      map['attestation_signature'] = Variable<String>(
+        attestationSignature.value,
+      );
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -5746,6 +5814,7 @@ class UserEncryptionKeysCompanion
           ..write('walletAddress: $walletAddress, ')
           ..write('publicKey: $publicKey, ')
           ..write('privateKey: $privateKey, ')
+          ..write('attestationSignature: $attestationSignature, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -8558,6 +8627,7 @@ typedef $$UserEncryptionKeysTableCreateCompanionBuilder =
       required String walletAddress,
       required String publicKey,
       required String privateKey,
+      Value<String?> attestationSignature,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -8566,6 +8636,7 @@ typedef $$UserEncryptionKeysTableUpdateCompanionBuilder =
       Value<String> walletAddress,
       Value<String> publicKey,
       Value<String> privateKey,
+      Value<String?> attestationSignature,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -8591,6 +8662,11 @@ class $$UserEncryptionKeysTableFilterComposer
 
   ColumnFilters<String> get privateKey => $composableBuilder(
     column: $table.privateKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get attestationSignature => $composableBuilder(
+    column: $table.attestationSignature,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8624,6 +8700,11 @@ class $$UserEncryptionKeysTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get attestationSignature => $composableBuilder(
+    column: $table.attestationSignature,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -8649,6 +8730,11 @@ class $$UserEncryptionKeysTableAnnotationComposer
 
   GeneratedColumn<String> get privateKey => $composableBuilder(
     column: $table.privateKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get attestationSignature => $composableBuilder(
+    column: $table.attestationSignature,
     builder: (column) => column,
   );
 
@@ -8699,12 +8785,14 @@ class $$UserEncryptionKeysTableTableManager
                 Value<String> walletAddress = const Value.absent(),
                 Value<String> publicKey = const Value.absent(),
                 Value<String> privateKey = const Value.absent(),
+                Value<String?> attestationSignature = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UserEncryptionKeysCompanion(
                 walletAddress: walletAddress,
                 publicKey: publicKey,
                 privateKey: privateKey,
+                attestationSignature: attestationSignature,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -8713,12 +8801,14 @@ class $$UserEncryptionKeysTableTableManager
                 required String walletAddress,
                 required String publicKey,
                 required String privateKey,
+                Value<String?> attestationSignature = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UserEncryptionKeysCompanion.insert(
                 walletAddress: walletAddress,
                 publicKey: publicKey,
                 privateKey: privateKey,
+                attestationSignature: attestationSignature,
                 createdAt: createdAt,
                 rowid: rowid,
               ),

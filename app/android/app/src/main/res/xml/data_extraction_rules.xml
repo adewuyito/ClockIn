@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (API 31) backup/transfer policy.
+
+  allowBackup="false" already blocks legacy auto-backup, but API 31+ reads these
+  rules for cloud backup and device-to-device transfer independently. Both are
+  disabled wholesale: the Drift database contains this device's X25519 private
+  key, which must not leave the app sandbox. Deliverables themselves are
+  recoverable from Arweave and the escrow state from Solana, so there is nothing
+  here worth backing up at the cost of exporting a decryption key.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

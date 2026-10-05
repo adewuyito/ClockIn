@@ -1,0 +1,14 @@
+{
+  "name": "clockin-firestore-rules-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Behavioural tests for firestore.rules (run against the Firestore emulator)",
+  "scripts": {
+    "test": "mocha --timeout 20000 rules.test.js"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.2",
+    "mocha": "^10.4.0"
+  }
+}

@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../database/deliverable_repository.dart';
 import '../models/deliverable_submission.dart';
+import 'key_attestation_service.dart';
 
 /// Service coordinating real-time encrypted deliverable sync and FCM push notifications via Firebase.
 class FirebaseSyncService {
@@ -109,12 +110,18 @@ class FirebaseSyncService {
   }
 
   /// Associate device FCM token with a user's Solana wallet address in Firestore.
+  ///
+  /// Written to `/deviceTokens/{walletAddress}` rather than `/users/...`: the
+  /// `users` collection must stay world-readable so counterparties can fetch
+  /// published X25519 keys, and a push token sitting in the same document would
+  /// be readable alongside it. Firestore rules deny reads on `deviceTokens`
+  /// outright — only the server needs them.
   Future<void> saveDeviceToken(String walletAddress, String token) async {
     final fs = firestore;
     if (fs == null) return;
 
     try {
-      await fs.collection('users').doc(walletAddress).set({
+      await fs.collection('deviceTokens').doc(walletAddress).set({
         'fcmToken': token,
         'walletAddress': walletAddress,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -125,41 +132,86 @@ class FirebaseSyncService {
     }
   }
 
-  /// Register/publish user's X25519 public key to /users/{walletAddress} in Firestore.
-  /// This enables employers and workers to encrypt keys for each other (zero-knowledge envelopes).
-  Future<void> registerUserPublicKey(String walletAddress, String publicKey) async {
+  /// Register/publish user's X25519 public key to /users/{walletAddress} in Firestore,
+  /// together with [attestationSignatureBase64] — an Ed25519 signature by that
+  /// wallet over the canonical [KeyAttestationService] message.
+  ///
+  /// The signature is what makes this directory safe to read: see
+  /// [getUserPublicKey], which refuses any key whose signature does not verify.
+  Future<void> registerUserPublicKey(
+    String walletAddress,
+    String publicKey, {
+    required String attestationSignatureBase64,
+  }) async {
     final fs = firestore;
     if (fs == null) return;
 
     try {
       await fs.collection('users').doc(walletAddress).set({
         'x25519PublicKey': publicKey,
+        'x25519KeySignature': attestationSignatureBase64,
         'walletAddress': walletAddress,
         'keyUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      debugPrint('[Firestore] Registered X25519 public key for wallet $walletAddress');
+      debugPrint('[Firestore] Registered attested X25519 public key for wallet $walletAddress');
     } catch (e) {
       debugPrint('[Firestore] Error registering X25519 public key: $e');
     }
   }
 
-  /// Retrieve another user's (e.g. employer's) X25519 public key from Firestore.
+  /// Retrieve another user's (e.g. employer's) X25519 public key from Firestore,
+  /// returning it only if it carries a valid Ed25519 attestation signed by
+  /// [walletAddress] itself.
+  ///
+  /// Firestore is treated as untrusted transport here. An attacker who can write
+  /// `/users/{walletAddress}` can publish any X25519 key they like, but cannot
+  /// produce the matching wallet signature, so a substituted key is rejected and
+  /// this returns null — callers then fall back to out-of-band key exchange
+  /// rather than wrapping a deliverable key for the attacker.
   Future<String?> getUserPublicKey(String walletAddress) async {
     final fs = firestore;
     if (fs == null) return null;
 
     try {
       final doc = await fs.collection('users').doc(walletAddress).get();
-      if (doc.exists) {
-        final data = doc.data();
-        final pubKey = data?['x25519PublicKey'] as String?;
-        if (pubKey != null && pubKey.isNotEmpty) {
-          debugPrint('[Firestore] Retrieved X25519 public key for $walletAddress');
-          return pubKey;
-        }
+      if (!doc.exists) {
+        debugPrint('[Firestore] No X25519 public key found for $walletAddress');
+        return null;
       }
-      debugPrint('[Firestore] No X25519 public key found for $walletAddress');
-      return null;
+
+      final data = doc.data();
+      final pubKey = data?['x25519PublicKey'] as String?;
+      final signature = data?['x25519KeySignature'] as String?;
+
+      if (pubKey == null || pubKey.isEmpty) {
+        debugPrint('[Firestore] No X25519 public key found for $walletAddress');
+        return null;
+      }
+
+      if (signature == null || signature.isEmpty) {
+        debugPrint(
+          '[Firestore] Discarding unattested X25519 public key for $walletAddress '
+          '(no wallet signature present).',
+        );
+        return null;
+      }
+
+      final verified = await KeyAttestationService.verify(
+        walletAddress: walletAddress,
+        x25519PublicKeyBase64: pubKey,
+        signatureBase64: signature,
+      );
+
+      if (!verified) {
+        debugPrint(
+          '[Firestore] Discarding X25519 public key for $walletAddress: '
+          'attestation signature failed verification.',
+        );
+        return null;
+      }
+
+      debugPrint('[Firestore] Retrieved attested X25519 public key for $walletAddress');
+      return pubKey;
     } catch (e) {
       debugPrint('[Firestore] Error fetching X25519 public key for $walletAddress: $e');
       return null;

@@ -568,16 +568,18 @@ class ContractService {
   }
 
   /// Faucet: Mints devnet $SKR tokens directly to a recipient wallet on Solana Devnet.
+  ///
+  /// Requires the build to carry faucet credentials via
+  /// `--dart-define=CLOCKIN_SKR_FAUCET_SEED` (see [NetworkConfig.hasSkrFaucet]);
+  /// otherwise this throws a [ReputationException] explaining that the faucet is
+  /// not configured for this build.
   Future<String> airdropDevnetSkr({
     required Ed25519HDPublicKey recipient,
     double amount = 500.0,
   }) async {
     try {
-      final privateKeyBytes = NetworkConfig.devnetSkrFaucetPrivateKey.length == 64
-          ? NetworkConfig.devnetSkrFaucetPrivateKey.sublist(0, 32)
-          : NetworkConfig.devnetSkrFaucetPrivateKey;
       final faucetKey = await Ed25519HDKeyPair.fromPrivateKeyBytes(
-        privateKey: privateKeyBytes,
+        privateKey: NetworkConfig.devnetSkrFaucetSeed,
       );
       final mint = NetworkConfig.skrMint;
       final recipientAta = await NetworkConfig.findAssociatedTokenAddress(

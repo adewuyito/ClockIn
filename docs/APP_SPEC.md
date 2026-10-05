@@ -113,5 +113,5 @@ Defined in `app_database.dart`:
 
 ## 5. Verification & Testing Standards
 
-- **16 Unit & Widget Tests**: Tests Drift database CRUD operations, reactive provider streaming, PDA derivation utilities, and UI smoke tests without requiring an active device.
-- **`flutter analyze`**: Zero errors, zero warnings, enforced linting (`flutter_lints`).
+- **75 Unit & Widget Tests**: Tests Drift database CRUD operations, reactive provider streaming, PDA derivation utilities, X25519 key-attestation verification (including the key-substitution attack), deliverable encryption round-trips, and UI smoke tests without requiring an active device.
+- **`flutter analyze lib/ test/`**: Zero errors, zero warnings, enforced linting (`flutter_lints`). Scope the command to `lib/ test/` — a bare `flutter analyze` also walks the gitignored `build/` tree, where vendored plugin sources report ~296 errors that are not this project's code.

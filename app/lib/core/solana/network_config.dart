@@ -124,12 +124,52 @@ class NetworkConfig {
   static final Ed25519HDPublicKey skrMint =
       Ed25519HDPublicKey.fromBase58(devnetSkrMint);
 
-  /// Devnet Faucet Keypair 32-byte seed (authorized mint authority on devnet).
-  /// Pubkey: GpCkbpkeXxX5sdFJF9joMmgqMs1P5uyVFHZxvvuDcoz
-  static const List<int> devnetSkrFaucetPrivateKey = [
-    113, 149, 0, 115, 38, 201, 167, 200, 65, 19, 67, 234, 85, 200, 40, 137,
-    78, 251, 156, 20, 190, 161, 128, 70, 130, 82, 37, 63, 11, 183, 27, 152,
-  ];
+  /// Public key of the devnet $SKR mint authority / faucet.
+  /// Reading this is harmless; it is published here so the app can show which
+  /// account funds the devnet faucet.
+  static const String devnetSkrFaucetAddress =
+      'GpCkbpkeXxX5sdFJF9joMmgqMs1P5uyVFHZxvvuDcoz';
+
+  /// Base64 of the devnet $SKR faucet's 32-byte Ed25519 seed, injected at build
+  /// time rather than committed:
+  ///
+  ///   flutter run --dart-define=CLOCKIN_SKR_FAUCET_SEED=$(base64 < seed.bin)
+  ///
+  /// This is the **mint authority** for devnet $SKR, which is also the stake
+  /// asset behind Seeker attestation — anyone holding it can mint without limit
+  /// and forge attestations. It is devnet-only and controls no real funds, but
+  /// it is still a private key, and the repo's rule is that private keys are
+  /// never committed. Leave it unset for normal builds; the faucet then reports
+  /// itself unavailable instead of shipping a key inside the APK.
+  static const String _skrFaucetSeedBase64 =
+      String.fromEnvironment('CLOCKIN_SKR_FAUCET_SEED');
+
+  /// Whether this build was given faucet credentials.
+  static bool get hasSkrFaucet => _skrFaucetSeedBase64.isNotEmpty;
+
+  /// The faucet's 32-byte Ed25519 seed.
+  ///
+  /// Throws [StateError] when the build carries no faucet credentials, and
+  /// [FormatException] when the supplied value is not a 32- or 64-byte key.
+  static List<int> get devnetSkrFaucetSeed {
+    if (!hasSkrFaucet) {
+      throw StateError(
+        'No devnet \$SKR faucet configured. Rebuild with '
+        '--dart-define=CLOCKIN_SKR_FAUCET_SEED=<base64 32-byte seed> to enable it.',
+      );
+    }
+    final decoded = base64.decode(_skrFaucetSeedBase64.trim());
+    if (decoded.length == 64) {
+      // Full 64-byte expanded keypair — the seed is the first half.
+      return decoded.sublist(0, 32);
+    }
+    if (decoded.length != 32) {
+      throw FormatException(
+        'CLOCKIN_SKR_FAUCET_SEED must decode to 32 or 64 bytes, got ${decoded.length}.',
+      );
+    }
+    return decoded;
+  }
 
   /// Computes the Guardian Stake Vault PDA.
   /// Seeds: [b"guardian_vault", guardian_name]

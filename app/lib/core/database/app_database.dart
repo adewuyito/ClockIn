@@ -155,6 +155,10 @@ class UserEncryptionKeys extends Table {
   TextColumn get walletAddress => text()();
   TextColumn get publicKey => text()(); // base64 X25519 public key
   TextColumn get privateKey => text()(); // base64 X25519 private key
+  /// base64 Ed25519 signature by [walletAddress] over the canonical
+  /// KeyAttestationService message binding that wallet to [publicKey].
+  /// Null until the user has approved the one-time wallet signing prompt.
+  TextColumn get attestationSignature => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
@@ -178,7 +182,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -227,6 +231,12 @@ class AppDatabase extends _$AppDatabase {
           if (from < 12) {
             await m.createTable(userEncryptionKeys);
             await m.addColumn(deliverableSubmissions, deliverableSubmissions.wrappedKey);
+          }
+          if (from < 13) {
+            await m.addColumn(
+              userEncryptionKeys,
+              userEncryptionKeys.attestationSignature,
+            );
           }
         },
       );

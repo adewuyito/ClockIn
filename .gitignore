@@ -50,3 +50,13 @@ DerivedData/
 id.json
 keypair.json
 *-keypair.json
+
+# Android release signing — keystores and their passwords
+**/android/key.properties
+*.jks
+*.keystore
+
+# Firebase
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

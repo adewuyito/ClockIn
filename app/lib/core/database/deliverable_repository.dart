@@ -115,6 +115,32 @@ class DeliverableRepository {
     return key?.privateKey;
   }
 
+  /// Returns the stored wallet attestation signature for [walletAddress], or
+  /// null if the user has not yet approved the one-time signing prompt.
+  Future<String?> getAttestationSignature(String walletAddress) async {
+    final key = await (db.select(db.userEncryptionKeys)
+          ..where((tbl) => tbl.walletAddress.equals(walletAddress))
+          ..limit(1))
+        .getSingleOrNull();
+    return key?.attestationSignature;
+  }
+
+  /// Persists the wallet attestation [signatureBase64] for [walletAddress] so
+  /// the signing prompt is shown once per device keypair rather than on every
+  /// connect.
+  Future<void> saveAttestationSignature(
+    String walletAddress,
+    String signatureBase64,
+  ) async {
+    await (db.update(db.userEncryptionKeys)
+          ..where((tbl) => tbl.walletAddress.equals(walletAddress)))
+        .write(
+      UserEncryptionKeysCompanion(
+        attestationSignature: Value(signatureBase64),
+      ),
+    );
+  }
+
   // ==================== SUBMISSION & ENCRYPTION ====================
 
   /// Encrypts deliverable plaintext with [encryptionKey] (AES-256-GCM),

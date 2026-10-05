@@ -144,6 +144,104 @@ class WalletAdapter {
     }
   }
 
+  /// Refreshes the MWA authorization for an open scenario, replacing [_session]
+  /// with the renewed authorization.
+  ///
+  /// Prefers `reauthorize` with the cached auth token; if the wallet rejects or
+  /// has forgotten it, falls back to a devnet-scoped `authorize` and then to a
+  /// cluster-less `authorize` (some wallets reject the `cluster` parameter while
+  /// in a generic testnet mode). Throws if every path is declined.
+  Future<void> _reauthorize(MobileWalletAdapterClient client) async {
+    final reauth = await client.reauthorize(
+      identityUri: identityUri,
+      iconUri: iconUri,
+      identityName: identityName,
+      authToken: _session!.authToken,
+    );
+
+    if (reauth != null) {
+      _session = WalletSession(
+        authToken: reauth.authToken,
+        publicKey: Ed25519HDPublicKey(reauth.publicKey),
+        accountLabel: reauth.accountLabel,
+        walletUriBase: reauth.walletUriBase,
+      );
+      return;
+    }
+
+    debugPrint('[MWA] Reauthorization returned null, falling back to authorize...');
+    var auth = await client.authorize(
+      identityUri: identityUri,
+      iconUri: iconUri,
+      identityName: identityName,
+      cluster: NetworkConfig.clusterName,
+    );
+    if (auth != null) {
+      debugPrint('[MWA] sign(): devnet-scoped authorize succeeded.');
+    } else {
+      debugPrint('[MWA] sign(): devnet-scoped authorize returned null, falling back to no-cluster authorize...');
+      auth = await client.authorize(
+        identityUri: identityUri,
+        iconUri: iconUri,
+        identityName: identityName,
+      );
+      debugPrint('[MWA] sign(): no-cluster authorize ${auth != null ? "succeeded" : "also returned null"}.');
+    }
+    if (auth == null) {
+      throw Exception('Wallet authorization was declined.');
+    }
+    _session = WalletSession(
+      authToken: auth.authToken,
+      publicKey: Ed25519HDPublicKey(auth.publicKey),
+      accountLabel: auth.accountLabel,
+      walletUriBase: auth.walletUriBase,
+    );
+  }
+
+  /// Prompts the connected wallet to sign an arbitrary off-chain message and
+  /// returns the raw 64-byte Ed25519 signature.
+  ///
+  /// Used to attest ownership of this device's X25519 encryption key (see
+  /// [KeyAttestationService]) — nothing is broadcast and no fee is paid. Wallets
+  /// render [message] in their approval prompt, so keep it short and printable.
+  Future<Uint8List> signMessage(Uint8List message) async {
+    if (!isConnected || _session == null) {
+      throw StateError('Cannot sign message: Wallet is not connected.');
+    }
+
+    LocalAssociationScenario? scenario;
+    try {
+      scenario = await LocalAssociationScenario.create();
+      scenario.startActivityForResult(null).ignore();
+      final client = await scenario.start();
+
+      await _reauthorize(client);
+
+      debugPrint('[MWA] Requesting wallet to sign off-chain message...');
+      final result = await client.signMessages(
+        messages: [message],
+        addresses: [Uint8List.fromList(_session!.publicKey.bytes)],
+      );
+
+      final signatures = result.signedMessages
+          .expand((signed) => signed.signatures)
+          .where((signature) => signature.length == 64)
+          .toList();
+
+      if (signatures.isEmpty) {
+        throw Exception('Message signing was rejected by wallet.');
+      }
+
+      debugPrint('[MWA] Off-chain message signed.');
+      return signatures.first;
+    } catch (e, st) {
+      debugPrint('[MWA] Error in signMessage: $e\n$st');
+      rethrow;
+    } finally {
+      await scenario?.close();
+    }
+  }
+
   /// Prompts the connected wallet to sign and broadcast a compiled transaction on Devnet.
   Future<String> signAndSendTransaction(Uint8List compiledTransaction) async {
     if (!isConnected || _session == null) {
@@ -156,50 +254,7 @@ class WalletAdapter {
       scenario.startActivityForResult(null).ignore();
       final client = await scenario.start();
 
-      // Reauthorize session
-      var reauth = await client.reauthorize(
-        identityUri: identityUri,
-        iconUri: iconUri,
-        identityName: identityName,
-        authToken: _session!.authToken,
-      );
-
-      if (reauth != null) {
-        _session = WalletSession(
-          authToken: reauth.authToken,
-          publicKey: Ed25519HDPublicKey(reauth.publicKey),
-          accountLabel: reauth.accountLabel,
-          walletUriBase: reauth.walletUriBase,
-        );
-      } else {
-        debugPrint('[MWA] Reauthorization returned null, falling back to authorize...');
-        var auth = await client.authorize(
-          identityUri: identityUri,
-          iconUri: iconUri,
-          identityName: identityName,
-          cluster: NetworkConfig.clusterName,
-        );
-        if (auth != null) {
-          debugPrint('[MWA] sign(): devnet-scoped authorize succeeded.');
-        } else {
-          debugPrint('[MWA] sign(): devnet-scoped authorize returned null, falling back to no-cluster authorize...');
-          auth = await client.authorize(
-            identityUri: identityUri,
-            iconUri: iconUri,
-            identityName: identityName,
-          );
-          debugPrint('[MWA] sign(): no-cluster authorize ${auth != null ? "succeeded" : "also returned null"}.');
-        }
-        if (auth == null) {
-          throw Exception('Wallet authorization was declined.');
-        }
-        _session = WalletSession(
-          authToken: auth.authToken,
-          publicKey: Ed25519HDPublicKey(auth.publicKey),
-          accountLabel: auth.accountLabel,
-          walletUriBase: auth.walletUriBase,
-        );
-      }
+      await _reauthorize(client);
 
       debugPrint('[MWA] session walletUriBase=${_session!.walletUriBase}');
       debugPrint('[MWA] Requesting wallet to sign and send transaction...');

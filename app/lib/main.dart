@@ -99,14 +99,11 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
     _setupNotificationListener(walletAddress);
 
-    // Ensure local X25519 keypair exists in Drift and publish public key to Firestore
-    try {
-      final deliverableRepo = ref.read(deliverableRepositoryProvider);
-      final keyPair = await deliverableRepo.getOrCreateKeyPair(walletAddress);
-      await syncService.registerUserPublicKey(walletAddress, keyPair.publicKeyBase64);
-    } catch (e) {
-      debugPrint('[X25519] Error ensuring encryption keypair: $e');
-    }
+    // Refresh this device's published X25519 key if it already carries a wallet
+    // attestation. Deliberately never prompts: requesting an MWA signature here
+    // would chain a second wallet handoff onto the connect flow. The one-time
+    // attestation is a user-driven action in Settings instead.
+    await ref.read(encryptionKeyRegistryProvider).publishIfAttested(walletAddress);
   }
 
   void _setupNotificationListener(String walletAddress) {

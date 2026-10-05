@@ -9,7 +9,7 @@
 
 ## 1. Account Architecture & PDA Seed Derivations
 
-The ClockIn program manages 5 distinct accounts across reputation and escrow layers:
+The ClockIn program manages 5 distinct accounts across reputation, escrow, and dispute layers:
 
 ```mermaid
 erDiagram
@@ -46,10 +46,22 @@ erDiagram
     EscrowVault {
         u8 bump
     }
+    DisputeCase {
+        String contract_id
+        Pubkey escrow_contract
+        Pubkey jurors3
+        u8 votes3
+        u8 quorum_outcome
+        DisputeCaseStatus status
+        i64 created_at
+        i64 resolved_at
+        u8 bump
+    }
 
     WorkerProfile ||--o{ Review : receives
     EscrowContract ||--|| EscrowVault : holds_lamports
     EscrowContract ||--|| Review : settles_with
+    EscrowContract ||--o| DisputeCase : arbitrated_by
 ```
 
 ### 1.1 WorkerProfile PDA
@@ -67,12 +79,21 @@ erDiagram
 - **PDA Seeds:** `[b"escrow", contract_id.as_bytes()]`
 - **Purpose:** Manages the full lifecycle state, terms hash, and parties of a P2P contract.
 - **Max Contract ID Length:** 32 bytes (`MAX_CONTRACT_ID_LEN`)
-- **Space:** `8 + (4 + 32) (contract_id) + 32 (employer) + 32 (worker) + 8 (amount) + 32 (terms_hash) + 1 (status enum) + 8 (deadline) + 8 (created_at) + 8 (funded_at) + 8 (completed_at) + 1 (rating) + 1 (bump) + 1 (vault_bump) = 186 bytes`
+- **Space:** `8 + (4 + 32) (contract_id) + 32 (employer) + 32 (worker) + 8 (amount) + 32 (terms_hash) + 1 (status enum) + 8 (deadline) + 8 (created_at) + 8 (funded_at) + 8 (completed_at) + 1 (rating) + 1 (bump) + 1 (vault_bump) + 1 (is_token) + 32 (token_mint) = 217 bytes` (matches `EscrowContract::SPACE` in `lib.rs`; an earlier revision of this doc claimed 186, which was both pre-token and miscounted by 2)
+- **Dual-currency fields:** `is_token: bool` selects the settlement mechanism (`false` → native SOL via `system_program::transfer`, `true` → SPL Token CPI), and `token_mint` holds the $SKR mint (`Pubkey::default()` for SOL contracts).
 
 ### 1.4 EscrowVault PDA
 - **PDA Seeds:** `[b"vault", contract_id.as_bytes()]`
 - **Purpose:** System-owned programmatic vault holding locked contract lamports. Controlled purely by program authority via CPI and PDA seeds.
 - **Space:** `8 (discriminator) + 1 (bump) = 9 bytes`
+- **Token contracts** additionally use an Associated Token Account owned by this PDA, which the program signs for via seeds `[b"vault", contract_id, &[vault_bump]]`.
+
+### 1.5 DisputeCase PDA
+- **PDA Seeds:** `[b"dispute_case", contract_id.as_bytes()]`
+- **Purpose:** Created only when a `Disputed` contract escalates to juror arbitration. Records the three assigned jurors, their votes, and the tallied quorum outcome.
+- **Constraints:** the three jurors must be distinct, and none may be the contract's employer or worker — neither party can sit on their own case.
+- **Quorum rule:** the first outcome to reach 2 of 3 votes sets `quorum_outcome` and flips `status` to `QuorumReached`; execution is then one-shot.
+- **Space:** `8 + (4 + 32) (contract_id) + 32 (escrow_contract) + 96 (jurors) + 3 (votes) + 1 (quorum_outcome) + 1 (status) + 8 (created_at) + 8 (resolved_at) + 1 (bump) = 194 bytes`
 
 ---
 

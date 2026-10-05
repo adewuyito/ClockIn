@@ -87,6 +87,8 @@ EscrowContract {
 
 - **SOL Vault PDA** — PDA seeds: `[b"vault", contract_id.as_bytes()]`. A system-owned account holding locked native SOL lamports. Used when `is_token == false`.
 
+- **`DisputeCase`** — PDA seeds: `[b"dispute_case", contract_id.as_bytes()]`. Created only when a dispute escalates to juror arbitration. Stores `jurors: [Pubkey; 3]`, `votes: [u8; 3]`, the tallied `quorum_outcome`, a `DisputeCaseStatus` (`Voting` / `QuorumReached` / `Executed`), and `created_at` / `resolved_at` timestamps.
+
 - **Token Vault ATA** — An Associated Token Account (ATA) whose owner/authority is the Vault PDA. Holds locked $SKR tokens. The program signs token transfers via PDA seeds `[b"vault", contract_id.as_bytes(), &[vault_bump]]`. Used when `is_token == true`. Created and closed alongside the contract lifecycle.
 
 ### Contract status state machine
@@ -141,11 +143,16 @@ stateDiagram-v2
 2. Once the worker has accepted (`InProgress`), the employer cannot unilaterally cancel — this protects the worker from starting work and having the rug pulled.
 3. On cancellation, SOL in the Vault PDA is returned to the employer.
 
-### 5. Dispute (MVP-minimal)
+### 5. Dispute resolution
 
-1. Either party can raise a dispute on an `InProgress` contract, moving it to `Disputed`.
-2. **MVP: disputes are recorded on-chain but not automatically resolved.** Resolution requires manual intervention (future: DAO arbitration, mediator selection). For the hackathon, the dispute mechanism exists as a state and an on-chain record, with resolution deferred to a post-MVP arbitration system.
-3. The fact that disputes are on-chain and timestamped is itself valuable — it creates an immutable record of disagreement that any future arbitration system can reference.
+1. Either party can raise a dispute on an `InProgress` contract, moving it to `Disputed`. Vault funds stay locked.
+2. **Direct resolution.** Either party may call `resolve_dispute` (SOL) or `resolve_token_dispute` ($SKR) with one of three outcomes: `ReleaseToWorker`, `RefundToEmployer`, or a 50/50 `Split`. This is the fast path for a dispute the parties settle between themselves.
+3. **Juror arbitration.** For disputes the parties will not settle, `initialize_dispute_case` opens a `DisputeCase` PDA (seeds `[b"dispute_case", contract_id]`) naming exactly three distinct jurors. The program rejects a juror set containing the employer or the worker, so neither party can sit on their own case.
+4. Each juror calls `cast_juror_vote` once (`Release` / `Refund` / `Split`). Votes are recorded per juror index, and double-voting is rejected. The program tallies after every vote and flips the case to `QuorumReached` as soon as any outcome holds a 2-of-3 majority, recording `quorum_outcome` and `resolved_at`.
+5. `execute_dispute_ruling` (SOL) / `execute_token_dispute_ruling` ($SKR) then moves the vault funds according to the recorded quorum outcome and settles the contract. Execution is guarded so a case can only be executed once, and only after quorum.
+6. Disputes being on-chain and timestamped remains valuable in itself — an immutable record of disagreement, independent of how it was resolved.
+
+**Still out of scope:** how jurors are *chosen*. The caller supplies the three pubkeys; there is no election, staking bond, random sampling, or slashing for bad verdicts. That governance layer is the real remaining work before this is trustworthy with strangers' money.
 
 ### 6. Reputation lookup (unchanged)
 
@@ -178,6 +185,19 @@ These instructions mirror the SOL escrow lifecycle but use SPL Token CPI (`ancho
 | `create_and_fund_token` | employer | Creates `EscrowContract` PDA with `is_token = true` and `token_mint = $SKR mint`. Initializes a Vault Token ATA owned by the Vault PDA. Transfers `amount` of $SKR from employer's ATA → vault ATA via SPL Token CPI. Status → `Funded`. |
 | `release_and_review_token` | employer | Vault PDA signs via seeds to transfer $SKR from vault ATA → worker ATA. Closes vault ATA (rent → employer). Creates `Review` PDA, updates `WorkerProfile`. Status → `Completed`. **Atomic.** |
 | `cancel_token_contract` | employer | Returns $SKR from vault ATA → employer ATA. Closes vault ATA. Status → `Cancelled`. Only if worker hasn't accepted. |
+
+### Dispute Resolution Instructions
+
+Two tiers: either party can settle a dispute directly, or a three-juror quorum can rule on it. Both tiers have a SOL and a $SKR variant. See the "Dispute resolution" data flow above.
+
+| Instruction | Signer | What it does |
+|---|---|---|
+| `resolve_dispute` | employer OR worker | Settles a `Disputed` SOL contract directly with outcome `ReleaseToWorker`, `RefundToEmployer`, or 50/50 `Split`. |
+| `resolve_token_dispute` | employer OR worker | Same, for a $SKR contract, moving tokens via SPL Token CPI. |
+| `initialize_dispute_case` | either party | Opens a `DisputeCase` PDA (`[b"dispute_case", contract_id]`) naming three distinct jurors. Rejects any juror set containing the employer or worker. |
+| `cast_juror_vote` | assigned juror | Records one juror's vote (`Release` / `Refund` / `Split`). Rejects non-jurors and double votes. Flips the case to `QuorumReached` on a 2-of-3 majority. |
+| `execute_dispute_ruling` | any | Executes the recorded quorum outcome against a SOL vault and settles the contract. Only after quorum, only once. |
+| `execute_token_dispute_ruling` | any | Same, for a $SKR vault ATA. |
 
 > **Design decision: `create_contract` and `fund_contract` are separate instructions.** This lets an employer create a contract, share it with the worker for review, and only lock funds after the worker has seen the terms. Alternatively, `create_and_fund` could be a single instruction for the common case — decide during implementation which UX flow is better and whether to support both.
 
@@ -273,6 +293,12 @@ Clients discover and display full review feedback using a two-stage read pattern
 - **Key custody is Mobile Wallet Adapter's job, not this app's.** Unlike StellarRep (which stored a Keychain-held key directly), this app never generates, imports, or stores a private key at all — every signature is an MWA round-trip to a separate wallet app the user already trusts. This is a meaningfully stronger security posture.
 - **Terms are hashed, not stored.** The `terms_hash` field stores a SHA-256 of whatever off-chain terms document the parties agree to (could be a screenshot of a DM, a PDF, a text file). The actual terms never touch the blockchain — only the hash does, which is sufficient to prove that a specific document was agreed to at a specific time. This avoids putting sensitive contract details on a public ledger.
 - **Network posture is devnet-only for the entire MVP build.** No mainnet program ID, no mainnet keys, anywhere in this repo, until a deliberate, separate later decision.
+- **The Firestore key directory is untrusted transport, not an authority.** Deliverable key exchange needs each party to fetch the other's X25519 public key, and ClockIn has no backend and no Firebase Auth — identity is a Solana wallet address, which Firestore rules cannot verify (`request.auth` is always null). So the directory is not trusted: every published key carries an **Ed25519 signature from the wallet that claims it**, over a canonical domain-separated message (`KeyAttestationService`, `ClockIn Key Registration v1`, binding wallet address → encryption key). Readers verify that signature before wrapping anything and discard any key that fails, falling back to out-of-band exchange.
+
+  This matters because the alternative was a live man-in-the-middle: with world-writable rules and unsigned keys, anyone could overwrite `/users/{employer}` with their own X25519 key and the worker's app would wrap the deliverable key for the attacker. Signature binding makes that forgery impossible without the victim's wallet key, independent of how permissive the rules are. The wallet signing prompt is a one-time cost per device keypair — the signature is cached in Drift (`UserEncryptionKeys.attestationSignature`).
+
+  `firestore.rules` is still tightened as defence in depth (document shapes, size caps, append-only notifications, no deletes, push tokens write-only in a separate `deviceTokens` collection) but deliberately carries **no expiry date** — the previous default test rule would have silently denied all traffic on expiry, breaking key exchange with no user-visible error. Restricting *writes* to the wallet owner needs server-side signature verification minting a Firebase custom token; that is a tracked pre-mainnet task, not a hackathon-scope item.
+- **The X25519 private key never leaves the device.** It lives in the Drift database and is excluded from Android backup and device-to-device transfer (`allowBackup=false`, `fullBackupContent=false`, plus `data_extraction_rules.xml` for API 31+), so cloud backup cannot export a key that decrypts deliverable envelopes. Encrypting the database itself (SQLCipher) is a further step not yet taken.
 
 ## Build & test toolchain
 
@@ -280,24 +306,34 @@ The versions below are what's actually installed and in use as of this writing �
 
 | Tool | Version | Role |
 |---|---|---|
-| Solana CLI (Agave) | 4.2.2 | `solana` keypair/airdrop/RPC config; `solana program deploy` for devnet |
-| `cargo-build-sbf` + platform-tools | 4.1.0 / v1.54 | compiles the Rust program to the deployable `reputation.so` (SBF bytecode) |
+| Solana CLI (Agave) | 3.1.10 | `solana` keypair/airdrop/RPC config; `solana program deploy` for devnet |
+| `cargo-build-sbf` + platform-tools | 3.1.10 / v1.52 (internal rustc 1.89.0) | compiles the Rust program to the deployable `reputation.so` (SBF bytecode) |
 | `anchor-lang` (crate) | 1.2.0 | the program's core dependency; pinned in `program/programs/reputation/Cargo.toml` |
 | `anchor-spl` (crate) | 1.2.0 | SPL Token CPI helpers for $SKR token escrow instructions (`token`, `associated_token` features) |
 | Anchor CLI | 1.2.0 (via `avm`) | intended for `anchor build` / `anchor test` / `anchor deploy` — **but see the Anchor.toml caveat below** |
-| Node / npm | 26 / bundled | for `anchor test`'s TypeScript client |
+| Host Rust toolchain | 1.97.1 | builds `anchor idl build` and host-side tooling (distinct from platform-tools' internal rustc) |
+| Node / npm | 26.0.0 / 11.12.1 | for `anchor test`'s TypeScript client |
+| Flutter / Dart | 3.44.8 / 3.12.2 | the app; `flutter analyze`, `flutter test`, `flutter build apk` |
+
+Measured on 2026-10-05 with `solana --version`, `cargo-build-sbf --version`, `anchor --version`, `rustc --version`, `node --version`, `flutter --version`. The previous revision of this table claimed Solana CLI 4.2.2 / platform-tools v1.54, which did not match any installed toolchain — re-measure rather than trusting these numbers.
 
 **The program was scaffolded by hand, not `anchor init`.** `Anchor.toml` was added by hand so `anchor build`/`anchor test`/`anchor deploy` have a workspace to operate on.
 
-**Testing approach: `anchor test` (TypeScript), not a Rust-native harness.** `litesvm` and `solana-program-test` both hit unresolvable dependency conflicts against the Solana 4.x split crates. The full suite (10 cases covering registration and review submission, including every failure path) passes reproducibly.
+**Testing approach: `anchor test` (TypeScript), not a Rust-native harness.** `litesvm` and `solana-program-test` both hit unresolvable dependency conflicts against the Solana 4.x split crates. The suite is 31 cases across `tests/reputation.ts`, `tests/escrow.ts`, and `tests/token_escrow.ts`, covering registration, review submission, both escrow lifecycles, dispute resolution, and every failure path.
 
-**Known-bad default build: `anchor build`/`anchor test`'s own build step must not be used as-is.** Always build the program explicitly before testing:
+**Known-bad default build: `anchor build`/`anchor test`'s own build step must not be used as-is.** Always build the program *and regenerate the IDL* explicitly before testing:
 ```bash
 cd program/programs/reputation
 cargo build-sbf --arch v1 --sbf-out-dir ../../target/deploy
 cd ../..
+# Required: cargo build-sbf does NOT emit the IDL, and the TS client is generated from it.
+anchor idl build -o target/idl/reputation.json -t target/types/reputation.ts
 anchor test --skip-build --validator legacy
 ```
+
+**Do not skip the `anchor idl build` step.** `cargo build-sbf` compiles the program but emits no IDL, and `target/` is gitignored, so every fresh checkout — and every session after a new instruction is added — starts with a stale or missing `target/idl/reputation.json`. `anchor.workspace.Reputation` in the TypeScript tests is generated *from that IDL*, so any instruction missing from it fails at runtime with `TypeError: program.methods.<name> is not a function` even though the deployed program implements it perfectly. This actually happened: the six dispute/juror instructions were absent from a stale IDL and the three `resolve_dispute` tests failed for that reason alone.
+
+**`anchor test` exits 0 even when tests fail.** The first run after a stale IDL reported `28 passing / 3 failing` and still returned exit status 0. Never treat the exit code as the result — parse the mocha summary, or any CI gate on this suite will report green on a red run.
 
 **AVM proxy quirk.** `anchor` on `PATH` is an `avm` proxy that hangs when run outside an Anchor project. Run it from inside `program/`, or call `~/.avm/bin/anchor-1.2.0` directly.
 
@@ -307,7 +343,7 @@ anchor test --skip-build --validator legacy
 
 Intentionally excluded from the first working version. Each is a real candidate for a post-hackathon issue:
 
-- **Automated dispute resolution / arbitration DAO** — disputes can be raised and recorded on-chain, but resolution is manual. Building a full arbitration system (mediator selection, evidence submission, voting) is a separate product.
+- ~~**Automated dispute resolution / arbitration DAO**~~ — **no longer a non-goal; implemented.** The program now ships a 3-juror quorum arbitration system alongside direct party resolution. See "Dispute resolution" below. What remains out of scope is *juror selection governance*: jurors are supplied as an explicit `[Pubkey; 3]` by the caller of `initialize_dispute_case`, not elected, staked, or randomly sampled.
 - **Multi-milestone contracts** — MVP supports single-payment escrow. Phased milestones (release 30% at checkpoint 1, 70% at completion) are a natural extension but significantly more complex state management.
 - **Additional SPL tokens beyond $SKR** — the token escrow architecture is generic (accepts any mint), but the MVP UI only surfaces SOL and $SKR. USDC/USDT support is a post-hackathon addition.
 - **On-chain terms storage** — only the hash is stored directly on Solana; full terms documents and qualitative review commentary are offloaded to the Arweave permaweb via Irys (see the Permanent Review & Deliverables Storage section above).

@@ -72,8 +72,8 @@ sequenceDiagram
 | **Upgrade Tx (Token Escrow)** | [`PfvNF1J2LGhs4t3snPnucmZ5EPtVhdcUS22qnUuV4GBVHM635Mq3XayNWMu4sBp9bv49n2HFcyHkxv1sFPecFTY`](https://explorer.solana.com/tx/PfvNF1J2LGhs4t3snPnucmZ5EPtVhdcUS22qnUuV4GBVHM635Mq3XayNWMu4sBp9bv49n2HFcyHkxv1sFPecFTY?cluster=devnet) |
 | **Devnet $SKR Mint** | [`Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9`](https://explorer.solana.com/address/Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9?cluster=devnet) |
 | **Permaweb Gateway** | Irys Provenance Gateway (`https://gateway.irys.xyz/<arweave_tx_id>`) |
-| **Smart Contract Tests** | **28 automated Anchor integration test cases passing** (SOL + $SKR token escrows) |
-| **Flutter Test Suite** | **44 automated unit, widget, Drift SQLite v10, and Irys tests passing** |
+| **Smart Contract Tests** | **31 automated Anchor integration test cases passing** (SOL + $SKR token escrows, dispute resolution) |
+| **Flutter Test Suite** | **75 automated unit, widget, Drift SQLite v13, key-attestation, and Irys tests passing** |
 | **Sample Escrow Contract** | [`ctr-mu4o1bhi`](https://explorer.solana.com/tx/2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT?cluster=devnet) (Status: `Completed`, 5★ review) |
 
 See [`program/DEPLOYED.md`](program/DEPLOYED.md) for the full on-chain deployment record and live transaction logs.
@@ -98,15 +98,15 @@ See [`program/DEPLOYED.md`](program/DEPLOYED.md) for the full on-chain deploymen
 ```
 ClockIn/
 ├── program/                      # Solana Anchor smart contract
-│   ├── programs/reputation/      # Rust program source (7 instructions, 5 accounts)
-│   ├── tests/                    # Mocha/Chai test suite (28 integration test cases)
+│   ├── programs/reputation/      # Rust program source (18 instructions, 5 accounts)
+│   ├── tests/                    # Mocha/Chai test suite (31 integration test cases)
 │   ├── scripts/                  # On-chain devnet lifecycle & seeding scripts
 │   └── Anchor.toml               # Anchor workspace configuration
 ├── app/                          # Flutter Android mobile application
 │   ├── lib/
 │   │   ├── core/                 # Database (Drift v10), Irys storage, Theme, Solana RPC
 │   │   └── features/             # Contracts, Reviews, Profile, Look Up, Settings, Wallet
-│   ├── test/                     # Unit, Drift in-memory repository, & Widget tests (44 tests)
+│   ├── test/                     # Unit, Drift in-memory repository, & Widget tests (75 tests)
 │   └── android/                  # Native Android configuration & mipmap icons
 └── docs/                         # Specifications & Architectural Documentation
     ├── ARCHITECTURE.md           # System architecture, trust model, & data flow
@@ -133,7 +133,10 @@ cd program
 # Build SBF executable
 cargo build-sbf --arch v1 --sbf-out-dir target/deploy
 
-# Run TypeScript integration test suite against local validator
+# Regenerate the IDL (cargo build-sbf does not emit one) then run the
+# TypeScript integration test suite against a local validator.
+# Note: `anchor test` exits 0 even when cases fail — read the mocha summary.
+anchor idl build -o target/idl/reputation.json -t target/types/reputation.ts
 anchor test --skip-build --validator legacy
 ```
 
@@ -142,7 +145,7 @@ anchor test --skip-build --validator legacy
 cd app
 fvm flutter pub get
 
-# Run test suite (44 tests including Drift SQLite in-memory and Irys tests)
+# Run test suite (75 tests including Drift SQLite in-memory, key attestation, and Irys tests)
 fvm flutter test
 
 # Run app on connected Android device

@@ -4,10 +4,19 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- Backup is disabled deliberately. The Drift database holds this device's
+         X25519 private key (UserEncryptionKeys), which decrypts deliverable
+         envelopes addressed to this wallet. Android's default auto-backup would
+         copy that key off-device into the user's cloud backup and restore it
+         onto other devices; allowBackup=false and fullBackupContent=false keep
+         it confined to this app sandbox. -->
     <application
         android:label="ClockIn"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="clockin_deliverables" />

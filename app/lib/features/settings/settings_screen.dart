@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:solana/solana.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/device_service.dart';
+import '../../core/services/encryption_key_registry.dart';
 import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -83,6 +84,8 @@ class SettingsScreen extends ConsumerWidget {
             if (wallet.isConnected) ...[
               _buildConnectedWalletSection(context, ref, wallet, balanceAsync),
               const SizedBox(height: 20),
+              _buildEncryptedDeliverablesSection(context, ref, wallet.address!),
+              const SizedBox(height: 20),
             ],
             _buildSeekerDeviceSection(context, ref),
             const SizedBox(height: 20),
@@ -92,6 +95,112 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Lets the user complete the one-time wallet attestation that binds their
+  /// X25519 encryption key to their Solana address.
+  ///
+  /// Counterparties refuse to encrypt deliverables for an unattested key (an
+  /// unsigned directory entry is indistinguishable from an attacker's), so until
+  /// this is done, deliverable keys must be exchanged out of band via QR.
+  /// Driven from here rather than automatically on connect because it opens an
+  /// MWA handoff and wallets do not reliably return focus afterwards.
+  Widget _buildEncryptedDeliverablesSection(
+    BuildContext context,
+    WidgetRef ref,
+    String walletAddress,
+  ) {
+    final registry = ref.watch(encryptionKeyRegistryProvider);
+
+    return FutureBuilder<bool>(
+      future: registry.isAttested(walletAddress),
+      builder: (context, snapshot) {
+        final isAttested = snapshot.data ?? false;
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isAttested ? Icons.lock_rounded : Icons.lock_open_rounded,
+                    size: 18,
+                    color: isAttested ? AppColors.success : AppColors.warning,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'ENCRYPTED DELIVERABLES',
+                      style: AppTypography.labelSm.copyWith(color: AppColors.outline),
+                    ),
+                  ),
+                  Text(
+                    isLoading ? '—' : (isAttested ? 'ENABLED' : 'NOT SET UP'),
+                    style: AppTypography.labelSm.copyWith(
+                      color: isAttested ? AppColors.success : AppColors.warning,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isAttested
+                    ? 'Your encryption key is published and signed by this wallet. '
+                        'Counterparties can send you end-to-end encrypted deliverables.'
+                    : 'Sign a one-time message to prove this wallet owns your device '
+                        'encryption key. Without it, counterparties cannot verify the key '
+                        'is yours and must exchange deliverable keys by QR code instead.',
+                style: AppTypography.bodyMd.copyWith(
+                  color: AppColors.onSurfaceVariant,
+                  height: 1.4,
+                ),
+              ),
+              if (!isAttested && !isLoading) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final result = await registry.attestAndPublish(walletAddress);
+                      if (!context.mounted) return;
+
+                      final message = switch (result) {
+                        KeyRegistrationResult.published =>
+                          'Encryption key published. Encrypted deliverables enabled.',
+                        KeyRegistrationResult.declined =>
+                          'Signing was declined — encrypted deliverables stay off.',
+                        KeyRegistrationResult.notConnected =>
+                          'Connect your wallet first.',
+                        KeyRegistrationResult.needsAttestation =>
+                          'Attestation still required.',
+                      };
+                      messenger.showSnackBar(
+                        SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+                      );
+                      if (result == KeyRegistrationResult.published) {
+                        ref.invalidate(encryptionKeyRegistryProvider);
+                      }
+                    },
+                    icon: const Icon(Icons.verified_user_rounded, size: 18),
+                    label: const Text('Sign & publish encryption key'),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 

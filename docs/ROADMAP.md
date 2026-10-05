@@ -62,7 +62,7 @@ Everything from the original Phases 0–6 that still applies after the pivot. No
 
 ### Devnet redeploy & live verification
 
-- [x] Build with `cargo build-sbf --arch v1`, redeploy to devnet at `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` (slot 499476909, size 293,736 bytes)
+- [x] Build with `cargo build-sbf --arch v1`, redeploy to devnet at `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` (slot 506598660, size 539,632 bytes as of 2026-10-05)
 - [x] Verified full on-chain lifecycle cycle on Devnet via automated script (`program/scripts/verify_devnet_lifecycle.ts`):
   - Created & funded contract `ctr-mu4o1bhi` ([tx](https://explorer.solana.com/tx/2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT?cluster=devnet))
   - Worker accepted contract ([tx](https://explorer.solana.com/tx/3r7Uy2WgmAqPWE6PebJr8pQGWyrnMpNR7FCSnzqYbeq51CvERCB5WjJEA7WFvGxk6qj4TDiaVZem5yc4h58X4HJo?cluster=devnet))
@@ -124,9 +124,9 @@ Everything from the original Phases 0–6 that still applies after the pivot. No
 - [x] Seed devnet with realistic multi-party contracts across all lifecycle states (`program/scripts/seed_devnet_contracts.ts`)
 - [x] Verified full on-chain escrow lifecycle on Solana Devnet with transaction explorer signatures
 - [x] 60–90 second judging demo walkthrough script prepared in `docs/JUDGING_PLAN.md`
-- [x] Full test suite passing: 22 Anchor integration tests + 17 Flutter repository and widget tests
+- [x] Full test suite passing: 31 Anchor integration tests + 75 Flutter unit/repository/widget tests (verified 2026-10-05)
 - [x] Production debug APK verified and built (`build/app/outputs/flutter-apk/app-debug.apk`)
-- [x] Production release APK built and verified (`build/app/outputs/flutter-apk/app-release.apk`, 78.0MB)
+- [x] Production release APK built and verified (`build/app/outputs/flutter-apk/app-release.apk`, 83.1MB)
 
 ### Phase 3 Stretch Goals ✅ All Complete
 
@@ -171,6 +171,19 @@ Tasks prioritized for post-hackathon mainnet readiness:
 - [ ] Squads v4 multisig setup for program upgrade authority (`GBZqh...` dev keypair transfer).
 - [ ] Formal Anchor security audit (reentrancy, PDA seed validation, arithmetic overflow).
 - [ ] Mainnet deployment to Solana cluster and Seeker dApp Store publishing.
+
+### 3. Release Signing & Distribution
+- [ ] Generate a production upload keystore and populate `app/android/key.properties` (see `app/android/key.properties.example`). Until this exists, `flutter build apk --release` falls back to the **debug keystore** and the resulting APK cannot be published to the dApp Store or Play, nor updated in place later.
+- [ ] Back up the keystore and its passwords durably — losing them means losing the ability to ship updates to a published app.
+
+### 4. Firestore Write Authorization
+- [ ] Stand up server-side wallet-signature verification that mints a Firebase custom token, then restrict `/users/{addr}` and `/deviceTokens/{addr}` writes to `request.auth.uid == addr`.
+  - Today writes are open by necessity: there is no backend and no Firebase Auth, so rules cannot tell who a writer is. Confidentiality does **not** depend on this — published X25519 keys are Ed25519-signed by their owning wallet and verified by every reader (`KeyAttestationService`), so a substituted key is rejected. What open writes still permit is nuisance: overwriting someone's directory entry to *deny* them key exchange (they fall back to out-of-band), or spamming notification inboxes.
+- [ ] Add Firestore rules unit tests (`@firebase/rules-unit-testing`) covering the shape/size/append-only constraints in `firestore.rules`.
+
+### 5. Devnet $SKR Faucet Key Rotation
+- [ ] **Rotate the devnet $SKR mint authority** (`GpCkbpkeXxX5sdFJF9joMmgqMs1P5uyVFHZxvvuDcoz`). Its 32-byte seed was committed in `app/lib/core/solana/network_config.dart` and shipped inside release APKs. The constant has been removed — the seed is now injected at build time via `--dart-define=CLOCKIN_SKR_FAUCET_SEED` and faucet builds report themselves unavailable without it — but **the key remains in git history**, so anyone with the repo can still mint unlimited devnet $SKR and forge the 250-$SKR Seeker attestation stake. Removing the constant stops the leak spreading; only rotation (new mint authority, or a new mint) invalidates the exposed key.
+- [ ] Decide whether the faucet belongs in the client at all, or should move to a server-side/script-only flow so no build ever carries a mint authority.
 
 ---
 

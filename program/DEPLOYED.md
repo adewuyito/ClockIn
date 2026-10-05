@@ -6,12 +6,12 @@
 | **Cluster** | Solana Devnet (`https://api.devnet.solana.com`) |
 | **ProgramData account** | `GmfYDR7SLX8ZRhErkKnD5gt8pTzzbuaH21WUi1ueCnRH` |
 | **Upgrade authority** | `GBZqhLZXAjBtfeVkVWMYWFN8DGmxskwKna3UEXGvfh8P` |
-| **Last deployed in slot** | `499476909` |
+| **Last deployed in slot** | `506598660` |
 | **Upgrade transaction** | [`4KYwnZ1B7M2PYVrPZuj67a4P436hP9RnsHwk8EatJGaT2yLJXUJUDeG19c1R5fZQYLxJ9uaARDLUvgWMbx9gDdkp`](https://explorer.solana.com/tx/4KYwnZ1B7M2PYVrPZuj67a4P436hP9RnsHwk8EatJGaT2yLJXUJUDeG19c1R5fZQYLxJ9uaARDLUvgWMbx9gDdkp?cluster=devnet) |
-| **On-chain size** | 293,736 bytes |
-| **Rent balance** | 1.49305772 SOL |
+| **On-chain size** | 539,632 bytes |
+| **Rent balance** | 2.7422094 SOL |
 
-All figures above re-confirmed live against devnet RPC on 2026-09-16 (`solana program show FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9 --url devnet`).
+All figures above re-confirmed live against devnet RPC on 2026-10-05 (`solana program show FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9 --url devnet`). The deployed bytecode was additionally checked to contain all 18 instruction names, matching the current source.
 
 Built via `cargo build-sbf --arch v1 --sbf-out-dir target/deploy` followed by `solana program deploy` (see `docs/ARCHITECTURE.md` for build toolchain specifications).
 

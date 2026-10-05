@@ -1,0 +1,20 @@
+# Release signing credentials for the ClockIn Android app.
+#
+# Copy to `android/key.properties` and fill in real values. That file and any
+# keystore are gitignored — never commit either.
+#
+# Generate an upload keystore (valid ~27 years, as Play/dApp Store expect):
+#
+#   keytool -genkey -v -keystore ~/clockin-upload.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias clockin
+#
+# Keep the keystore and its passwords backed up somewhere durable: losing them
+# means losing the ability to ship an update to an already-published app.
+#
+# storeFile is resolved relative to the `android/` directory, so an absolute
+# path (or one outside the repo) is preferred.
+
+storeFile=/absolute/path/to/clockin-upload.jks
+storePassword=CHANGE_ME
+keyAlias=clockin
+keyPassword=CHANGE_ME

@@ -1,18 +1,151 @@
-rules_version='2'
+rules_version = '2';
+
+// ClockIn Firestore rules.
+//
+// ClockIn has no backend and no Firebase Auth: identity is a Solana wallet
+// address, and the only thing that proves control of one is a signature from
+// that wallet. Firestore rules therefore CANNOT authenticate writers, and these
+// rules do not pretend to — `request.auth` is always null here.
+//
+// Security does not rest on these rules. It rests on cryptography:
+//
+//   * Deliverables are encrypted client-side (AES-256-GCM) before upload. The
+//     ciphertext stored here is useless without the symmetric key.
+//   * That symmetric key is wrapped (X25519 + AES-GCM) for the recipient only.
+//   * The recipient's X25519 key carries an Ed25519 signature from their wallet
+//     over a canonical message binding wallet -> encryption key. Clients verify
+//     that signature before wrapping anything (see KeyAttestationService).
+//     A forged or substituted key cannot produce a valid signature, so clients
+//     reject it and fall back to out-of-band key exchange.
+//
+// What these rules add on top is damage limitation: enforce document shapes,
+// cap sizes, deny deletion of other people's records, and keep push tokens
+// unreadable. They deliberately have NO expiry date — the previous
+// `request.time < timestamp.date(...)` test rule would have silently denied all
+// traffic on expiry, breaking key exchange with no user-visible error.
+//
+// Hardening this further (so writes are restricted to the wallet owner) requires
+// verifying a wallet signature server-side and minting a Firebase custom token.
+// That is tracked as a pre-mainnet task in docs/ROADMAP.md.
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ---- helpers ----------------------------------------------------------
+
+    function isBase58Address(value) {
+      return value is string
+          && value.size() >= 32
+          && value.size() <= 44
+          && value.matches('^[1-9A-HJ-NP-Za-km-z]+$');
+    }
+
+    // Only these fields may ever appear, and nothing may be removed wholesale.
+    function hasOnly(data, allowed) {
+      return data.keys().hasOnly(allowed);
+    }
+
+    // ---- published encryption keys ---------------------------------------
+    // World-readable by design: any counterparty must be able to fetch the key
+    // they will wrap a deliverable key for. Safe to expose because every reader
+    // verifies the accompanying wallet signature before use.
+    match /users/{walletAddress} {
+      allow read: if true;
+
+      allow create, update: if isBase58Address(walletAddress)
+        && hasOnly(request.resource.data, [
+             'walletAddress', 'x25519PublicKey', 'x25519KeySignature', 'keyUpdatedAt'
+           ])
+        && request.resource.data.walletAddress == walletAddress
+        && request.resource.data.x25519PublicKey is string
+        && request.resource.data.x25519PublicKey.size() <= 64
+        && request.resource.data.x25519KeySignature is string
+        && request.resource.data.x25519KeySignature.size() <= 128;
+
+      // Key records are permanent; rotation is an update, never a delete.
+      allow delete: if false;
+
+      // ---- per-user notification inbox -----------------------------------
+      // Contents are non-sensitive UI copy (title/body/contractId). Kept append
+      // -only so a notification cannot be rewritten after delivery; marking one
+      // read may only flip isRead.
+      match /notifications/{notificationId} {
+        allow read: if true;
+
+        allow create: if hasOnly(request.resource.data, [
+               'type', 'contractId', 'title', 'body', 'createdAt', 'isRead'
+             ])
+          && request.resource.data.type is string
+          && request.resource.data.type.size() <= 64
+          && request.resource.data.contractId is string
+          && request.resource.data.contractId.size() <= 32
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 200
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 1000
+          && request.resource.data.isRead == false;
+
+        allow update: if request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['isRead']);
+
+        allow delete: if false;
+      }
+    }
+
+    // ---- FCM device tokens -----------------------------------------------
+    // Write-only from the client's perspective. A readable push token lets
+    // anyone send notifications to that device, so reads are denied outright;
+    // only privileged server contexts (Admin SDK, which bypasses these rules)
+    // consume them.
+    match /deviceTokens/{walletAddress} {
+      allow read: if false;
+
+      allow create, update: if isBase58Address(walletAddress)
+        && hasOnly(request.resource.data, ['walletAddress', 'fcmToken', 'updatedAt'])
+        && request.resource.data.walletAddress == walletAddress
+        && request.resource.data.fcmToken is string
+        && request.resource.data.fcmToken.size() <= 512;
+
+      allow delete: if false;
+    }
+
+    // ---- encrypted deliverable envelopes ---------------------------------
+    // Every payload here is AES-256-GCM ciphertext whose key is wrapped for the
+    // employer alone, so exposure of this collection leaks no deliverable
+    // content. Documents are immutable except for the status field the employer
+    // flips on review, and can never be deleted — a worker's proof of delivery
+    // must not be erasable by a counterparty.
+    match /contracts/{contractId}/deliverables/{submissionId} {
+      allow read: if true;
+
+      allow create: if contractId.size() <= 32
+        && hasOnly(request.resource.data, [
+             'contractId', 'submitterAddress', 'encryptedPayload', 'iv', 'authTag',
+             'plaintextHash', 'completionNote', 'arweaveTxId', 'wrappedKey',
+             'status', 'submittedAt', 'syncedAt'
+           ])
+        && request.resource.data.contractId == contractId
+        && isBase58Address(request.resource.data.submitterAddress)
+        && request.resource.data.encryptedPayload is string
+        && request.resource.data.encryptedPayload.size() <= 200000
+        && request.resource.data.iv is string
+        && request.resource.data.iv.size() <= 64
+        && request.resource.data.plaintextHash is string
+        && request.resource.data.plaintextHash.size() <= 128
+        && request.resource.data.status is string;
+
+      // Review outcome only — ciphertext and hashes stay as submitted.
+      allow update: if request.resource.data.diff(resource.data)
+                           .affectedKeys().hasOnly(['status', 'statusUpdatedAt'])
+        && request.resource.data.status is string
+        && request.resource.data.status.size() <= 32;
+
+      allow delete: if false;
+    }
+
+    // Anything not matched above is denied.
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 11, 3);
+      allow read, write: if false;
     }
   }
 }
