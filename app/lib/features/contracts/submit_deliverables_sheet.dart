@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
+import '../../core/models/deliverable_submission.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
@@ -45,6 +46,11 @@ class _SubmitDeliverablesSheetState
   String? _generatedKey;
   String? _plaintextHash;
   String? _arweaveTxId;
+  String? _encryptedPayload;
+  String? _iv;
+  String? _authTag;
+  String? _completionNote;
+  String? _wrappedKey;
 
   @override
   void dispose() {
@@ -65,6 +71,7 @@ class _SubmitDeliverablesSheetState
       final encryptionService = ref.read(deliverableEncryptionServiceProvider);
       final deliverableRepo = ref.read(deliverableRepositoryProvider);
       final wallet = ref.read(walletStateProvider);
+      final syncService = ref.read(firebaseSyncServiceProvider);
 
       if (!wallet.isConnected || wallet.address == null) {
         throw Exception('Please connect your Solana wallet first.');
@@ -72,6 +79,23 @@ class _SubmitDeliverablesSheetState
 
       // Generate per-contract AES-256-GCM key
       final key = encryptionService.generateKey();
+
+      // Wrap symmetric key for employer if employer published X25519 public key
+      String? wrappedKey;
+      try {
+        final employerPubKey = await syncService.getUserPublicKey(widget.contract.employer);
+        if (employerPubKey != null && employerPubKey.isNotEmpty) {
+          wrappedKey = await encryptionService.wrapKey(
+            base64Key: key,
+            recipientPublicKeyBase64: employerPubKey,
+          );
+          debugPrint('[X25519] Wrapped symmetric key for employer ${widget.contract.employer}');
+        } else {
+          debugPrint('[X25519] Employer has not published public key yet, falling back to out-of-band');
+        }
+      } catch (e) {
+        debugPrint('[X25519] Error wrapping key for employer: $e');
+      }
 
       // Build payload JSON
       final primaryUrl = _urlController.text.trim();
@@ -87,7 +111,29 @@ class _SubmitDeliverablesSheetState
         plaintext: payloadJson,
         encryptionKey: key,
         completionNote: notes.isNotEmpty ? notes : null,
+        wrappedKey: wrappedKey,
       );
+
+      try {
+        await syncService.publishDeliverableSubmission(
+          DeliverableSubmission(
+            contractId: widget.contract.contractId,
+            submitterAddress: wallet.address!,
+            encryptedPayload: submission.encryptedPayload,
+            iv: submission.iv,
+            authTag: submission.authTag,
+            plaintextHash: submission.plaintextHash,
+            completionNote: submission.completionNote,
+            arweaveTxId: submission.arweaveTxId,
+            wrappedKey: wrappedKey,
+            status: DeliverableStatus.submitted,
+            submittedAt: DateTime.now(),
+          ),
+          employerAddress: widget.contract.employer,
+        );
+      } catch (e) {
+        debugPrint('[DeliverableSubmission] Sync to Firestore error: $e');
+      }
 
       if (mounted) {
         setState(() {
@@ -96,6 +142,11 @@ class _SubmitDeliverablesSheetState
           _generatedKey = key;
           _plaintextHash = submission.plaintextHash;
           _arweaveTxId = submission.arweaveTxId;
+          _encryptedPayload = submission.encryptedPayload;
+          _iv = submission.iv;
+          _authTag = submission.authTag;
+          _completionNote = submission.completionNote;
+          _wrappedKey = wrappedKey;
         });
       }
     } catch (e) {
@@ -380,8 +431,25 @@ class _SubmitDeliverablesSheetState
   }
 
   Widget _buildSuccessView() {
-    final keyUrl =
-        'clockin://deliverable/${widget.contract.contractId}#key=$_generatedKey';
+    final uri = Uri(
+      scheme: 'clockin',
+      host: 'deliverable',
+      path: '/${widget.contract.contractId}',
+      queryParameters: {
+        if (_encryptedPayload != null && _encryptedPayload!.isNotEmpty)
+          'ct': _encryptedPayload!,
+        if (_iv != null && _iv!.isNotEmpty) 'iv': _iv!,
+        if (_authTag != null && _authTag!.isNotEmpty) 'tag': _authTag!,
+        if (_plaintextHash != null && _plaintextHash!.isNotEmpty)
+          'hash': _plaintextHash!,
+        if (_completionNote != null && _completionNote!.isNotEmpty)
+          'note': _completionNote!,
+        if (_arweaveTxId != null && _arweaveTxId!.isNotEmpty)
+          'tx': _arweaveTxId!,
+      },
+      fragment: 'key=$_generatedKey',
+    );
+    final keyUrl = uri.toString();
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -412,13 +480,43 @@ class _SubmitDeliverablesSheetState
         ),
         const SizedBox(height: 6),
         Text(
-          'Encrypted with AES-256-GCM. Share this key or QR code with your employer so they can decrypt your work.',
+          _wrappedKey != null
+              ? 'Encrypted with AES-256-GCM and sealed with Employer’s X25519 public key. Employer will decrypt automatically with zero interaction.'
+              : 'Encrypted with AES-256-GCM. Share this key or QR code with your employer so they can decrypt your work.',
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 12.5,
             color: AppColors.textSecondary,
           ),
         ),
+
+        if (_wrappedKey != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F8F0),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF1F9D5B).withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_person_rounded, size: 16, color: Color(0xFF1F9D5B)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Zero-Knowledge Envelope: Key safely relayed to employer via Firestore. Offline QR code is provided below as backup.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0B5E36),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
 
         const SizedBox(height: 16),
 
@@ -496,6 +594,35 @@ class _SubmitDeliverablesSheetState
                 },
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          height: 38,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: keyUrl));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Deliverable link copied to clipboard!'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            icon: const Icon(Icons.link_rounded, size: 16),
+            label: Text(
+              'Copy Deliverable Share Link',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                fontSize: 12.5,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ),
 

@@ -30,11 +30,36 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
     );
     if (result != null && mounted) {
       if (result.contractId != null) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ContractDetailScreen(contractId: result.contractId!),
-          ),
-        );
+        if (result.deliverableCiphertext != null &&
+            result.deliverableIv != null &&
+            result.deliverableHash != null) {
+          final deliverableRepo = ref.read(deliverableRepositoryProvider);
+          final contractRepo = ref.read(contractRepositoryProvider);
+          final contract = await contractRepo.getContract(result.contractId!);
+          final workerAddr = contract?.worker ?? '';
+          await deliverableRepo.saveReceivedSubmission(
+            contractId: result.contractId!,
+            submitterAddress: workerAddr,
+            encryptedPayload: result.deliverableCiphertext!,
+            iv: result.deliverableIv!,
+            plaintextHash: result.deliverableHash!,
+            authTag: result.deliverableAuthTag ?? '',
+            arweaveTxId: result.deliverableTxId,
+            completionNote: result.deliverableNote,
+          );
+        }
+
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ContractDetailScreen(
+                contractId: result.contractId!,
+                initialDecryptionKey: result.deliverableKey,
+                autoOpenReview: result.deliverableKey != null,
+              ),
+            ),
+          );
+        }
       } else if (result.solanaAddress != null) {
         Navigator.of(context).push(
           MaterialPageRoute(

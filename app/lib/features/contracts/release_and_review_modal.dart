@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/models/deliverable_submission.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/models/review_metadata.dart';
 import '../../core/providers/app_providers.dart';
@@ -12,18 +13,31 @@ import '../../core/widgets/celebration_badge.dart';
 
 class ReleaseAndReviewModal extends ConsumerStatefulWidget {
   final EscrowContract contract;
+  final String? initialDecryptionKey;
+  final String? initialDecryptedContent;
 
   const ReleaseAndReviewModal({
     super.key,
     required this.contract,
+    this.initialDecryptionKey,
+    this.initialDecryptedContent,
   });
 
-  static Future<bool?> show(BuildContext context, EscrowContract contract) {
+  static Future<bool?> show(
+    BuildContext context,
+    EscrowContract contract, {
+    String? initialDecryptionKey,
+    String? initialDecryptedContent,
+  }) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ReleaseAndReviewModal(contract: contract),
+      builder: (_) => ReleaseAndReviewModal(
+        contract: contract,
+        initialDecryptionKey: initialDecryptionKey,
+        initialDecryptedContent: initialDecryptedContent,
+      ),
     );
   }
 
@@ -40,6 +54,10 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
   String? _submittedNote;
   String? _errorMessage;
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _deliverableKeyController = TextEditingController();
+  String? _decryptedDeliverable;
+  bool _isDecryptingDeliverable = false;
+  String? _deliverableDecryptError;
 
   final List<String> _ratingLabels = [
     '1 - Poor',
@@ -50,9 +68,101 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.initialDecryptedContent != null) {
+      _decryptedDeliverable = widget.initialDecryptedContent;
+    } else if (widget.initialDecryptionKey != null) {
+      _deliverableKeyController.text = widget.initialDecryptionKey!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _attemptDeliverableDecryption();
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tryAutoUnwrapDeliverable();
+      });
+    }
+  }
+
+  Future<void> _tryAutoUnwrapDeliverable() async {
+    final sub = ref.read(latestDeliverableProvider(widget.contract.contractId)).asData?.value;
+    if (sub == null || !sub.hasWrappedKey) return;
+
+    final wallet = ref.read(walletStateProvider);
+    if (!wallet.isConnected || wallet.address == null) return;
+
+    setState(() {
+      _isDecryptingDeliverable = true;
+      _deliverableDecryptError = null;
+    });
+
+    try {
+      final repo = ref.read(deliverableRepositoryProvider);
+      final encryptionService = ref.read(deliverableEncryptionServiceProvider);
+
+      final privateKey = await repo.getPrivateKey(wallet.address!);
+      if (privateKey == null || privateKey.isEmpty) {
+        if (mounted) setState(() => _isDecryptingDeliverable = false);
+        return;
+      }
+
+      final symmetricKey = await encryptionService.unwrapKey(
+        wrappedKeyJson: sub.wrappedKey!,
+        recipientPrivateKeyBase64: privateKey,
+      );
+
+      if (mounted) {
+        setState(() {
+          _deliverableKeyController.text = symmetricKey;
+        });
+        _attemptDeliverableDecryption(sub);
+      }
+    } catch (e) {
+      debugPrint('[ReleaseAndReviewModal] Auto-unwrap error: $e');
+      if (mounted) {
+        setState(() {
+          _isDecryptingDeliverable = false;
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _notesController.dispose();
+    _deliverableKeyController.dispose();
     super.dispose();
+  }
+
+  void _attemptDeliverableDecryption([DeliverableSubmission? submission]) {
+    final key = _deliverableKeyController.text.trim();
+    if (key.isEmpty) return;
+
+    final sub = submission ??
+        ref.read(latestDeliverableProvider(widget.contract.contractId)).asData?.value;
+    if (sub == null) return;
+
+    setState(() {
+      _isDecryptingDeliverable = true;
+      _deliverableDecryptError = null;
+    });
+
+    try {
+      final repo = ref.read(deliverableRepositoryProvider);
+      final plaintext = repo.decryptAndVerify(
+        submission: sub,
+        decryptionKey: key,
+      );
+      setState(() {
+        _isDecryptingDeliverable = false;
+        _decryptedDeliverable = plaintext;
+      });
+    } catch (_) {
+      setState(() {
+        _isDecryptingDeliverable = false;
+        _deliverableDecryptError = 'Decryption failed. Please verify the key.';
+      });
+    }
   }
 
   Future<void> _handleRelease() async {
@@ -107,6 +217,21 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
         arweaveTxId: arweaveId,
       );
 
+      // 3. Mark deliverable as reviewed in Drift and Firebase if present
+      final sub = ref.read(latestDeliverableProvider(widget.contract.contractId)).asData?.value;
+      if (sub != null && sub.id != null) {
+        await ref
+            .read(deliverableRepositoryProvider)
+            .updateStatus(sub.id!, DeliverableStatus.reviewed);
+      }
+      try {
+        await ref.read(firebaseSyncServiceProvider).updateDeliverableStatus(
+              widget.contract.contractId,
+              DeliverableStatus.reviewed,
+              workerAddress: widget.contract.worker,
+            );
+      } catch (_) {}
+
       setState(() {
         _isSubmitting = false;
         _isSuccess = true;
@@ -141,6 +266,9 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
   }
 
   Widget _buildFormView() {
+    final deliverableAsync = ref.watch(latestDeliverableProvider(widget.contract.contractId));
+    final submission = deliverableAsync.asData?.value;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,6 +358,13 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
             ],
           ),
         ),
+
+        // Submitted Deliverables Inspection Card
+        if (submission != null) ...[
+          const SizedBox(height: 14),
+          _buildDeliverableCard(submission),
+        ],
+
         const SizedBox(height: 20),
 
         // Rating Section
@@ -465,8 +600,226 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
                   ),
           ),
         ),
+        if (submission != null) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              onPressed: _isSubmitting ? null : () => _handleRequestRevision(submission),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: AppColors.warning.withValues(alpha: 0.7)),
+                foregroundColor: AppColors.warning,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.replay_rounded, size: 18),
+              label: Text(
+                'Request Changes / Revisions',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  Widget _buildDeliverableCard(DeliverableSubmission submission) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _decryptedDeliverable != null
+            ? AppColors.success.withValues(alpha: 0.06)
+            : AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _decryptedDeliverable != null
+              ? AppColors.success.withValues(alpha: 0.3)
+              : AppColors.outlineVariant.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _decryptedDeliverable != null
+                    ? Icons.verified_rounded
+                    : Icons.lock_outline_rounded,
+                size: 16,
+                color: _decryptedDeliverable != null
+                    ? AppColors.success
+                    : AppColors.primaryContainer,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _decryptedDeliverable != null
+                    ? 'Decrypted & Integrity Verified'
+                    : 'Worker Submitted Deliverables',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _decryptedDeliverable != null
+                      ? AppColors.success
+                      : AppColors.onSurface,
+                ),
+              ),
+              const Spacer(),
+              if (_decryptedDeliverable != null)
+                IconButton(
+                  icon: const Icon(Icons.copy_rounded, size: 16),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Copy Deliverable',
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: _decryptedDeliverable!));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Deliverables copied!')),
+                    );
+                  },
+                ),
+            ],
+          ),
+          if (submission.completionNote != null &&
+              submission.completionNote!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Worker Note: ${submission.completionNote}',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          if (_decryptedDeliverable != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
+              ),
+              child: SelectableText(
+                _decryptedDeliverable!,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.onSurface,
+                ),
+              ),
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 40,
+                    child: TextField(
+                      controller: _deliverableKeyController,
+                      style: GoogleFonts.jetBrainsMono(fontSize: 11.5),
+                      decoration: InputDecoration(
+                        hintText: 'Decryption Key',
+                        filled: true,
+                        fillColor: AppColors.surfaceContainerLowest,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: AppColors.outlineVariant.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _isDecryptingDeliverable
+                      ? null
+                      : () => _attemptDeliverableDecryption(submission),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryContainer,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                  child: Text(
+                    _isDecryptingDeliverable ? '...' : 'Decrypt',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            if (_deliverableDecryptError != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _deliverableDecryptError!,
+                style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AppColors.error),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleRequestRevision(DeliverableSubmission submission) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Request Revisions?',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          'Notify the worker that revisions are required before escrow release. The funds will remain locked in escrow.',
+          style: GoogleFonts.plusJakartaSans(fontSize: 13.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Request Revisions'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted && submission.id != null) {
+      await ref
+          .read(deliverableRepositoryProvider)
+          .updateStatus(submission.id!, DeliverableStatus.revisionRequested);
+      try {
+        await ref.read(firebaseSyncServiceProvider).updateDeliverableStatus(
+              widget.contract.contractId,
+              DeliverableStatus.revisionRequested,
+              submissionId: submission.id,
+              workerAddress: widget.contract.worker,
+            );
+      } catch (_) {}
+      if (mounted) {
+        Navigator.of(context).pop(false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Revision requested from worker.')),
+        );
+      }
+    }
   }
 
   Widget _buildSuccessView() {

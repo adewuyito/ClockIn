@@ -54,6 +54,7 @@ class DeliverableSubmission {
   final DeliverableStatus status;
   final String? decryptionKeyHash; // SHA-256 of the AES key (never the key itself)
   final String? completionNote; // Optional unencrypted worker summary
+  final String? wrappedKey; // X25519-wrapped AES key envelope for zero-interaction auto-unwrapping
   final DateTime? syncedAt;
 
   const DeliverableSubmission({
@@ -69,8 +70,12 @@ class DeliverableSubmission {
     this.status = DeliverableStatus.submitted,
     this.decryptionKeyHash,
     this.completionNote,
+    this.wrappedKey,
     this.syncedAt,
   });
+
+  /// Whether this submission has an asymmetric wrapped key for zero-touch auto decryption.
+  bool get hasWrappedKey => wrappedKey != null && wrappedKey!.isNotEmpty;
 
   /// Whether this submission has been permanently stored on Arweave via Irys.
   bool get hasArweaveProvenance =>
@@ -95,6 +100,7 @@ class DeliverableSubmission {
     DeliverableStatus? status,
     String? decryptionKeyHash,
     String? completionNote,
+    String? wrappedKey,
     DateTime? syncedAt,
   }) {
     return DeliverableSubmission(
@@ -110,6 +116,7 @@ class DeliverableSubmission {
       status: status ?? this.status,
       decryptionKeyHash: decryptionKeyHash ?? this.decryptionKeyHash,
       completionNote: completionNote ?? this.completionNote,
+      wrappedKey: wrappedKey ?? this.wrappedKey,
       syncedAt: syncedAt ?? this.syncedAt,
     );
   }

@@ -8,6 +8,7 @@ import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/qr_scanner_sheet.dart';
+import 'release_and_review_modal.dart';
 import 'submit_deliverables_sheet.dart';
 
 /// Card widget displayed on [ContractDetailScreen] showing the latest
@@ -17,6 +18,9 @@ class ReviewDeliverableCard extends ConsumerStatefulWidget {
   final DeliverableSubmission submission;
   final bool isEmployer;
   final bool isWorker;
+  final String? initialKey;
+  final bool autoOpenReview;
+  final ValueChanged<String>? onKeyDecrypted;
 
   const ReviewDeliverableCard({
     super.key,
@@ -24,6 +28,9 @@ class ReviewDeliverableCard extends ConsumerStatefulWidget {
     required this.submission,
     required this.isEmployer,
     required this.isWorker,
+    this.initialKey,
+    this.autoOpenReview = false,
+    this.onKeyDecrypted,
   });
 
   @override
@@ -34,8 +41,85 @@ class ReviewDeliverableCard extends ConsumerStatefulWidget {
 class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
   final _keyController = TextEditingController();
   bool _isDecrypting = false;
+  bool _isAutoUnwrapped = false;
+  bool _isAutoUnwrapping = false;
   String? _decryptedContent;
   String? _decryptError;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialKey != null && widget.initialKey!.isNotEmpty) {
+      _keyController.text = widget.initialKey!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleDecrypt(autoReview: widget.autoOpenReview);
+      });
+    } else if (widget.submission.hasWrappedKey && widget.isEmployer) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tryAutoUnwrapAndDecrypt(autoReview: widget.autoOpenReview);
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(ReviewDeliverableCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.submission != oldWidget.submission && _decryptedContent == null) {
+      if (widget.initialKey != null && widget.initialKey!.isNotEmpty) {
+        _keyController.text = widget.initialKey!;
+        _handleDecrypt(autoReview: widget.autoOpenReview);
+      } else if (widget.submission.hasWrappedKey && widget.isEmployer) {
+        _tryAutoUnwrapAndDecrypt(autoReview: widget.autoOpenReview);
+      }
+    }
+  }
+
+  Future<void> _tryAutoUnwrapAndDecrypt({bool autoReview = false}) async {
+    final wrappedKey = widget.submission.wrappedKey;
+    if (wrappedKey == null || wrappedKey.isEmpty) return;
+
+    final wallet = ref.read(walletStateProvider);
+    if (!wallet.isConnected || wallet.address == null) return;
+
+    setState(() {
+      _isAutoUnwrapping = true;
+      _decryptError = null;
+    });
+
+    try {
+      final repo = ref.read(deliverableRepositoryProvider);
+      final encryptionService = ref.read(deliverableEncryptionServiceProvider);
+
+      final privateKey = await repo.getPrivateKey(wallet.address!);
+      if (privateKey == null || privateKey.isEmpty) {
+        debugPrint('[X25519] No local private key found for ${wallet.address}');
+        if (mounted) setState(() => _isAutoUnwrapping = false);
+        return;
+      }
+
+      final symmetricKey = await encryptionService.unwrapKey(
+        wrappedKeyJson: wrappedKey,
+        recipientPrivateKeyBase64: privateKey,
+      );
+
+      if (mounted) {
+        setState(() {
+          _keyController.text = symmetricKey;
+          _isAutoUnwrapped = true;
+          _isAutoUnwrapping = false;
+        });
+        widget.onKeyDecrypted?.call(symmetricKey);
+        _handleDecrypt(autoReview: autoReview);
+      }
+    } catch (e) {
+      debugPrint('[X25519] Auto-unwrap error: $e');
+      if (mounted) {
+        setState(() {
+          _isAutoUnwrapping = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -43,7 +127,7 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
     super.dispose();
   }
 
-  void _handleDecrypt() {
+  void _handleDecrypt({bool autoReview = false}) {
     final key = _keyController.text.trim();
     if (key.isEmpty) {
       setState(() => _decryptError = 'Please enter or scan the decryption key');
@@ -66,11 +150,88 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
         _isDecrypting = false;
         _decryptedContent = plaintext;
       });
+
+      widget.onKeyDecrypted?.call(key);
+
+      if (autoReview && widget.isEmployer && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _openEmployerReviewSheet();
+        });
+      }
     } catch (e) {
       setState(() {
         _isDecrypting = false;
         _decryptError = 'Decryption failed. Please check the key.';
       });
+    }
+  }
+
+  Future<void> _openEmployerReviewSheet() async {
+    final result = await ReleaseAndReviewModal.show(
+      context,
+      widget.contract,
+      initialDecryptionKey: _keyController.text.trim().isNotEmpty
+          ? _keyController.text.trim()
+          : null,
+      initialDecryptedContent: _decryptedContent,
+    );
+    if (result == true && mounted) {
+      if (widget.submission.id != null) {
+        await ref
+            .read(deliverableRepositoryProvider)
+            .updateStatus(widget.submission.id!, DeliverableStatus.reviewed);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Escrow payment released and review completed!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleRequestRevision() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Request Deliverable Revisions?',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          'Notify the worker that revisions or additional deliverables are needed before escrow release.',
+          style: GoogleFonts.plusJakartaSans(fontSize: 13.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Request Revisions'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted && widget.submission.id != null) {
+      await ref
+          .read(deliverableRepositoryProvider)
+          .updateStatus(widget.submission.id!, DeliverableStatus.revisionRequested);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Revision requested from worker.'),
+          ),
+        );
+      }
     }
   }
 
@@ -381,6 +542,31 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
                   color: AppColors.success,
                 ),
               ),
+              if (_isAutoUnwrapped || widget.submission.hasWrappedKey) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1F9D5B).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded, size: 10, color: Color(0xFF1F9D5B)),
+                      const SizedBox(width: 3),
+                      Text(
+                        'X25519 Auto-Unwrapped',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF0B5E36),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.copy_rounded, size: 16),
@@ -405,6 +591,58 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
               color: AppColors.textPrimary,
             ),
           ),
+          if (widget.isEmployer) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 12),
+            // Primary Button: Accept Deliverables & Rate Worker -> Opens ReleaseAndReviewModal
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: _openEmployerReviewSheet,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.verified_rounded, size: 18),
+                label: Text(
+                  'Accept Deliverables & Rate Worker',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Secondary Button: Request Changes
+            SizedBox(
+              width: double.infinity,
+              height: 40,
+              child: OutlinedButton.icon(
+                onPressed: _handleRequestRevision,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppColors.warning.withValues(alpha: 0.6)),
+                  foregroundColor: AppColors.warning,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.replay_rounded, size: 16),
+                label: Text(
+                  'Request Changes / Revisions',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -414,6 +652,71 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_isAutoUnwrapping) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.primaryContainer.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Auto-unwrapping X25519 key envelope...',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (widget.submission.hasWrappedKey) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F8F0),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF1F9D5B).withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_person_rounded, size: 16, color: Color(0xFF1F9D5B)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'X25519 key envelope ready.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0B5E36),
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _tryAutoUnwrapAndDecrypt(autoReview: widget.autoOpenReview),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: const Color(0xFF0B5E36),
+                  ),
+                  child: const Text('Unwrap & Inspect'),
+                ),
+              ],
+            ),
+          ),
+        ],
         Text(
           'Enter or scan the decryption key provided by the worker to access deliverables:',
           style: GoogleFonts.plusJakartaSans(

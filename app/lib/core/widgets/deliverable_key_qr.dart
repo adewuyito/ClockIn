@@ -10,6 +10,11 @@ class DeliverableKeyQr extends StatelessWidget {
   final String contractId;
   final String decryptionKey;
   final String? plaintextHash;
+  final String? encryptedPayload;
+  final String? iv;
+  final String? authTag;
+  final String? completionNote;
+  final String? arweaveTxId;
   final double qrSize;
 
   const DeliverableKeyQr({
@@ -17,13 +22,34 @@ class DeliverableKeyQr extends StatelessWidget {
     required this.contractId,
     required this.decryptionKey,
     this.plaintextHash,
+    this.encryptedPayload,
+    this.iv,
+    this.authTag,
+    this.completionNote,
+    this.arweaveTxId,
     this.qrSize = 160,
   });
 
-  /// Deep link URL containing key in URL fragment (#key=...)
+  /// Deep link URL containing payload parameters and key in URL fragment (#key=...)
   /// URL fragments are never sent to web servers or stored in access logs.
-  String get deepLinkUrl =>
-      'clockin://deliverable/$contractId#key=$decryptionKey';
+  String get deepLinkUrl {
+    final query = <String, String>{
+      if (encryptedPayload != null && encryptedPayload!.isNotEmpty) 'ct': encryptedPayload!,
+      if (iv != null && iv!.isNotEmpty) 'iv': iv!,
+      if (authTag != null && authTag!.isNotEmpty) 'tag': authTag!,
+      if (plaintextHash != null && plaintextHash!.isNotEmpty) 'hash': plaintextHash!,
+      if (completionNote != null && completionNote!.isNotEmpty) 'note': completionNote!,
+      if (arweaveTxId != null && arweaveTxId!.isNotEmpty) 'tx': arweaveTxId!,
+    };
+    final uri = Uri(
+      scheme: 'clockin',
+      host: 'deliverable',
+      path: '/$contractId',
+      queryParameters: query.isNotEmpty ? query : null,
+      fragment: 'key=$decryptionKey',
+    );
+    return uri.toString();
+  }
 
   @override
   Widget build(BuildContext context) {

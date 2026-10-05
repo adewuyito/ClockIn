@@ -8,6 +8,7 @@ import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/qr_scanner_sheet.dart';
 import 'contract_share_screen.dart';
 import 'dispute_resolution_screen.dart';
 import 'raise_dispute_sheet.dart';
@@ -17,10 +18,14 @@ import 'submit_deliverables_sheet.dart';
 
 class ContractDetailScreen extends ConsumerStatefulWidget {
   final String contractId;
+  final String? initialDecryptionKey;
+  final bool autoOpenReview;
 
   const ContractDetailScreen({
     super.key,
     required this.contractId,
+    this.initialDecryptionKey,
+    this.autoOpenReview = false,
   });
 
   @override
@@ -30,6 +35,22 @@ class ContractDetailScreen extends ConsumerStatefulWidget {
 class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
   bool _isActionLoading = false;
   String? _actionError;
+  String? _activeDecryptionKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeDecryptionKey = widget.initialDecryptionKey;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(firebaseSyncServiceProvider).subscribeToContract(widget.contractId);
+    });
+  }
+
+  @override
+  void dispose() {
+    ref.read(firebaseSyncServiceProvider).stopListeningToContract(widget.contractId);
+    super.dispose();
+  }
 
   Future<void> _handleAccept(EscrowContract contract) async {
     setState(() {
@@ -421,10 +442,20 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
                 submission: submission,
                 isEmployer: isEmployer,
                 isWorker: isWorker,
+                initialKey: _activeDecryptionKey ?? widget.initialDecryptionKey,
+                autoOpenReview: widget.autoOpenReview,
+                onKeyDecrypted: (key) {
+                  setState(() => _activeDecryptionKey = key);
+                },
               );
             }
             if (isWorker && contract.status == ContractStatus.inProgress) {
               return _buildWorkerDeliverablePrompt(contract);
+            }
+            if (isEmployer &&
+                (contract.status == ContractStatus.inProgress ||
+                    contract.status == ContractStatus.funded)) {
+              return _buildEmployerDeliverablePrompt(contract);
             }
             return const SizedBox.shrink();
           },
@@ -637,7 +668,11 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
             child: ElevatedButton.icon(
               onPressed: _isActionLoading
                   ? null
-                  : () => ReleaseAndReviewModal.show(context, contract),
+                  : () => ReleaseAndReviewModal.show(
+                      context,
+                      contract,
+                      initialDecryptionKey: _activeDecryptionKey,
+                    ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryContainer,
                 foregroundColor: Colors.white,
@@ -834,6 +869,242 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildEmployerDeliverablePrompt(EscrowContract contract) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.inventory_2_outlined,
+                  color: AppColors.primaryContainer,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Worker Deliverables',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Awaiting submission or import',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'When the worker finishes, scan their deliverable QR code or enter their link/key to inspect deliverables and release escrow funds.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 42,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _scanDeliverableQr(contract),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryContainer,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
+                    label: Text(
+                      'Scan QR Code',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 42,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showEnterDeliverableDialog(contract),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.link_rounded, size: 16),
+                  label: Text(
+                    'Paste Link / Key',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _scanDeliverableQr(EscrowContract contract) async {
+    final scanned = await QrScannerSheet.show(
+      context,
+      title: 'Scan Deliverable QR',
+      hintText: 'Align worker deliverable QR code',
+    );
+    if (scanned != null && mounted) {
+      if (scanned.deliverableCiphertext != null &&
+          scanned.deliverableIv != null &&
+          scanned.deliverableHash != null) {
+        final deliverableRepo = ref.read(deliverableRepositoryProvider);
+        await deliverableRepo.saveReceivedSubmission(
+          contractId: contract.contractId,
+          submitterAddress: contract.worker,
+          encryptedPayload: scanned.deliverableCiphertext!,
+          iv: scanned.deliverableIv!,
+          plaintextHash: scanned.deliverableHash!,
+          authTag: scanned.deliverableAuthTag ?? '',
+          arweaveTxId: scanned.deliverableTxId,
+          completionNote: scanned.deliverableNote,
+        );
+      }
+
+      final key = scanned.deliverableKey ??
+          (scanned.raw.contains('#key=')
+              ? scanned.raw.split('#key=').last
+              : scanned.raw.trim());
+
+      if (key.isNotEmpty) {
+        setState(() {
+          _activeDecryptionKey = key;
+        });
+      }
+    }
+  }
+
+  Future<void> _showEnterDeliverableDialog(EscrowContract contract) async {
+    final textController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Import Deliverables',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Paste the deliverable share link or decryption key provided by the worker:',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: textController,
+              autofocus: true,
+              maxLines: 2,
+              style: GoogleFonts.jetBrainsMono(fontSize: 12),
+              decoration: InputDecoration(
+                hintText: 'clockin://deliverable/... or key',
+                filled: true,
+                fillColor: AppColors.surfaceElevated,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(textController.text.trim()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryContainer,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty && mounted) {
+      final parsed = QrScanResult.parse(result);
+      if (parsed.deliverableCiphertext != null &&
+          parsed.deliverableIv != null &&
+          parsed.deliverableHash != null) {
+        final deliverableRepo = ref.read(deliverableRepositoryProvider);
+        await deliverableRepo.saveReceivedSubmission(
+          contractId: contract.contractId,
+          submitterAddress: contract.worker,
+          encryptedPayload: parsed.deliverableCiphertext!,
+          iv: parsed.deliverableIv!,
+          plaintextHash: parsed.deliverableHash!,
+          authTag: parsed.deliverableAuthTag ?? '',
+          arweaveTxId: parsed.deliverableTxId,
+          completionNote: parsed.deliverableNote,
+        );
+      }
+
+      final key = parsed.deliverableKey ??
+          (result.contains('#key=') ? result.split('#key=').last : result);
+
+      if (key.isNotEmpty) {
+        setState(() {
+          _activeDecryptionKey = key;
+        });
+      }
+    }
   }
 
   Widget _buildDisputeBanner(BuildContext context, EscrowContract contract) {

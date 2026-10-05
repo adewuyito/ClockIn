@@ -145,7 +145,20 @@ class DeliverableSubmissions extends Table {
   TextColumn get status => text().withDefault(const Constant('submitted'))(); // 'submitted', 'reviewed', 'revision_requested'
   TextColumn get decryptionKeyHash => text().nullable()(); // SHA-256 of AES key (never the key itself)
   TextColumn get completionNote => text().nullable()(); // optional unencrypted worker summary
+  TextColumn get wrappedKey => text().nullable()(); // base64 JSON X25519-wrapped AES key
   DateTimeColumn get syncedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// Local secure key store for user's X25519 encryption keypair (for zero-knowledge envelope encryption).
+@DataClassName('UserEncryptionKeyData')
+class UserEncryptionKeys extends Table {
+  TextColumn get walletAddress => text()();
+  TextColumn get publicKey => text()(); // base64 X25519 public key
+  TextColumn get privateKey => text()(); // base64 X25519 private key
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {walletAddress};
 }
 
 @DriftDatabase(tables: [
@@ -158,13 +171,14 @@ class DeliverableSubmissions extends Table {
   SeekerAttestations,
   DisputeCases,
   DeliverableSubmissions,
+  UserEncryptionKeys,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? driftDatabase(name: 'clockin_db'));
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -209,6 +223,10 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 11) {
             await m.createTable(deliverableSubmissions);
+          }
+          if (from < 12) {
+            await m.createTable(userEncryptionKeys);
+            await m.addColumn(deliverableSubmissions, deliverableSubmissions.wrappedKey);
           }
         },
       );

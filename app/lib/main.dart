@@ -1,17 +1,39 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/providers/app_providers.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'features/contracts/contract_detail_screen.dart';
 import 'features/contracts/contracts_list_screen.dart';
 import 'features/profile/my_profile_screen.dart';
 import 'features/reviews/submit_review_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'features/search/lookup_worker_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/wallet_connect/connect_wallet_screen.dart';
+import 'firebase_options.dart';
 
-void main() {
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (_) {}
+  debugPrint('[FCM Background] Message: ${message.messageId}, Data: ${message.data}');
+}
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('[Firebase] Initialization error: $e');
+  }
   runApp(
     const ProviderScope(
       child: ClockInApp(),
@@ -51,6 +73,92 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.initState();
     final wallet = ref.read(walletStateProvider);
     _currentIndex = wallet.isConnected ? 0 : 3;
+    if (wallet.isConnected && wallet.address != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initializeNotifications(wallet.address!);
+      });
+    }
+
+    ref.listenManual(walletStateProvider, (prev, next) {
+      if (next.isConnected && next.address != null && prev?.address != next.address) {
+        _initializeNotifications(next.address!);
+      }
+    });
+  }
+
+  Future<void> _initializeNotifications(String walletAddress) async {
+    final syncService = ref.read(firebaseSyncServiceProvider);
+    syncService.initializeFcm(
+      walletAddress: walletAddress,
+      onForegroundMessage: (msg) {
+        final title = msg.notification?.title ?? 'Contract Alert';
+        final body = msg.notification?.body ?? '';
+        final contractId = msg.data['contractId'] as String?;
+        _showNotificationBanner(title, body, contractId);
+      },
+    );
+    _setupNotificationListener(walletAddress);
+
+    // Ensure local X25519 keypair exists in Drift and publish public key to Firestore
+    try {
+      final deliverableRepo = ref.read(deliverableRepositoryProvider);
+      final keyPair = await deliverableRepo.getOrCreateKeyPair(walletAddress);
+      await syncService.registerUserPublicKey(walletAddress, keyPair.publicKeyBase64);
+    } catch (e) {
+      debugPrint('[X25519] Error ensuring encryption keypair: $e');
+    }
+  }
+
+  void _setupNotificationListener(String walletAddress) {
+    ref.read(firebaseSyncServiceProvider).listenToUserNotifications(
+      walletAddress,
+      (notification) {
+        if (!mounted) return;
+        final title = notification['title'] as String? ?? 'Contract Alert';
+        final body = notification['body'] as String? ?? '';
+        final contractId = notification['contractId'] as String?;
+        _showNotificationBanner(title, body, contractId);
+      },
+    );
+  }
+
+  void _showNotificationBanner(String title, String body, String? contractId) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            if (body.isNotEmpty)
+              Text(
+                body,
+                style: const TextStyle(fontSize: 12),
+              ),
+          ],
+        ),
+        backgroundColor: AppColors.primaryContainer,
+        behavior: SnackBarBehavior.floating,
+        action: contractId != null
+            ? SnackBarAction(
+                label: 'View',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ContractDetailScreen(contractId: contractId),
+                    ),
+                  );
+                },
+              )
+            : null,
+        duration: const Duration(seconds: 6),
+      ),
+    );
   }
 
   void _onSelectWorkerForReview(String workerAddress) {

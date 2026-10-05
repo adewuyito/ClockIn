@@ -77,5 +77,57 @@ void main() {
       expect(keyHash1.length, equals(64));
       expect(keyHash1, isNot(equals(key)));
     });
+
+    test('generateX25519KeyPair produces valid base64 key pair', () async {
+      final keyPair = await service.generateX25519KeyPair();
+      expect(keyPair.publicKeyBase64, isNotEmpty);
+      expect(keyPair.privateKeyBase64, isNotEmpty);
+      expect(base64.decode(keyPair.publicKeyBase64).length, equals(32));
+      expect(base64.decode(keyPair.privateKeyBase64).length, equals(32));
+    });
+
+    test('wrapKey and unwrapKey correctly roundtrip symmetric AES key', () async {
+      // Recipient (employer) keypair
+      final employerKeys = await service.generateX25519KeyPair();
+
+      // Worker generates symmetric key and encrypts deliverable
+      final symmetricKey = service.generateKey();
+
+      // Worker wraps symmetric key for employer
+      final wrappedKeyJson = await service.wrapKey(
+        base64Key: symmetricKey,
+        recipientPublicKeyBase64: employerKeys.publicKeyBase64,
+      );
+      expect(wrappedKeyJson, contains('epk'));
+      expect(wrappedKeyJson, contains('ct'));
+      expect(wrappedKeyJson, isNot(contains(symmetricKey)));
+
+      // Employer unwraps symmetric key using private key
+      final unwrappedKey = await service.unwrapKey(
+        wrappedKeyJson: wrappedKeyJson,
+        recipientPrivateKeyBase64: employerKeys.privateKeyBase64,
+      );
+
+      expect(unwrappedKey, equals(symmetricKey));
+    });
+
+    test('unwrapKey fails with invalid private key', () async {
+      final employerKeys = await service.generateX25519KeyPair();
+      final wrongKeys = await service.generateX25519KeyPair();
+      final symmetricKey = service.generateKey();
+
+      final wrappedKeyJson = await service.wrapKey(
+        base64Key: symmetricKey,
+        recipientPublicKeyBase64: employerKeys.publicKeyBase64,
+      );
+
+      expect(
+        service.unwrapKey(
+          wrappedKeyJson: wrappedKeyJson,
+          recipientPrivateKeyBase64: wrongKeys.privateKeyBase64,
+        ),
+        throwsA(anything),
+      );
+    });
   });
 }

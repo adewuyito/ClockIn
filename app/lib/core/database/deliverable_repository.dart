@@ -77,13 +77,60 @@ class DeliverableRepository {
   ///
   /// Zero information leak: [plaintext] and [encryptionKey] are NEVER stored
   /// in Drift or uploaded to Irys. Only ciphertext, IV, auth tag, and plaintext hash
-  /// are persisted.
+  // ==================== ASYMMETRIC X25519 ENCRYPTION KEYS ====================
+
+  /// Gets the existing X25519 keypair for [walletAddress] or generates and persists a new one in Drift.
+  Future<X25519KeyPairData> getOrCreateKeyPair(String walletAddress) async {
+    final existing = await (db.select(db.userEncryptionKeys)
+          ..where((tbl) => tbl.walletAddress.equals(walletAddress))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      return X25519KeyPairData(
+        publicKeyBase64: existing.publicKey,
+        privateKeyBase64: existing.privateKey,
+      );
+    }
+
+    final keyPair = await encryptionService.generateX25519KeyPair();
+    await db.into(db.userEncryptionKeys).insertOnConflictUpdate(
+          UserEncryptionKeysCompanion.insert(
+            walletAddress: walletAddress,
+            publicKey: keyPair.publicKeyBase64,
+            privateKey: keyPair.privateKeyBase64,
+            createdAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+
+    return keyPair;
+  }
+
+  /// Gets the X25519 private key for [walletAddress] from local Drift storage.
+  Future<String?> getPrivateKey(String walletAddress) async {
+    final key = await (db.select(db.userEncryptionKeys)
+          ..where((tbl) => tbl.walletAddress.equals(walletAddress))
+          ..limit(1))
+        .getSingleOrNull();
+    return key?.privateKey;
+  }
+
+  // ==================== SUBMISSION & ENCRYPTION ====================
+
+  /// Encrypts deliverable plaintext with [encryptionKey] (AES-256-GCM),
+  /// computes SHA-256 integrity hash, uploads ciphertext to Irys,
+  /// and saves the encrypted submission into Drift.
+  ///
+  /// Zero information leak: [plaintext] and [encryptionKey] are NEVER stored
+  /// in Drift or uploaded to Irys. Only ciphertext, IV, auth tag, plaintext hash,
+  /// and optional [wrappedKey] are persisted.
   Future<domain.DeliverableSubmission> submitDeliverable({
     required String contractId,
     required String submitterAddress,
     required String plaintext,
     required String encryptionKey,
     String? completionNote,
+    String? wrappedKey,
   }) async {
     // 1. Compute SHA-256 integrity hash of original plaintext
     final plaintextHash = encryptionService.computeHash(plaintext);
@@ -125,6 +172,7 @@ class DeliverableRepository {
             status: const Value('submitted'),
             decryptionKeyHash: Value(keyHash),
             completionNote: Value(completionNote),
+            wrappedKey: Value(wrappedKey),
             syncedAt: Value(now),
           ),
         );
@@ -142,6 +190,77 @@ class DeliverableRepository {
       status: domain.DeliverableStatus.submitted,
       decryptionKeyHash: keyHash,
       completionNote: completionNote,
+      wrappedKey: wrappedKey,
+      syncedAt: now,
+    );
+  }
+
+  /// Saves or imports an encrypted deliverable submission received via QR code,
+  /// Firebase real-time listener, or peer-to-peer exchange into the local Drift database.
+  Future<domain.DeliverableSubmission> saveReceivedSubmission({
+    required String contractId,
+    required String submitterAddress,
+    required String encryptedPayload,
+    required String iv,
+    required String plaintextHash,
+    String authTag = '',
+    String? arweaveTxId,
+    String? completionNote,
+    String? keyHash,
+    String? wrappedKey,
+  }) async {
+    // Prevent duplicate entries if scanned multiple times
+    final existing = await (db.select(db.deliverableSubmissions)
+          ..where((tbl) =>
+              tbl.contractId.equals(contractId) &
+              tbl.plaintextHash.equals(plaintextHash))
+          ..limit(1))
+        .getSingleOrNull();
+    if (existing != null) {
+      if (wrappedKey != null && existing.wrappedKey == null) {
+        await (db.update(db.deliverableSubmissions)
+              ..where((tbl) => tbl.id.equals(existing.id)))
+            .write(DeliverableSubmissionsCompanion(
+          wrappedKey: Value(wrappedKey),
+          syncedAt: Value(DateTime.now().toUtc()),
+        ));
+      }
+      return _rowToDomain(existing).copyWith(wrappedKey: wrappedKey ?? existing.wrappedKey);
+    }
+
+    final now = DateTime.now().toUtc();
+    final insertedId = await db.into(db.deliverableSubmissions).insert(
+          DeliverableSubmissionsCompanion.insert(
+            contractId: contractId,
+            submitterAddress: submitterAddress,
+            encryptedPayload: encryptedPayload,
+            iv: iv,
+            authTag: Value(authTag),
+            plaintextHash: plaintextHash,
+            arweaveTxId: Value(arweaveTxId),
+            submittedAt: Value(now),
+            status: const Value('submitted'),
+            decryptionKeyHash: Value(keyHash),
+            completionNote: Value(completionNote),
+            wrappedKey: Value(wrappedKey),
+            syncedAt: Value(now),
+          ),
+        );
+
+    return domain.DeliverableSubmission(
+      id: insertedId,
+      contractId: contractId,
+      submitterAddress: submitterAddress,
+      encryptedPayload: encryptedPayload,
+      iv: iv,
+      authTag: authTag,
+      plaintextHash: plaintextHash,
+      arweaveTxId: arweaveTxId,
+      submittedAt: now,
+      status: domain.DeliverableStatus.submitted,
+      decryptionKeyHash: keyHash,
+      completionNote: completionNote,
+      wrappedKey: wrappedKey,
       syncedAt: now,
     );
   }
@@ -214,6 +333,7 @@ class DeliverableRepository {
       status: domain.DeliverableStatus.fromString(row.status),
       decryptionKeyHash: row.decryptionKeyHash,
       completionNote: row.completionNote,
+      wrappedKey: row.wrappedKey,
       syncedAt: row.syncedAt,
     );
   }

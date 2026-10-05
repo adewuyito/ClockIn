@@ -4733,6 +4733,17 @@ class $DeliverableSubmissionsTable extends DeliverableSubmissions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _wrappedKeyMeta = const VerificationMeta(
+    'wrappedKey',
+  );
+  @override
+  late final GeneratedColumn<String> wrappedKey = GeneratedColumn<String>(
+    'wrapped_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncedAtMeta = const VerificationMeta(
     'syncedAt',
   );
@@ -4759,6 +4770,7 @@ class $DeliverableSubmissionsTable extends DeliverableSubmissions
     status,
     decryptionKeyHash,
     completionNote,
+    wrappedKey,
     syncedAt,
   ];
   @override
@@ -4870,6 +4882,12 @@ class $DeliverableSubmissionsTable extends DeliverableSubmissions
         ),
       );
     }
+    if (data.containsKey('wrapped_key')) {
+      context.handle(
+        _wrappedKeyMeta,
+        wrappedKey.isAcceptableOrUnknown(data['wrapped_key']!, _wrappedKeyMeta),
+      );
+    }
     if (data.containsKey('synced_at')) {
       context.handle(
         _syncedAtMeta,
@@ -4936,6 +4954,10 @@ class $DeliverableSubmissionsTable extends DeliverableSubmissions
         DriftSqlType.string,
         data['${effectivePrefix}completion_note'],
       ),
+      wrappedKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wrapped_key'],
+      ),
       syncedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}synced_at'],
@@ -4963,6 +4985,7 @@ class DeliverableSubmissionData extends DataClass
   final String status;
   final String? decryptionKeyHash;
   final String? completionNote;
+  final String? wrappedKey;
   final DateTime syncedAt;
   const DeliverableSubmissionData({
     required this.id,
@@ -4977,6 +5000,7 @@ class DeliverableSubmissionData extends DataClass
     required this.status,
     this.decryptionKeyHash,
     this.completionNote,
+    this.wrappedKey,
     required this.syncedAt,
   });
   @override
@@ -4999,6 +5023,9 @@ class DeliverableSubmissionData extends DataClass
     }
     if (!nullToAbsent || completionNote != null) {
       map['completion_note'] = Variable<String>(completionNote);
+    }
+    if (!nullToAbsent || wrappedKey != null) {
+      map['wrapped_key'] = Variable<String>(wrappedKey);
     }
     map['synced_at'] = Variable<DateTime>(syncedAt);
     return map;
@@ -5024,6 +5051,9 @@ class DeliverableSubmissionData extends DataClass
       completionNote: completionNote == null && nullToAbsent
           ? const Value.absent()
           : Value(completionNote),
+      wrappedKey: wrappedKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(wrappedKey),
       syncedAt: Value(syncedAt),
     );
   }
@@ -5048,6 +5078,7 @@ class DeliverableSubmissionData extends DataClass
         json['decryptionKeyHash'],
       ),
       completionNote: serializer.fromJson<String?>(json['completionNote']),
+      wrappedKey: serializer.fromJson<String?>(json['wrappedKey']),
       syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
     );
   }
@@ -5067,6 +5098,7 @@ class DeliverableSubmissionData extends DataClass
       'status': serializer.toJson<String>(status),
       'decryptionKeyHash': serializer.toJson<String?>(decryptionKeyHash),
       'completionNote': serializer.toJson<String?>(completionNote),
+      'wrappedKey': serializer.toJson<String?>(wrappedKey),
       'syncedAt': serializer.toJson<DateTime>(syncedAt),
     };
   }
@@ -5084,6 +5116,7 @@ class DeliverableSubmissionData extends DataClass
     String? status,
     Value<String?> decryptionKeyHash = const Value.absent(),
     Value<String?> completionNote = const Value.absent(),
+    Value<String?> wrappedKey = const Value.absent(),
     DateTime? syncedAt,
   }) => DeliverableSubmissionData(
     id: id ?? this.id,
@@ -5102,6 +5135,7 @@ class DeliverableSubmissionData extends DataClass
     completionNote: completionNote.present
         ? completionNote.value
         : this.completionNote,
+    wrappedKey: wrappedKey.present ? wrappedKey.value : this.wrappedKey,
     syncedAt: syncedAt ?? this.syncedAt,
   );
   DeliverableSubmissionData copyWithCompanion(
@@ -5136,6 +5170,9 @@ class DeliverableSubmissionData extends DataClass
       completionNote: data.completionNote.present
           ? data.completionNote.value
           : this.completionNote,
+      wrappedKey: data.wrappedKey.present
+          ? data.wrappedKey.value
+          : this.wrappedKey,
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
     );
   }
@@ -5155,6 +5192,7 @@ class DeliverableSubmissionData extends DataClass
           ..write('status: $status, ')
           ..write('decryptionKeyHash: $decryptionKeyHash, ')
           ..write('completionNote: $completionNote, ')
+          ..write('wrappedKey: $wrappedKey, ')
           ..write('syncedAt: $syncedAt')
           ..write(')'))
         .toString();
@@ -5174,6 +5212,7 @@ class DeliverableSubmissionData extends DataClass
     status,
     decryptionKeyHash,
     completionNote,
+    wrappedKey,
     syncedAt,
   );
   @override
@@ -5192,6 +5231,7 @@ class DeliverableSubmissionData extends DataClass
           other.status == this.status &&
           other.decryptionKeyHash == this.decryptionKeyHash &&
           other.completionNote == this.completionNote &&
+          other.wrappedKey == this.wrappedKey &&
           other.syncedAt == this.syncedAt);
 }
 
@@ -5209,6 +5249,7 @@ class DeliverableSubmissionsCompanion
   final Value<String> status;
   final Value<String?> decryptionKeyHash;
   final Value<String?> completionNote;
+  final Value<String?> wrappedKey;
   final Value<DateTime> syncedAt;
   const DeliverableSubmissionsCompanion({
     this.id = const Value.absent(),
@@ -5223,6 +5264,7 @@ class DeliverableSubmissionsCompanion
     this.status = const Value.absent(),
     this.decryptionKeyHash = const Value.absent(),
     this.completionNote = const Value.absent(),
+    this.wrappedKey = const Value.absent(),
     this.syncedAt = const Value.absent(),
   });
   DeliverableSubmissionsCompanion.insert({
@@ -5238,6 +5280,7 @@ class DeliverableSubmissionsCompanion
     this.status = const Value.absent(),
     this.decryptionKeyHash = const Value.absent(),
     this.completionNote = const Value.absent(),
+    this.wrappedKey = const Value.absent(),
     this.syncedAt = const Value.absent(),
   }) : contractId = Value(contractId),
        submitterAddress = Value(submitterAddress),
@@ -5257,6 +5300,7 @@ class DeliverableSubmissionsCompanion
     Expression<String>? status,
     Expression<String>? decryptionKeyHash,
     Expression<String>? completionNote,
+    Expression<String>? wrappedKey,
     Expression<DateTime>? syncedAt,
   }) {
     return RawValuesInsertable({
@@ -5272,6 +5316,7 @@ class DeliverableSubmissionsCompanion
       if (status != null) 'status': status,
       if (decryptionKeyHash != null) 'decryption_key_hash': decryptionKeyHash,
       if (completionNote != null) 'completion_note': completionNote,
+      if (wrappedKey != null) 'wrapped_key': wrappedKey,
       if (syncedAt != null) 'synced_at': syncedAt,
     });
   }
@@ -5289,6 +5334,7 @@ class DeliverableSubmissionsCompanion
     Value<String>? status,
     Value<String?>? decryptionKeyHash,
     Value<String?>? completionNote,
+    Value<String?>? wrappedKey,
     Value<DateTime>? syncedAt,
   }) {
     return DeliverableSubmissionsCompanion(
@@ -5304,6 +5350,7 @@ class DeliverableSubmissionsCompanion
       status: status ?? this.status,
       decryptionKeyHash: decryptionKeyHash ?? this.decryptionKeyHash,
       completionNote: completionNote ?? this.completionNote,
+      wrappedKey: wrappedKey ?? this.wrappedKey,
       syncedAt: syncedAt ?? this.syncedAt,
     );
   }
@@ -5347,6 +5394,9 @@ class DeliverableSubmissionsCompanion
     if (completionNote.present) {
       map['completion_note'] = Variable<String>(completionNote.value);
     }
+    if (wrappedKey.present) {
+      map['wrapped_key'] = Variable<String>(wrappedKey.value);
+    }
     if (syncedAt.present) {
       map['synced_at'] = Variable<DateTime>(syncedAt.value);
     }
@@ -5368,7 +5418,336 @@ class DeliverableSubmissionsCompanion
           ..write('status: $status, ')
           ..write('decryptionKeyHash: $decryptionKeyHash, ')
           ..write('completionNote: $completionNote, ')
+          ..write('wrappedKey: $wrappedKey, ')
           ..write('syncedAt: $syncedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $UserEncryptionKeysTable extends UserEncryptionKeys
+    with TableInfo<$UserEncryptionKeysTable, UserEncryptionKeyData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UserEncryptionKeysTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _walletAddressMeta = const VerificationMeta(
+    'walletAddress',
+  );
+  @override
+  late final GeneratedColumn<String> walletAddress = GeneratedColumn<String>(
+    'wallet_address',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _publicKeyMeta = const VerificationMeta(
+    'publicKey',
+  );
+  @override
+  late final GeneratedColumn<String> publicKey = GeneratedColumn<String>(
+    'public_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _privateKeyMeta = const VerificationMeta(
+    'privateKey',
+  );
+  @override
+  late final GeneratedColumn<String> privateKey = GeneratedColumn<String>(
+    'private_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    walletAddress,
+    publicKey,
+    privateKey,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'user_encryption_keys';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UserEncryptionKeyData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('wallet_address')) {
+      context.handle(
+        _walletAddressMeta,
+        walletAddress.isAcceptableOrUnknown(
+          data['wallet_address']!,
+          _walletAddressMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_walletAddressMeta);
+    }
+    if (data.containsKey('public_key')) {
+      context.handle(
+        _publicKeyMeta,
+        publicKey.isAcceptableOrUnknown(data['public_key']!, _publicKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_publicKeyMeta);
+    }
+    if (data.containsKey('private_key')) {
+      context.handle(
+        _privateKeyMeta,
+        privateKey.isAcceptableOrUnknown(data['private_key']!, _privateKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_privateKeyMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {walletAddress};
+  @override
+  UserEncryptionKeyData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UserEncryptionKeyData(
+      walletAddress: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wallet_address'],
+      )!,
+      publicKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}public_key'],
+      )!,
+      privateKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}private_key'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $UserEncryptionKeysTable createAlias(String alias) {
+    return $UserEncryptionKeysTable(attachedDatabase, alias);
+  }
+}
+
+class UserEncryptionKeyData extends DataClass
+    implements Insertable<UserEncryptionKeyData> {
+  final String walletAddress;
+  final String publicKey;
+  final String privateKey;
+  final DateTime createdAt;
+  const UserEncryptionKeyData({
+    required this.walletAddress,
+    required this.publicKey,
+    required this.privateKey,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['wallet_address'] = Variable<String>(walletAddress);
+    map['public_key'] = Variable<String>(publicKey);
+    map['private_key'] = Variable<String>(privateKey);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  UserEncryptionKeysCompanion toCompanion(bool nullToAbsent) {
+    return UserEncryptionKeysCompanion(
+      walletAddress: Value(walletAddress),
+      publicKey: Value(publicKey),
+      privateKey: Value(privateKey),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory UserEncryptionKeyData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UserEncryptionKeyData(
+      walletAddress: serializer.fromJson<String>(json['walletAddress']),
+      publicKey: serializer.fromJson<String>(json['publicKey']),
+      privateKey: serializer.fromJson<String>(json['privateKey']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'walletAddress': serializer.toJson<String>(walletAddress),
+      'publicKey': serializer.toJson<String>(publicKey),
+      'privateKey': serializer.toJson<String>(privateKey),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  UserEncryptionKeyData copyWith({
+    String? walletAddress,
+    String? publicKey,
+    String? privateKey,
+    DateTime? createdAt,
+  }) => UserEncryptionKeyData(
+    walletAddress: walletAddress ?? this.walletAddress,
+    publicKey: publicKey ?? this.publicKey,
+    privateKey: privateKey ?? this.privateKey,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  UserEncryptionKeyData copyWithCompanion(UserEncryptionKeysCompanion data) {
+    return UserEncryptionKeyData(
+      walletAddress: data.walletAddress.present
+          ? data.walletAddress.value
+          : this.walletAddress,
+      publicKey: data.publicKey.present ? data.publicKey.value : this.publicKey,
+      privateKey: data.privateKey.present
+          ? data.privateKey.value
+          : this.privateKey,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserEncryptionKeyData(')
+          ..write('walletAddress: $walletAddress, ')
+          ..write('publicKey: $publicKey, ')
+          ..write('privateKey: $privateKey, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(walletAddress, publicKey, privateKey, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UserEncryptionKeyData &&
+          other.walletAddress == this.walletAddress &&
+          other.publicKey == this.publicKey &&
+          other.privateKey == this.privateKey &&
+          other.createdAt == this.createdAt);
+}
+
+class UserEncryptionKeysCompanion
+    extends UpdateCompanion<UserEncryptionKeyData> {
+  final Value<String> walletAddress;
+  final Value<String> publicKey;
+  final Value<String> privateKey;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const UserEncryptionKeysCompanion({
+    this.walletAddress = const Value.absent(),
+    this.publicKey = const Value.absent(),
+    this.privateKey = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  UserEncryptionKeysCompanion.insert({
+    required String walletAddress,
+    required String publicKey,
+    required String privateKey,
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : walletAddress = Value(walletAddress),
+       publicKey = Value(publicKey),
+       privateKey = Value(privateKey);
+  static Insertable<UserEncryptionKeyData> custom({
+    Expression<String>? walletAddress,
+    Expression<String>? publicKey,
+    Expression<String>? privateKey,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (walletAddress != null) 'wallet_address': walletAddress,
+      if (publicKey != null) 'public_key': publicKey,
+      if (privateKey != null) 'private_key': privateKey,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  UserEncryptionKeysCompanion copyWith({
+    Value<String>? walletAddress,
+    Value<String>? publicKey,
+    Value<String>? privateKey,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return UserEncryptionKeysCompanion(
+      walletAddress: walletAddress ?? this.walletAddress,
+      publicKey: publicKey ?? this.publicKey,
+      privateKey: privateKey ?? this.privateKey,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (walletAddress.present) {
+      map['wallet_address'] = Variable<String>(walletAddress.value);
+    }
+    if (publicKey.present) {
+      map['public_key'] = Variable<String>(publicKey.value);
+    }
+    if (privateKey.present) {
+      map['private_key'] = Variable<String>(privateKey.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserEncryptionKeysCompanion(')
+          ..write('walletAddress: $walletAddress, ')
+          ..write('publicKey: $publicKey, ')
+          ..write('privateKey: $privateKey, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -5390,6 +5769,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DisputeCasesTable disputeCases = $DisputeCasesTable(this);
   late final $DeliverableSubmissionsTable deliverableSubmissions =
       $DeliverableSubmissionsTable(this);
+  late final $UserEncryptionKeysTable userEncryptionKeys =
+      $UserEncryptionKeysTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5404,6 +5785,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     seekerAttestations,
     disputeCases,
     deliverableSubmissions,
+    userEncryptionKeys,
   ];
 }
 
@@ -7771,6 +8153,7 @@ typedef $$DeliverableSubmissionsTableCreateCompanionBuilder =
       Value<String> status,
       Value<String?> decryptionKeyHash,
       Value<String?> completionNote,
+      Value<String?> wrappedKey,
       Value<DateTime> syncedAt,
     });
 typedef $$DeliverableSubmissionsTableUpdateCompanionBuilder =
@@ -7787,6 +8170,7 @@ typedef $$DeliverableSubmissionsTableUpdateCompanionBuilder =
       Value<String> status,
       Value<String?> decryptionKeyHash,
       Value<String?> completionNote,
+      Value<String?> wrappedKey,
       Value<DateTime> syncedAt,
     });
 
@@ -7856,6 +8240,11 @@ class $$DeliverableSubmissionsTableFilterComposer
 
   ColumnFilters<String> get completionNote => $composableBuilder(
     column: $table.completionNote,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get wrappedKey => $composableBuilder(
+    column: $table.wrappedKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7934,6 +8323,11 @@ class $$DeliverableSubmissionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get wrappedKey => $composableBuilder(
+    column: $table.wrappedKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get syncedAt => $composableBuilder(
     column: $table.syncedAt,
     builder: (column) => ColumnOrderings(column),
@@ -8001,6 +8395,11 @@ class $$DeliverableSubmissionsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get wrappedKey => $composableBuilder(
+    column: $table.wrappedKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get syncedAt =>
       $composableBuilder(column: $table.syncedAt, builder: (column) => column);
 }
@@ -8063,6 +8462,7 @@ class $$DeliverableSubmissionsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> decryptionKeyHash = const Value.absent(),
                 Value<String?> completionNote = const Value.absent(),
+                Value<String?> wrappedKey = const Value.absent(),
                 Value<DateTime> syncedAt = const Value.absent(),
               }) => DeliverableSubmissionsCompanion(
                 id: id,
@@ -8077,6 +8477,7 @@ class $$DeliverableSubmissionsTableTableManager
                 status: status,
                 decryptionKeyHash: decryptionKeyHash,
                 completionNote: completionNote,
+                wrappedKey: wrappedKey,
                 syncedAt: syncedAt,
               ),
           createCompanionCallback:
@@ -8093,6 +8494,7 @@ class $$DeliverableSubmissionsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> decryptionKeyHash = const Value.absent(),
                 Value<String?> completionNote = const Value.absent(),
+                Value<String?> wrappedKey = const Value.absent(),
                 Value<DateTime> syncedAt = const Value.absent(),
               }) => DeliverableSubmissionsCompanion.insert(
                 id: id,
@@ -8107,6 +8509,7 @@ class $$DeliverableSubmissionsTableTableManager
                 status: status,
                 decryptionKeyHash: decryptionKeyHash,
                 completionNote: completionNote,
+                wrappedKey: wrappedKey,
                 syncedAt: syncedAt,
               ),
           withReferenceMapper: (p0) => p0
@@ -8150,6 +8553,215 @@ typedef $$DeliverableSubmissionsTableProcessedTableManager =
       DeliverableSubmissionData,
       PrefetchHooks Function()
     >;
+typedef $$UserEncryptionKeysTableCreateCompanionBuilder =
+    UserEncryptionKeysCompanion Function({
+      required String walletAddress,
+      required String publicKey,
+      required String privateKey,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$UserEncryptionKeysTableUpdateCompanionBuilder =
+    UserEncryptionKeysCompanion Function({
+      Value<String> walletAddress,
+      Value<String> publicKey,
+      Value<String> privateKey,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$UserEncryptionKeysTableFilterComposer
+    extends Composer<_$AppDatabase, $UserEncryptionKeysTable> {
+  $$UserEncryptionKeysTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get walletAddress => $composableBuilder(
+    column: $table.walletAddress,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get publicKey => $composableBuilder(
+    column: $table.publicKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get privateKey => $composableBuilder(
+    column: $table.privateKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$UserEncryptionKeysTableOrderingComposer
+    extends Composer<_$AppDatabase, $UserEncryptionKeysTable> {
+  $$UserEncryptionKeysTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get walletAddress => $composableBuilder(
+    column: $table.walletAddress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get publicKey => $composableBuilder(
+    column: $table.publicKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get privateKey => $composableBuilder(
+    column: $table.privateKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$UserEncryptionKeysTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UserEncryptionKeysTable> {
+  $$UserEncryptionKeysTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get walletAddress => $composableBuilder(
+    column: $table.walletAddress,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get publicKey =>
+      $composableBuilder(column: $table.publicKey, builder: (column) => column);
+
+  GeneratedColumn<String> get privateKey => $composableBuilder(
+    column: $table.privateKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$UserEncryptionKeysTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $UserEncryptionKeysTable,
+          UserEncryptionKeyData,
+          $$UserEncryptionKeysTableFilterComposer,
+          $$UserEncryptionKeysTableOrderingComposer,
+          $$UserEncryptionKeysTableAnnotationComposer,
+          $$UserEncryptionKeysTableCreateCompanionBuilder,
+          $$UserEncryptionKeysTableUpdateCompanionBuilder,
+          (
+            UserEncryptionKeyData,
+            BaseReferences<
+              _$AppDatabase,
+              $UserEncryptionKeysTable,
+              UserEncryptionKeyData
+            >,
+          ),
+          UserEncryptionKeyData,
+          PrefetchHooks Function()
+        > {
+  $$UserEncryptionKeysTableTableManager(
+    _$AppDatabase db,
+    $UserEncryptionKeysTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UserEncryptionKeysTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UserEncryptionKeysTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UserEncryptionKeysTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> walletAddress = const Value.absent(),
+                Value<String> publicKey = const Value.absent(),
+                Value<String> privateKey = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UserEncryptionKeysCompanion(
+                walletAddress: walletAddress,
+                publicKey: publicKey,
+                privateKey: privateKey,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String walletAddress,
+                required String publicKey,
+                required String privateKey,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UserEncryptionKeysCompanion.insert(
+                walletAddress: walletAddress,
+                publicKey: publicKey,
+                privateKey: privateKey,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$UserEncryptionKeysTable, UserEncryptionKeyData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $UserEncryptionKeysTable,
+                    UserEncryptionKeyData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$UserEncryptionKeysTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $UserEncryptionKeysTable,
+      UserEncryptionKeyData,
+      $$UserEncryptionKeysTableFilterComposer,
+      $$UserEncryptionKeysTableOrderingComposer,
+      $$UserEncryptionKeysTableAnnotationComposer,
+      $$UserEncryptionKeysTableCreateCompanionBuilder,
+      $$UserEncryptionKeysTableUpdateCompanionBuilder,
+      (
+        UserEncryptionKeyData,
+        BaseReferences<
+          _$AppDatabase,
+          $UserEncryptionKeysTable,
+          UserEncryptionKeyData
+        >,
+      ),
+      UserEncryptionKeyData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8175,4 +8787,6 @@ class $AppDatabaseManager {
         _db,
         _db.deliverableSubmissions,
       );
+  $$UserEncryptionKeysTableTableManager get userEncryptionKeys =>
+      $$UserEncryptionKeysTableTableManager(_db, _db.userEncryptionKeys);
 }

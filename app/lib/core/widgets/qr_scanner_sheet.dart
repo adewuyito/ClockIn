@@ -12,6 +12,12 @@ class QrScanResult {
   final double? amountSol;
   final String? contractId;
   final String? deliverableKey;
+  final String? deliverableCiphertext;
+  final String? deliverableIv;
+  final String? deliverableAuthTag;
+  final String? deliverableHash;
+  final String? deliverableNote;
+  final String? deliverableTxId;
 
   const QrScanResult({
     required this.raw,
@@ -19,6 +25,12 @@ class QrScanResult {
     this.amountSol,
     this.contractId,
     this.deliverableKey,
+    this.deliverableCiphertext,
+    this.deliverableIv,
+    this.deliverableAuthTag,
+    this.deliverableHash,
+    this.deliverableNote,
+    this.deliverableTxId,
   });
 
   /// Extracts Solana addresses, Solana Pay URIs, or ClockIn contract IDs.
@@ -26,15 +38,34 @@ class QrScanResult {
     final trimmed = raw.trim();
 
     // 1. ClockIn deep links:
-    // - deliverable key: clockin://deliverable/<id>#key=<key>
-    // - contract: clockin://contract/<id> or clockin:contract:<id>
-    // - worker profile: clockin://worker/<address> or clockin:worker:<address>
+    // - deliverable: clockin://deliverable/<id>?ct=...&iv=...#key=<key>
     if (trimmed.startsWith('clockin://deliverable/')) {
-      final withoutScheme = trimmed.substring('clockin://deliverable/'.length);
-      final parts = withoutScheme.split('#key=');
-      final id = parts[0];
-      final key = parts.length > 1 ? parts[1] : null;
-      return QrScanResult(raw: trimmed, contractId: id, deliverableKey: key);
+      try {
+        final uri = Uri.parse(trimmed);
+        final id = uri.path.replaceAll('/', '');
+        final fragment = uri.fragment;
+        final key = fragment.startsWith('key=')
+            ? fragment.substring(4)
+            : (fragment.isNotEmpty ? fragment : null);
+
+        return QrScanResult(
+          raw: trimmed,
+          contractId: id.isNotEmpty ? id : null,
+          deliverableKey: key,
+          deliverableCiphertext: uri.queryParameters['ct'],
+          deliverableIv: uri.queryParameters['iv'],
+          deliverableAuthTag: uri.queryParameters['tag'],
+          deliverableHash: uri.queryParameters['hash'],
+          deliverableNote: uri.queryParameters['note'],
+          deliverableTxId: uri.queryParameters['tx'],
+        );
+      } catch (_) {
+        final withoutScheme = trimmed.substring('clockin://deliverable/'.length);
+        final parts = withoutScheme.split('#key=');
+        final id = parts[0].split('?')[0];
+        final key = parts.length > 1 ? parts[1] : null;
+        return QrScanResult(raw: trimmed, contractId: id, deliverableKey: key);
+      }
     }
     if (trimmed.startsWith('clockin://contract/')) {
       final id = trimmed.substring('clockin://contract/'.length);

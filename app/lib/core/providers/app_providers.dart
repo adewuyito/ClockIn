@@ -12,6 +12,7 @@ import '../models/review.dart';
 import '../models/seeker_attestation.dart';
 import '../models/worker_profile.dart';
 import '../services/deliverable_encryption_service.dart';
+import '../services/firebase_sync_service.dart';
 import '../services/irys_storage_service.dart';
 import '../solana/network_config.dart';
 import '../solana/reputation_service.dart';
@@ -88,6 +89,14 @@ final deliverableRepositoryProvider = Provider<DeliverableRepository>((ref) {
     encryptionService: encryptionService,
     irysService: irysService,
   );
+});
+
+/// Service coordinating real-time encrypted deliverable sync and FCM push notifications via Firebase.
+final firebaseSyncServiceProvider = Provider<FirebaseSyncService>((ref) {
+  final deliverableRepo = ref.watch(deliverableRepositoryProvider);
+  final service = FirebaseSyncService(deliverableRepository: deliverableRepo);
+  ref.onDispose(() => service.dispose());
+  return service;
 });
 
 // ==================== WALLET STATE MANAGEMENT ====================

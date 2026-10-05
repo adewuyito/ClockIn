@@ -153,5 +153,52 @@ void main() {
         completionNote: 'Revision 2',
       );
     });
+
+    test('saveReceivedSubmission imports submission from QR code and deduplicates', () async {
+      const contractId = 'ctr_qr_import_test';
+      const submitter = 'WorkerCrossDevice';
+      const plaintext = 'https://drive.google.com/folder/deliverables';
+      final key = encryptionService.generateKey();
+      final plaintextHash = encryptionService.computeHash(plaintext);
+      final encrypted = encryptionService.encrypt(plaintext, key);
+
+      // 1. Ingest received submission as employer
+      final saved = await repository.saveReceivedSubmission(
+        contractId: contractId,
+        submitterAddress: submitter,
+        encryptedPayload: encrypted.ciphertext,
+        iv: encrypted.iv,
+        plaintextHash: plaintextHash,
+        authTag: encrypted.authTag,
+        completionNote: 'Here are the design assets',
+      );
+
+      expect(saved.id, isNotNull);
+      expect(saved.contractId, equals(contractId));
+      expect(saved.submitterAddress, equals(submitter));
+      expect(saved.encryptedPayload, equals(encrypted.ciphertext));
+      expect(saved.status, equals(DeliverableStatus.submitted));
+
+      // 2. Employer decrypts using the key from QR code
+      final decrypted = repository.decryptAndVerify(
+        submission: saved,
+        decryptionKey: key,
+      );
+      expect(decrypted, equals(plaintext));
+
+      // 3. Deduplication check: scanning again returns same record without duplicates
+      final deduplicated = await repository.saveReceivedSubmission(
+        contractId: contractId,
+        submitterAddress: submitter,
+        encryptedPayload: encrypted.ciphertext,
+        iv: encrypted.iv,
+        plaintextHash: plaintextHash,
+        authTag: encrypted.authTag,
+      );
+      expect(deduplicated.id, equals(saved.id));
+
+      final allSubmissions = await repository.getSubmissionsForContract(contractId);
+      expect(allSubmissions.length, equals(1));
+    });
   });
 }

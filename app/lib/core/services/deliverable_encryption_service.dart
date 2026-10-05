@@ -3,12 +3,16 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as hash;
+import 'package:cryptography/cryptography.dart' as crypto;
 import 'package:encrypt/encrypt.dart';
 
-/// Service providing AES-256-GCM encryption/decryption for E2EE deliverable
-/// submissions. Each contract gets a unique symmetric key generated locally
-/// by the worker. The key is shared out-of-band (QR fragment) and never
-/// stored on-chain or uploaded to Irys.
+/// Service providing AES-256-GCM encryption/decryption and X25519 asymmetric
+/// envelope key wrapping for E2EE deliverable submissions.
+///
+/// Symmetric payload encryption protects the deliverable itself.
+/// Asymmetric X25519 key wrapping allows the worker to encrypt the symmetric key
+/// directly for the employer's public key so it can be relayed via Firestore
+/// with zero plaintext exposure to servers or intermediaries.
 class DeliverableEncryptionService {
   /// Generates a cryptographically random 256-bit AES key.
   ///
@@ -85,6 +89,124 @@ class DeliverableEncryptionService {
     final digest = hash.sha256.convert(bytes);
     return digest.toString();
   }
+
+  // ==================== X25519 ENVELOPE KEY WRAPPING ====================
+
+  /// Generates a new X25519 key pair for asymmetric envelope key wrapping.
+  ///
+  /// The public key can be published to Firestore (`/users/{walletAddress}`)
+  /// while the private key remains strictly on-device in Drift storage.
+  Future<X25519KeyPairData> generateX25519KeyPair() async {
+    final x25519 = crypto.X25519();
+    final keyPair = await x25519.newKeyPair();
+    final publicKey = await keyPair.extractPublicKey();
+    final privateKeyBytes = await keyPair.extractPrivateKeyBytes();
+
+    return X25519KeyPairData(
+      publicKeyBase64: base64.encode(publicKey.bytes),
+      privateKeyBase64: base64.encode(privateKeyBytes),
+    );
+  }
+
+  /// Wraps a symmetric AES key [base64Key] for [recipientPublicKeyBase64] using
+  /// X25519 Diffie-Hellman key agreement and AES-256-GCM.
+  ///
+  /// Returns a JSON-encoded string containing ephemeral public key, nonce, ciphertext, and MAC.
+  Future<String> wrapKey({
+    required String base64Key,
+    required String recipientPublicKeyBase64,
+  }) async {
+    final x25519 = crypto.X25519();
+    final aesGcm = crypto.AesGcm.with256bits();
+    final sha256 = crypto.Sha256();
+
+    final recipientPublicKeyBytes = base64.decode(recipientPublicKeyBase64);
+    final ephemeralKeyPair = await x25519.newKeyPair();
+    final ephemeralPublicKey = await ephemeralKeyPair.extractPublicKey();
+
+    final sharedSecret = await x25519.sharedSecretKey(
+      keyPair: ephemeralKeyPair,
+      remotePublicKey: crypto.SimplePublicKey(
+        recipientPublicKeyBytes,
+        type: crypto.KeyPairType.x25519,
+      ),
+    );
+    final sharedBytes = await sharedSecret.extractBytes();
+    final derivedWrapKey = (await sha256.hash(sharedBytes)).bytes;
+
+    final secretBox = await aesGcm.encrypt(
+      utf8.encode(base64Key),
+      secretKey: crypto.SecretKey(derivedWrapKey),
+    );
+
+    return jsonEncode({
+      'epk': base64.encode(ephemeralPublicKey.bytes),
+      'nonce': base64.encode(secretBox.nonce),
+      'ct': base64.encode(secretBox.cipherText),
+      'mac': base64.encode(secretBox.mac.bytes),
+    });
+  }
+
+  /// Unwraps a wrapped symmetric key using [recipientPrivateKeyBase64].
+  ///
+  /// Returns the original [base64Key] symmetric AES key string.
+  Future<String> unwrapKey({
+    required String wrappedKeyJson,
+    required String recipientPrivateKeyBase64,
+    String? recipientPublicKeyBase64,
+  }) async {
+    final x25519 = crypto.X25519();
+    final aesGcm = crypto.AesGcm.with256bits();
+    final sha256 = crypto.Sha256();
+
+    final decoded = jsonDecode(wrappedKeyJson) as Map<String, dynamic>;
+    final epkBytes = base64.decode(decoded['epk'] as String);
+    final nonce = base64.decode(decoded['nonce'] as String);
+    final ct = base64.decode(decoded['ct'] as String);
+    final mac = base64.decode(decoded['mac'] as String);
+
+    final privateKeyBytes = base64.decode(recipientPrivateKeyBase64);
+    final recipientKeyPair = await x25519.newKeyPairFromSeed(privateKeyBytes);
+
+    final sharedSecret = await x25519.sharedSecretKey(
+      keyPair: recipientKeyPair,
+      remotePublicKey: crypto.SimplePublicKey(
+        epkBytes,
+        type: crypto.KeyPairType.x25519,
+      ),
+    );
+    final sharedBytes = await sharedSecret.extractBytes();
+    final derivedWrapKey = (await sha256.hash(sharedBytes)).bytes;
+
+    final unwrappedBytes = await aesGcm.decrypt(
+      crypto.SecretBox(ct, nonce: nonce, mac: crypto.Mac(mac)),
+      secretKey: crypto.SecretKey(derivedWrapKey),
+    );
+
+    return utf8.decode(unwrappedBytes);
+  }
+}
+
+/// Holds the public and private key for X25519 asymmetric envelope encryption.
+class X25519KeyPairData {
+  final String publicKeyBase64;
+  final String privateKeyBase64;
+
+  const X25519KeyPairData({
+    required this.publicKeyBase64,
+    required this.privateKeyBase64,
+  });
+
+  Map<String, String> toJson() => {
+        'publicKey': publicKeyBase64,
+        'privateKey': privateKeyBase64,
+      };
+
+  factory X25519KeyPairData.fromJson(Map<String, dynamic> json) =>
+      X25519KeyPairData(
+        publicKeyBase64: json['publicKey'] as String,
+        privateKeyBase64: json['privateKey'] as String,
+      );
 }
 
 /// Holds the components of an AES-256-GCM encrypted payload.

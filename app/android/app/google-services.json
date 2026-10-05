@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "706018889242",
+    "firebase_url": "https://clever-tech-flutter-default-rtdb.firebaseio.com",
+    "project_id": "clever-tech-flutter",
+    "storage_bucket": "clever-tech-flutter.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:706018889242:android:7734782ce24a6bb4118ba3",
+        "android_client_info": {
+          "package_name": "com.clockin.clockin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "706018889242-5apr533knubsbemq6rs015psqv1tj0vu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFOdP2n9ca76OhLC-BleUgZdPQwHQ-it8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "706018889242-5453nln41broimcdjacklkrp5udgds1p.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "706018889242-2uh4vtf4mj5oj78rn1ibvl1td2bd437h.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.cleverTech.RunnerTests"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
