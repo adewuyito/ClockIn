@@ -18,6 +18,8 @@ app/.dart_tool/
 
 # Android
 **/android/.gradle/
+**/android/.kotlin/
+.kotlin/
 **/android/local.properties
 **/android/app/debug
 **/android/app/profile
