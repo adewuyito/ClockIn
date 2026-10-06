@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:clockin/core/database/app_database.dart';
 import 'package:clockin/core/database/deliverable_repository.dart';
 import 'package:clockin/core/models/deliverable_submission.dart';
@@ -12,10 +16,24 @@ void main() {
   late IrysStorageService irysService;
   late DeliverableRepository repository;
 
+  /// Every request the repository sends to Irys. The real service code runs —
+  /// request building, response parsing — but the network is a [MockClient],
+  /// so these tests never touch devnet.irys.xyz and can't flake on it.
+  late List<http.Request> irysRequests;
+
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     encryptionService = DeliverableEncryptionService();
-    irysService = IrysStorageService();
+    irysRequests = [];
+    irysService = IrysStorageService(
+      client: MockClient((request) async {
+        irysRequests.add(request);
+        return http.Response(
+          jsonEncode({'id': 'mock-arweave-tx-${irysRequests.length}'}),
+          200,
+        );
+      }),
+    );
     repository = DeliverableRepository(
       db: db,
       encryptionService: encryptionService,
@@ -51,6 +69,18 @@ void main() {
       expect(submission.completionNote, equals('Initial implementation of responsive dashboard'));
       expect(submission.plaintextHash, equals(encryptionService.computeHash(deliverableUrl)));
       expect(submission.decryptionKeyHash, equals(encryptionService.hashKey(key)));
+
+      // Exactly one upload, and its Arweave ID is what was stored.
+      expect(irysRequests, hasLength(1));
+      expect(submission.arweaveTxId, equals('mock-arweave-tx-1'));
+
+      // What reaches Irys is permanent and public: it must carry ciphertext
+      // only — never the plaintext or the symmetric key.
+      final body = jsonDecode(irysRequests.single.body) as Map<String, dynamic>;
+      final uploaded = utf8.decode(base64Decode(body['data'] as String));
+      expect(uploaded, isNot(contains(deliverableUrl)));
+      expect(uploaded, isNot(contains(key)));
+      expect(uploaded, contains(submission.encryptedPayload));
     });
 
     test('decryptAndVerify successfully retrieves plaintext and verifies integrity', () async {

@@ -22,8 +22,14 @@ void main() {
   const testAddress = 'EmployerTest11111111111111111111111111111111';
 
   group('CreateContractScreen Multi-Currency Widget Tests', () {
+    // Note on scope: this checks the currency selector renders on a 360dp
+    // screen. It cannot prove the screen is overflow-free there. The timeline
+    // header sits below the fold of a lazily built list and is never laid out
+    // here, and widget tests render text in Flutter's square-glyph test font
+    // (~1.8× wider than Plus Jakarta Sans), so overflow measured in a test does
+    // not match a real device. Check narrow-screen layout on a device/emulator.
     testWidgets(
-        'Renders 3-way currency selector [SOL | USDC | \$SKR] without overflow on 360dp screen',
+        'Renders 3-way currency selector [SOL | USDC | \$SKR] on a 360dp screen',
         (tester) async {
       tester.view.physicalSize = const Size(360 * 2, 640 * 2);
       tester.view.devicePixelRatio = 2.0;
@@ -48,7 +54,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Zero exceptions / RenderFlex overflow
+      // No exceptions while building the visible portion of the screen.
       expect(tester.takeException(), isNull);
 
       // Verify all 3 currencies are visible
@@ -98,11 +104,7 @@ void main() {
       await tester.tap(usdcTab.first);
       await tester.pumpAndSettle();
 
-      final afterTapError = tester.takeException();
-      if (afterTapError != null) {
-        print('AFTER TAP ERROR: $afterTapError');
-      }
-      expect(afterTapError, isNull);
+      expect(tester.takeException(), isNull);
       expect(find.text('Escrow Amount (USDC)'), findsOneWidget);
       expect(find.byIcon(Icons.attach_money_rounded), findsWidgets);
 
