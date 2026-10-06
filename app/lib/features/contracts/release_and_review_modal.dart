@@ -516,7 +516,7 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
                   const SizedBox(width: 6),
                   Text(
                     widget.contract.isToken
-                        ? r'ATOMIC $SKR SETTLEMENT (1 TX BLOCK)'
+                        ? 'ATOMIC ${widget.contract.currencySymbol} SETTLEMENT (1 TX BLOCK)'
                         : 'ATOMIC ESCROW SETTLEMENT (1 TX BLOCK)',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11.5,

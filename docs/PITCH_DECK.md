@@ -82,7 +82,7 @@ STEP 2  ClockIn inscribes the review note + deliverable hash to Arweave via Irys
         → Permanent receipt: gateway.irys.xyz/<arweave_tx_id>
         ↓
 STEP 3  Single Solana instruction fires: release_and_review
-        → SOL / $SKR transfers from EscrowVault PDA to worker's wallet
+        → SOL / USDC / $SKR transfers from EscrowVault PDA to worker's wallet
         → Immutable ReviewRecord PDA minted on Solana
         → Worker's aggregate reputation score incremented
         ↓
@@ -119,7 +119,8 @@ Users sign Solana transactions using their phone's native biometrics — Face ID
 **Built and shipped — not prototyped:**
 
 - **Dual-Role Contract Dashboard** — Toggle instantly between Employer and Worker view, with live escrow value tracking per contract.
-- **Dual-Currency Escrow** — Native SOL and Seeker's $SKR token, with automatic ATA (Associated Token Account) lifecycle management — workers don't need to pre-create token accounts.
+- **Multi-Currency Escrow (SOL, USDC, $SKR)** — Native SOL, dollar-denominated Devnet USDC, and Seeker's $SKR token, with precision decimal scaling (6 decimals for USDC and $SKR, 9 decimals for SOL) and automatic ATA (Associated Token Account) lifecycle management — zero manual account setup required.
+- **End-to-End Encrypted Deliverables** — Client-side deliverable encryption with Ed25519 counterparty key exchange and SHA-256 integrity pinning, ensuring private project deliverables remain strictly confidential while proving work authenticity.
 - **Seeker Guardian Attestation** — Non-custodial verification of active 250 $SKR stake delegated to official Solana Mobile Guardians with native Seeker hardware detection, eliminating fake bots with zero custody risk.
 - **Arweave Provenance Badges** — Every completed review displays a tappable permaweb badge. Tap to copy the permanent Arweave receipt URL.
 - **Pretty QR Contract Sharing** — Rounded, high-contrast QR codes for instant counterparty discovery. Built-in scanner (`mobile_scanner`) supports base58 keys and Solana Pay URIs.
@@ -133,9 +134,10 @@ Users sign Solana transactions using their phone's native biometrics — Face ID
 |---|---|
 | **Program ID (Devnet)** | `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` |
 | **Anchor Instructions** | 7 deployed and tested |
-| **Test Coverage** | **28/28** Anchor · **44/44** Flutter — **100%** |
-| **APK Size** | **28 MB** ARM64 Release (optimised) |
-| **Tested Hardware** | Samsung Galaxy · Solana Seeker preview device |
+| **Supported Currencies** | **SOL** (native) · **USDC** (6 decimals) · **$SKR** (6 decimals) |
+| **Test Coverage** | **28/28** Anchor · **85/85** Flutter — **100% Green** |
+| **APK Distribution** | **26.7 MB** armeabi-v7a · **30.7 MB** arm64-v8a Release |
+| **Tested Hardware** | Samsung Galaxy J7 Prime · Galaxy A51 · Solana Seeker preview |
 
 ---
 

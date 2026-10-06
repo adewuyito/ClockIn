@@ -121,7 +121,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
   }
 
   Future<void> _handleCancel(EscrowContract contract) async {
-    final currencyName = contract.isToken ? r'$SKR' : 'SOL';
+    final currencyName = contract.currencySymbol;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -315,7 +315,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            r'$SKR TOKEN',
+                            '${contract.currencySymbol} TOKEN',
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
@@ -375,9 +375,11 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    contract.isToken
-                        ? 'Seeker SPL Token'
-                        : '≈ \$${(contract.amountSol * 140).toStringAsFixed(2)} USD',
+                    contract.isUsdc
+                        ? 'USD Coin (SPL)'
+                        : (contract.isSkr
+                            ? 'Seeker SPL Token'
+                            : '≈ \$${(contract.amountSol * 140).toStringAsFixed(2)} USD'),
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 13,
                       color: AppColors.onSurfaceVariant,
@@ -579,15 +581,15 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
               if (contract.isToken) ...[
                 const SizedBox(height: 10),
                 _buildAddressRow(
-                  r'$SKR Mint',
-                  contract.tokenMint ?? NetworkConfig.devnetSkrMint,
+                  '${contract.currencySymbol} Mint',
+                  contract.tokenMint ?? (contract.isUsdc ? NetworkConfig.devnetUsdcMint : NetworkConfig.devnetSkrMint),
                 ),
                 FutureBuilder<Ed25519HDPublicKey>(
                   future: NetworkConfig.findVaultTokenAddress(
                     contractId: contract.contractId,
                     mint: contract.tokenMint != null
                         ? Ed25519HDPublicKey.fromBase58(contract.tokenMint!)
-                        : NetworkConfig.skrMint,
+                        : (contract.isUsdc ? NetworkConfig.usdcMint : NetworkConfig.skrMint),
                   ),
                   builder: (context, snapshot) {
                     final vaultAta = snapshot.data?.toBase58();

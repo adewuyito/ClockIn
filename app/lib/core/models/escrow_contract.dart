@@ -1,3 +1,72 @@
+import '../solana/network_config.dart';
+
+enum EscrowCurrency {
+  sol,
+  usdc,
+  skr;
+
+  String get symbol {
+    switch (this) {
+      case EscrowCurrency.sol:
+        return 'SOL';
+      case EscrowCurrency.usdc:
+        return 'USDC';
+      case EscrowCurrency.skr:
+        return r'$SKR';
+    }
+  }
+
+  String get displayName {
+    switch (this) {
+      case EscrowCurrency.sol:
+        return 'Native SOL';
+      case EscrowCurrency.usdc:
+        return 'USD Coin (USDC)';
+      case EscrowCurrency.skr:
+        return r'Seeker Token ($SKR)';
+    }
+  }
+
+  int get decimals {
+    switch (this) {
+      case EscrowCurrency.sol:
+        return 9;
+      case EscrowCurrency.usdc:
+      case EscrowCurrency.skr:
+        return 6;
+    }
+  }
+
+  double get divisor {
+    switch (this) {
+      case EscrowCurrency.sol:
+        return 1e9;
+      case EscrowCurrency.usdc:
+      case EscrowCurrency.skr:
+        return 1e6;
+    }
+  }
+
+  bool get isToken => this != EscrowCurrency.sol;
+
+  String? get mintAddress {
+    switch (this) {
+      case EscrowCurrency.sol:
+        return null;
+      case EscrowCurrency.usdc:
+        return NetworkConfig.devnetUsdcMint;
+      case EscrowCurrency.skr:
+        return NetworkConfig.devnetSkrMint;
+    }
+  }
+
+  static EscrowCurrency fromMintOrToken({required bool isToken, String? tokenMint}) {
+    if (!isToken) return EscrowCurrency.sol;
+    if (tokenMint == NetworkConfig.devnetUsdcMint) return EscrowCurrency.usdc;
+    return EscrowCurrency.skr;
+  }
+}
+
 enum ContractStatus {
   created,
   funded,
@@ -120,17 +189,27 @@ class EscrowContract {
     this.disputeRaisedAt,
   });
 
+  /// The currency for this escrow contract.
+  EscrowCurrency get currency =>
+      EscrowCurrency.fromMintOrToken(isToken: isToken, tokenMint: tokenMint);
+
+  /// Whether this contract is denominated in USDC.
+  bool get isUsdc => currency == EscrowCurrency.usdc;
+
+  /// Whether this contract is denominated in $SKR SPL tokens.
+  bool get isSkr => currency == EscrowCurrency.skr;
+
+  /// Currency symbol ("SOL", "USDC", or "$SKR").
+  String get currencySymbol => currency.symbol;
+
+  /// Formatted base amount in UI units (scaled by currency decimals).
+  double get amountUi => amount.toDouble() / currency.divisor;
+
   /// Amount formatted in SOL (e.g. 1.5).
   double get amountSol => amount.toDouble() / 1e9;
 
   /// Amount formatted in SPL tokens (e.g. 500.0).
   double get amountToken => amount.toDouble() / 1e6;
-
-  /// Whether this contract is denominated in $SKR SPL tokens.
-  bool get isSkr => isToken;
-
-  /// Currency symbol ("SOL" or "$SKR").
-  String get currencySymbol => isToken ? r'$SKR' : 'SOL';
 
   /// Formatted SOL string with up to 4 decimals (e.g. "1.5 SOL").
   String get formattedSol {
@@ -142,17 +221,25 @@ class EscrowContract {
     }
   }
 
-  /// Formatted amount string with currency symbol (e.g. "500 $SKR" or "1.5 SOL").
+  /// Formatted amount string with currency symbol (e.g. "500 $SKR", "50 USDC", or "1.5 SOL").
   String get formattedAmount {
-    if (isToken) {
-      final tokenVal = amount.toDouble() / 1e6;
-      if (tokenVal == tokenVal.roundToDouble()) {
-        return '${tokenVal.toStringAsFixed(0)} \$SKR';
-      } else {
-        return '${tokenVal.toStringAsFixed(2)} \$SKR';
-      }
-    } else {
-      return formattedSol;
+    switch (currency) {
+      case EscrowCurrency.sol:
+        return formattedSol;
+      case EscrowCurrency.usdc:
+        final val = amountUi;
+        if (val == val.roundToDouble()) {
+          return '${val.toStringAsFixed(0)} USDC';
+        } else {
+          return '${val.toStringAsFixed(2)} USDC';
+        }
+      case EscrowCurrency.skr:
+        final tokenVal = amountUi;
+        if (tokenVal == tokenVal.roundToDouble()) {
+          return '${tokenVal.toStringAsFixed(0)} \$SKR';
+        } else {
+          return '${tokenVal.toStringAsFixed(2)} \$SKR';
+        }
     }
   }
 

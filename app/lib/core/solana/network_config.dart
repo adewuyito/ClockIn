@@ -124,6 +124,14 @@ class NetworkConfig {
   static final Ed25519HDPublicKey skrMint =
       Ed25519HDPublicKey.fromBase58(devnetSkrMint);
 
+  /// Standard Solana Devnet USDC Token Mint
+  static const String devnetUsdcMint =
+      '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
+
+  /// Parsed Pubkey for devnet USDC mint
+  static final Ed25519HDPublicKey usdcMint =
+      Ed25519HDPublicKey.fromBase58(devnetUsdcMint);
+
   /// Public key of the devnet $SKR mint authority / faucet.
   /// Reading this is harmless; it is published here so the app can show which
   /// account funds the devnet faucet.

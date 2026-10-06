@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:solana/solana.dart';
 import '../../core/database/app_database.dart' hide WorkerProfile, Review, EscrowContract;
+import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/contract_service.dart';
 import '../../core/solana/network_config.dart';
@@ -36,7 +37,9 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
   DateTime? _selectedDeadline;
   int _selectedPresetDays = 7;
   bool _isSubmitting = false;
-  bool _isSkr = false;
+  EscrowCurrency _currency = EscrowCurrency.sol;
+  bool get _isSkr => _currency == EscrowCurrency.skr;
+  bool get _isToken => _currency != EscrowCurrency.sol;
   String? _errorMessage;
   int? _activeDraftId;
 
@@ -187,8 +190,8 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
       amountSol: amountSol,
       termsText: termsText.isNotEmpty ? termsText : null,
       deadline: BigInt.from(deadlineUnix),
-      isToken: _isSkr,
-      tokenMint: _isSkr ? NetworkConfig.devnetSkrMint : null,
+      isToken: _isToken,
+      tokenMint: _currency.mintAddress,
     );
     setState(() {
       _activeDraftId = savedId;
@@ -379,7 +382,10 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                         onTap: () {
                           setState(() {
                             _activeDraftId = draft.id;
-                            _isSkr = draft.isToken;
+                            _currency = EscrowCurrency.fromMintOrToken(
+                              isToken: draft.isToken,
+                              tokenMint: draft.tokenMint,
+                            );
                             _contractIdController.text = draft.contractId;
                             _workerController.text = draft.workerAddress;
                             _amountController.text = draft.amountSol.toString();
@@ -517,7 +523,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                   child: Column(
                     children: [
                       Text(
-                        _isSkr ? r'ESCROW AMOUNT ($SKR)' : 'ESCROW AMOUNT (SOL)',
+                        'ESCROW AMOUNT (${_currency.symbol})',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -527,11 +533,11 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _isSkr
-                            ? (amountSol == amountSol.roundToDouble()
-                                ? '${amountSol.toInt()} \$SKR'
-                                : '${amountSol.toStringAsFixed(2)} \$SKR')
-                            : '${amountSol.toStringAsFixed(2)} SOL',
+                        _currency == EscrowCurrency.sol
+                            ? '${amountSol.toStringAsFixed(2)} SOL'
+                            : (amountSol == amountSol.roundToDouble()
+                                ? '${amountSol.toInt()} ${_currency.symbol}'
+                                : '${amountSol.toStringAsFixed(2)} ${_currency.symbol}'),
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
@@ -539,9 +545,11 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                         ),
                       ),
                       Text(
-                        _isSkr
-                            ? 'Seeker Ecosystem SPL Token • 6 Decimals'
-                            : '≈ \$${(amountSol * 140).toStringAsFixed(2)} USD',
+                        _currency == EscrowCurrency.usdc
+                            ? 'USD Coin • SPL Token (6 Decimals)'
+                            : (_currency == EscrowCurrency.skr
+                                ? 'Seeker Ecosystem SPL Token • 6 Decimals'
+                                : '≈ \$${(amountSol * 140).toStringAsFixed(2)} USD'),
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 12,
                           color: AppColors.onSurfaceVariant,
@@ -553,12 +561,12 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                 const SizedBox(height: 16),
 
                 // Review items
-                _buildReviewItem('Currency', _isSkr ? r'$SKR (Seeker Token)' : 'SOL (Native)'),
-                if (_isSkr) ...[
+                _buildReviewItem('Currency', _currency.displayName),
+                if (_isToken && _currency.mintAddress != null) ...[
                   const Divider(height: 16, color: AppColors.surfaceContainerHigh),
                   _buildReviewItem(
                     'Token Mint',
-                    '${NetworkConfig.devnetSkrMint.substring(0, 6)}…${NetworkConfig.devnetSkrMint.substring(NetworkConfig.devnetSkrMint.length - 4)}',
+                    '${_currency.mintAddress!.substring(0, 6)}…${_currency.mintAddress!.substring(_currency.mintAddress!.length - 4)}',
                     isMono: true,
                   ),
                 ],
@@ -667,7 +675,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                                 throw Exception('Please connect your Solana wallet first.');
                               }
 
-                              if (_isSkr) {
+                              if (_isToken) {
                                 final baseUnits = BigInt.from((amountSol * 1e6).round());
                                 await contractRepo.createAndFund(
                                   contractId: contractId,
@@ -678,7 +686,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                                   employer: wallet.publicKey!,
                                   walletAdapter: walletAdapter,
                                   isToken: true,
-                                  tokenMint: NetworkConfig.devnetSkrMint,
+                                  tokenMint: _currency.mintAddress!,
                                 );
                               } else {
                                 final lamports = BigInt.from((amountSol * 1e9).round());
@@ -737,8 +745,8 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                             ),
                           )
                         : Text(
-                            _isSkr
-                                ? 'Sign & Lock ${amountSol == amountSol.roundToDouble() ? amountSol.toInt() : amountSol} \$SKR'
+                            _isToken
+                                ? 'Sign & Lock ${amountSol == amountSol.roundToDouble() ? amountSol.toInt() : amountSol} ${_currency.symbol}'
                                 : 'Sign & Lock $amountSol SOL',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 15,
@@ -1062,32 +1070,50 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                 Expanded(
                   child: _buildCurrencyTab(
                     symbol: 'SOL',
-                    title: 'Native Solana',
-                    subtitle: 'Native SOL',
-                    isSelected: !_isSkr,
+                    subtitle: 'Native',
+                    icon: Icons.account_balance_wallet_rounded,
+                    isSelected: _currency == EscrowCurrency.sol,
                     onTap: () {
                       HapticFeedback.selectionClick();
                       setState(() {
-                        _isSkr = false;
-                        if (_amountController.text == '500') {
+                        _currency = EscrowCurrency.sol;
+                        if (_amountController.text == '500' || _amountController.text == '50') {
                           _amountController.text = '0.5';
                         }
                       });
                     },
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _buildCurrencyTab(
-                    symbol: r'$SKR',
-                    title: 'Seeker Token',
-                    subtitle: 'SPL Token',
-                    isSelected: _isSkr,
+                    symbol: 'USDC',
+                    subtitle: 'USD Coin',
+                    icon: Icons.attach_money_rounded,
+                    isSelected: _currency == EscrowCurrency.usdc,
                     onTap: () {
                       HapticFeedback.selectionClick();
                       setState(() {
-                        _isSkr = true;
-                        if (_amountController.text == '0.5') {
+                        _currency = EscrowCurrency.usdc;
+                        if (_amountController.text == '0.5' || _amountController.text == '500') {
+                          _amountController.text = '50';
+                        }
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildCurrencyTab(
+                    symbol: r'$SKR',
+                    subtitle: 'Seeker',
+                    icon: Icons.shield_rounded,
+                    isSelected: _currency == EscrowCurrency.skr,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _currency = EscrowCurrency.skr;
+                        if (_amountController.text == '0.5' || _amountController.text == '50') {
                           _amountController.text = '500';
                         }
                       });
@@ -1100,7 +1126,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
 
             // Escrow Amount Field
             Text(
-              _isSkr ? r'Escrow Amount ($SKR)' : 'Escrow Amount (SOL)',
+              'Escrow Amount (${_currency.symbol})',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -1115,18 +1141,22 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                 if (val == null || val.trim().isEmpty) return 'Amount is required';
                 final num = double.tryParse(val.trim());
                 if (num == null || num <= 0) {
-                  return _isSkr ? r'Enter a valid amount > 0 $SKR' : 'Enter a valid amount > 0 SOL';
+                  return 'Enter a valid amount > 0 ${_currency.symbol}';
                 }
                 return null;
               },
               style: GoogleFonts.jetBrainsMono(fontSize: 15, fontWeight: FontWeight.w600),
               decoration: InputDecoration(
                 prefixIcon: Icon(
-                  _isSkr ? Icons.shield_outlined : Icons.account_balance_wallet_outlined,
+                  _currency == EscrowCurrency.usdc
+                      ? Icons.attach_money_rounded
+                      : (_currency == EscrowCurrency.skr
+                          ? Icons.shield_outlined
+                          : Icons.account_balance_wallet_outlined),
                   size: 20,
-                  color: _isSkr ? AppColors.primary : null,
+                  color: _isToken ? AppColors.primary : null,
                 ),
-                suffixText: _isSkr ? r'$SKR' : 'SOL',
+                suffixText: _currency.symbol,
                 suffixStyle: GoogleFonts.jetBrainsMono(
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
@@ -1476,8 +1506,8 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
 
   Widget _buildCurrencyTab({
     required String symbol,
-    required String title,
     required String subtitle,
+    required IconData icon,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
@@ -1485,7 +1515,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
               ? AppColors.primaryContainer.withValues(alpha: 0.1)
@@ -1498,43 +1528,40 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
             width: isSelected ? 1.8 : 1.0,
           ),
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(7),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: isSelected ? AppColors.primary : AppColors.surfaceContainerHigh,
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                symbol == r'$SKR' ? Icons.shield_rounded : Icons.generating_tokens_rounded,
-                size: 15,
+                icon,
+                size: 14,
                 color: isSelected ? Colors.white : AppColors.onSurfaceVariant,
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    symbol,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: isSelected ? AppColors.primary : AppColors.onSurface,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 6),
+            Text(
+              symbol,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: isSelected ? AppColors.primary : AppColors.onSurface,
+              ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: AppColors.onSurfaceVariant,
               ),
             ),
           ],

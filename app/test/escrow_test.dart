@@ -373,8 +373,84 @@ void main() {
       expect(retrieved, isNotNull);
       expect(retrieved!.isToken, isTrue);
       expect(retrieved.isSkr, isTrue);
+      expect(retrieved.isUsdc, isFalse);
+      expect(retrieved.currency, equals(EscrowCurrency.skr));
       expect(retrieved.tokenMint, equals(skrMint));
       expect(retrieved.formattedAmount, equals('500 \$SKR'));
+    });
+
+    test('USDC escrow draft saving and Drift round-trip with 6 decimals', () async {
+      const contractId = 'ctr-usdc-drift-test';
+      final employer = 'EmployerTest11111111111111111111111111111111';
+      final worker = 'WorkerTest111111111111111111111111111111111111';
+      final usdcMint = NetworkConfig.devnetUsdcMint;
+
+      // 1. Save draft with USDC token settings
+      final draftId = await repository.saveDraftContract(
+        contractId: contractId,
+        workerAddress: worker,
+        amountSol: 150.0,
+        termsText: 'Deliver USDC audited deliverables',
+        deadline: BigInt.from(1750000000),
+        isToken: true,
+        tokenMint: usdcMint,
+      );
+      expect(draftId, isPositive);
+
+      final drafts = await repository.getDraftContracts();
+      final usdcDraft = drafts.firstWhere((d) => d.contractId == contractId);
+      expect(usdcDraft.isToken, isTrue);
+      expect(usdcDraft.tokenMint, equals(usdcMint));
+
+      // 2. Insert USDC contract into Drift
+      final now = DateTime.now().toUtc();
+      final contract = EscrowContract(
+        contractId: contractId,
+        employer: employer,
+        worker: worker,
+        amount: BigInt.from(150 * 1000000), // 150 USDC (6 decimals)
+        termsHash: 'usdc1234567890abcdef',
+        termsText: 'Deliver USDC audited deliverables',
+        status: ContractStatus.funded,
+        createdAt: now,
+        isToken: true,
+        tokenMint: usdcMint,
+      );
+
+      expect(contract.isToken, isTrue);
+      expect(contract.isUsdc, isTrue);
+      expect(contract.isSkr, isFalse);
+      expect(contract.currency, equals(EscrowCurrency.usdc));
+      expect(contract.currencySymbol, equals('USDC'));
+      expect(contract.formattedAmount, equals('150 USDC'));
+
+      await db.into(db.escrowContracts).insert(
+            EscrowContractsCompanion.insert(
+              contractId: contract.contractId,
+              employer: contract.employer,
+              worker: contract.worker,
+              amount: contract.amount,
+              termsHash: contract.termsHash,
+              termsText: Value(contract.termsText),
+              status: contract.status.name,
+              deadline: BigInt.zero,
+              createdAt: BigInt.from(now.millisecondsSinceEpoch ~/ 1000),
+              fundedAt: BigInt.from(now.millisecondsSinceEpoch ~/ 1000),
+              completedAt: BigInt.zero,
+              rating: 0,
+              syncedAt: Value(now),
+              isToken: Value(true),
+              tokenMint: Value(usdcMint),
+            ),
+          );
+
+      final retrieved = await repository.getContract(contractId);
+      expect(retrieved, isNotNull);
+      expect(retrieved!.isToken, isTrue);
+      expect(retrieved.isUsdc, isTrue);
+      expect(retrieved.isSkr, isFalse);
+      expect(retrieved.tokenMint, equals(usdcMint));
+      expect(retrieved.formattedAmount, equals('150 USDC'));
     });
   });
 
@@ -580,6 +656,123 @@ void main() {
         dataList.sublist(0, 8),
         equals(ProgramInstructions.cancelTokenContractDiscriminator),
       );
+    });
+
+    test('Decodes USDC token EscrowContract binary account data with 6 decimals', () {
+      final employerKey = Ed25519HDPublicKey.fromBase58(
+        'GBZqhLZXAjBtfeVkVWMYWFN8DGmxskwKna3UEXGvfh8P',
+      );
+      final workerKey = Ed25519HDPublicKey.fromBase58(
+        'FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9',
+      );
+      final usdcMintKey = Ed25519HDPublicKey.fromBase58(NetworkConfig.devnetUsdcMint);
+      const contractId = 'ctr-usdc-decode-1';
+
+      final buffer = Uint8List(220);
+      final byteData = ByteData.sublistView(buffer);
+
+      // Discriminator (8 bytes)
+      buffer.setRange(0, 8, AccountDecoders.escrowContractDiscriminator);
+      var offset = 8;
+
+      // contract_id: string
+      final idBytes = utf8.encode(contractId);
+      byteData.setUint32(offset, idBytes.length, Endian.little);
+      offset += 4;
+      buffer.setRange(offset, offset + idBytes.length, idBytes);
+      offset += idBytes.length;
+
+      // employer (32 bytes)
+      buffer.setRange(offset, offset + 32, employerKey.bytes);
+      offset += 32;
+
+      // worker (32 bytes)
+      buffer.setRange(offset, offset + 32, workerKey.bytes);
+      offset += 32;
+
+      // amount: 250 USDC = 250,000,000 micro-USDC (6 decimals)
+      byteData.setUint64(offset, 250000000, Endian.little);
+      offset += 8;
+
+      // terms_hash: [u8; 32]
+      offset += 32;
+
+      // status: 1 (funded)
+      buffer[offset] = 1;
+      offset += 1;
+
+      // deadline: i64 (8 bytes)
+      byteData.setInt64(offset, 1750000000, Endian.little);
+      offset += 8;
+
+      // created_at: i64 (8 bytes)
+      byteData.setInt64(offset, 1710000000, Endian.little);
+      offset += 8;
+
+      // funded_at: i64 (8 bytes)
+      byteData.setInt64(offset, 1710000010, Endian.little);
+      offset += 8;
+
+      // completed_at: i64 (8 bytes)
+      byteData.setInt64(offset, 0, Endian.little);
+      offset += 8;
+
+      // rating: u8 (1 byte)
+      buffer[offset] = 0;
+      offset += 1;
+
+      // bump
+      buffer[offset] = 255;
+      offset += 1;
+
+      // vault_bump
+      buffer[offset] = 254;
+      offset += 1;
+
+      // is_token = true (1)
+      buffer[offset] = 1;
+      offset += 1;
+
+      // token_mint (USDC mint)
+      buffer.setRange(offset, offset + 32, usdcMintKey.bytes);
+      offset += 32;
+
+      final contract = AccountDecoders.decodeEscrowContract(buffer);
+
+      expect(contract.contractId, equals(contractId));
+      expect(contract.isToken, isTrue);
+      expect(contract.isUsdc, isTrue);
+      expect(contract.isSkr, isFalse);
+      expect(contract.currency, equals(EscrowCurrency.usdc));
+      expect(contract.tokenMint, equals(usdcMintKey.toBase58()));
+      expect(contract.amount, equals(BigInt.from(250000000)));
+      expect(contract.formattedAmount, equals('250 USDC'));
+    });
+
+    test('ProgramInstructions builds valid createAndFundToken instruction for USDC', () async {
+      final employerKey = Ed25519HDPublicKey.fromBase58(
+        'GBZqhLZXAjBtfeVkVWMYWFN8DGmxskwKna3UEXGvfh8P',
+      );
+      final workerKey = Ed25519HDPublicKey.fromBase58(
+        'FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9',
+      );
+      final usdcMintKey = NetworkConfig.usdcMint;
+      const contractId = 'ctr-usdc-ins-1';
+      final termsHash = List<int>.filled(32, 9);
+
+      final instruction = await ProgramInstructions.createAndFundToken(
+        employer: employerKey,
+        worker: workerKey,
+        contractId: contractId,
+        amountTokenBaseUnits: BigInt.from(250000000), // 250 USDC
+        termsHash: termsHash,
+        mint: usdcMintKey,
+      );
+
+      expect(instruction.programId, equals(NetworkConfig.programId));
+      expect(instruction.accounts.length, equals(9));
+      expect(instruction.accounts[0].pubKey, equals(employerKey));
+      expect(instruction.accounts[1].pubKey, equals(usdcMintKey));
     });
   });
 }
