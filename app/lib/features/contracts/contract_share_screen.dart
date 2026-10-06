@@ -125,7 +125,7 @@ class ContractShareScreen extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            contract.formattedSol,
+                            contract.formattedAmount,
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,

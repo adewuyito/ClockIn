@@ -17,6 +17,7 @@ import '../services/firebase_sync_service.dart';
 import '../services/irys_storage_service.dart';
 import '../solana/network_config.dart';
 import '../solana/reputation_service.dart';
+import '../solana/skr_staking.dart';
 import '../solana/contract_service.dart';
 import '../solana/wallet_adapter.dart';
 
@@ -68,11 +69,20 @@ final contractRepositoryProvider = Provider<ContractRepository>((ref) {
   return ContractRepository(db: db, contractService: contractService);
 });
 
-/// Repository coordinating Seeker Attestation (Guardian stake & $SKR verification) and Drift cache.
+/// Read-only source of real $SKR Guardian stake from Solana Mobile's staking
+/// program. Mainnet by default; `--dart-define=CLOCKIN_SKR_STAKE_CLUSTER=devnet`
+/// reads Solana Mobile's devnet deployment instead.
+final skrStakeSourceProvider = Provider<SkrStakeSource>((ref) {
+  return SkrStakeReader(deployment: SkrStakingDeployment.active);
+});
+
+/// Repository coordinating Seeker Attestation (real Guardian stake) and its Drift cache.
 final attestationRepositoryProvider = Provider<AttestationRepository>((ref) {
-  final db = ref.watch(databaseProvider);
-  final contractService = ref.watch(contractServiceProvider);
-  return AttestationRepository(db: db, contractService: contractService);
+  return AttestationRepository(
+    db: ref.watch(databaseProvider),
+    contractService: ref.watch(contractServiceProvider),
+    stakeSource: ref.watch(skrStakeSourceProvider),
+  );
 });
 
 /// Service providing AES-256-GCM symmetric encryption for deliverables.

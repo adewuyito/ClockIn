@@ -1,9 +1,18 @@
 import '../solana/network_config.dart';
 
+/// Denomination of an escrow contract.
+///
+/// The on-chain program accepts *any* SPL mint for token escrows, so the app
+/// must not assume every token contract is one it recognises. [unknown] covers
+/// a mint that is neither devnet USDC nor devnet $SKR: it is shown in raw base
+/// units under an explicit "unverified" label, because its decimals and its
+/// value are both unknown — and a worker must never be told a contract is
+/// funded in $SKR or USDC when the vault actually holds some other token.
 enum EscrowCurrency {
   sol,
   usdc,
-  skr;
+  skr,
+  unknown;
 
   String get symbol {
     switch (this) {
@@ -13,6 +22,8 @@ enum EscrowCurrency {
         return 'USDC';
       case EscrowCurrency.skr:
         return r'$SKR';
+      case EscrowCurrency.unknown:
+        return 'UNVERIFIED';
     }
   }
 
@@ -24,9 +35,27 @@ enum EscrowCurrency {
         return 'USD Coin (USDC)';
       case EscrowCurrency.skr:
         return r'Seeker Token ($SKR)';
+      case EscrowCurrency.unknown:
+        return 'Unverified SPL token';
     }
   }
 
+  /// Short descriptor shown under amounts in lists and cards.
+  String get subtitle {
+    switch (this) {
+      case EscrowCurrency.sol:
+        return 'Native SOL';
+      case EscrowCurrency.usdc:
+        return 'USD Coin (SPL)';
+      case EscrowCurrency.skr:
+        return 'Seeker SPL';
+      case EscrowCurrency.unknown:
+        return 'Unverified mint';
+    }
+  }
+
+  /// Decimal places of the mint. For [unknown] this is 0: amounts are shown in
+  /// raw base units rather than scaled by a guessed precision.
   int get decimals {
     switch (this) {
       case EscrowCurrency.sol:
@@ -34,9 +63,12 @@ enum EscrowCurrency {
       case EscrowCurrency.usdc:
       case EscrowCurrency.skr:
         return 6;
+      case EscrowCurrency.unknown:
+        return 0;
     }
   }
 
+  /// `10^decimals` — base units per whole token.
   double get divisor {
     switch (this) {
       case EscrowCurrency.sol:
@@ -44,14 +76,21 @@ enum EscrowCurrency {
       case EscrowCurrency.usdc:
       case EscrowCurrency.skr:
         return 1e6;
+      case EscrowCurrency.unknown:
+        return 1;
     }
   }
 
   bool get isToken => this != EscrowCurrency.sol;
 
+  /// Whether this is a token the app recognises and can value.
+  bool get isRecognised => this != EscrowCurrency.unknown;
+
+  /// Configured devnet mint for a recognised token; null for SOL and [unknown].
   String? get mintAddress {
     switch (this) {
       case EscrowCurrency.sol:
+      case EscrowCurrency.unknown:
         return null;
       case EscrowCurrency.usdc:
         return NetworkConfig.devnetUsdcMint;
@@ -60,10 +99,17 @@ enum EscrowCurrency {
     }
   }
 
+  /// Classifies a contract by its on-chain mint.
+  ///
+  /// A token contract with no recorded mint is treated as $SKR: rows cached
+  /// before multi-currency support were written with `tokenMint ?? devnetSkrMint`
+  /// semantics, and $SKR was the only token escrow that existed then.
   static EscrowCurrency fromMintOrToken({required bool isToken, String? tokenMint}) {
     if (!isToken) return EscrowCurrency.sol;
+    if (tokenMint == null || tokenMint.isEmpty) return EscrowCurrency.skr;
     if (tokenMint == NetworkConfig.devnetUsdcMint) return EscrowCurrency.usdc;
-    return EscrowCurrency.skr;
+    if (tokenMint == NetworkConfig.devnetSkrMint) return EscrowCurrency.skr;
+    return EscrowCurrency.unknown;
   }
 }
 
@@ -199,49 +245,54 @@ class EscrowContract {
   /// Whether this contract is denominated in $SKR SPL tokens.
   bool get isSkr => currency == EscrowCurrency.skr;
 
-  /// Currency symbol ("SOL", "USDC", or "$SKR").
+  /// Whether this contract's mint is one the app does not recognise.
+  bool get isUnknownMint => currency == EscrowCurrency.unknown;
+
+  /// Currency symbol ("SOL", "USDC", "$SKR", or "UNVERIFIED").
   String get currencySymbol => currency.symbol;
 
-  /// Formatted base amount in UI units (scaled by currency decimals).
+  /// Amount in whole units of this contract's own currency (scaled by its
+  /// decimals). This is the only amount accessor: per-currency getters such as
+  /// a fixed ÷1e9 "amountSol" silently mis-scale token contracts, which is how
+  /// the contracts-list total came to show 50 USDC as "0".
   double get amountUi => amount.toDouble() / currency.divisor;
 
-  /// Amount formatted in SOL (e.g. 1.5).
-  double get amountSol => amount.toDouble() / 1e9;
-
-  /// Amount formatted in SPL tokens (e.g. 500.0).
-  double get amountToken => amount.toDouble() / 1e6;
-
-  /// Formatted SOL string with up to 4 decimals (e.g. "1.5 SOL").
-  String get formattedSol {
-    final sol = amountSol;
-    if (sol == sol.roundToDouble()) {
-      return '${sol.toStringAsFixed(0)} SOL';
-    } else {
-      return '${sol.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '')} SOL';
+  /// Formats [baseUnits] (lamports for SOL, raw token units otherwise) as an
+  /// exact amount in this contract's currency, e.g. "1.5 SOL", "12.345678 USDC".
+  ///
+  /// Uses integer arithmetic only, so the figure shown is exactly what the
+  /// program will move — no float rounding. This matters on confirmation
+  /// screens: a 50/50 split of 0.000005 USDC must not be displayed as "0.00".
+  /// Unrecognised mints are shown in raw base units with no symbol, since their
+  /// decimals and value are unknown.
+  String formatBaseUnits(BigInt baseUnits) {
+    if (currency == EscrowCurrency.unknown) {
+      return '$baseUnits base units (unverified token)';
     }
+    final scale = BigInt.from(10).pow(currency.decimals);
+    final whole = baseUnits ~/ scale;
+    final frac = (baseUnits % scale)
+        .toString()
+        .padLeft(currency.decimals, '0')
+        .replaceAll(RegExp(r'0+$'), '');
+    final number = frac.isEmpty ? '$whole' : '$whole.$frac';
+    return '$number ${currency.symbol}';
   }
 
-  /// Formatted amount string with currency symbol (e.g. "500 $SKR", "50 USDC", or "1.5 SOL").
-  String get formattedAmount {
-    switch (currency) {
-      case EscrowCurrency.sol:
-        return formattedSol;
-      case EscrowCurrency.usdc:
-        final val = amountUi;
-        if (val == val.roundToDouble()) {
-          return '${val.toStringAsFixed(0)} USDC';
-        } else {
-          return '${val.toStringAsFixed(2)} USDC';
-        }
-      case EscrowCurrency.skr:
-        final tokenVal = amountUi;
-        if (tokenVal == tokenVal.roundToDouble()) {
-          return '${tokenVal.toStringAsFixed(0)} \$SKR';
-        } else {
-          return '${tokenVal.toStringAsFixed(2)} \$SKR';
-        }
-    }
-  }
+  /// The full escrow amount in this contract's currency (e.g. "500 $SKR",
+  /// "50 USDC", "1.5 SOL"). See [formatBaseUnits].
+  String get formattedAmount => formatBaseUnits(amount);
+
+  /// The amount the worker receives on a 50/50 dispute split.
+  ///
+  /// Mirrors the program exactly: `worker_amount = amount / 2` in integer base
+  /// units, rounding down.
+  BigInt get splitWorkerShare => amount ~/ BigInt.two;
+
+  /// The amount the employer receives on a 50/50 split: the remainder after
+  /// [splitWorkerShare], so an odd base unit goes to the employer. Vault rent is
+  /// refunded to the employer separately and is not included here.
+  BigInt get splitEmployerShare => amount - splitWorkerShare;
 
   /// Truncated contract ID for UI display (e.g. "ctr_9x").
   String get shortId =>

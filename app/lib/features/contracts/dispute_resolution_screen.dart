@@ -432,14 +432,15 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
     Color actionColor;
     IconData icon;
 
-    final unit = contract.isToken ? r'$SKR' : 'SOL';
-    final amountVal = contract.isToken ? contract.amountToken : contract.amountSol;
+    // Amounts come from the contract's own currency and are formatted exactly
+    // from base units — this dialog is the last thing shown before signing.
+    final fullAmount = contract.formattedAmount;
 
     switch (resolution) {
       case DisputeResolution.releaseToWorker:
         title = 'Release Escrow to Worker?';
         description =
-            'You are acknowledging completion and releasing the full $amountVal $unit escrow directly to the worker (${contract.shortWorker}).\n\nThis will mark the contract as completed on Solana.';
+            'You are acknowledging completion and releasing the full $fullAmount escrow directly to the worker (${contract.shortWorker}).\n\nThis will mark the contract as completed on Solana.';
         confirmLabel = 'Sign & Release to Worker';
         actionColor = AppColors.success;
         icon = Icons.check_circle_outline_rounded;
@@ -447,18 +448,21 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
       case DisputeResolution.refundToEmployer:
         title = 'Refund Escrow to Employer?';
         description =
-            'You are agreeing to forfeit your claim and return the full $amountVal $unit escrow back to the employer (${contract.shortEmployer}).\n\nThis will cancel the contract on Solana.';
+            'You are agreeing to forfeit your claim and return the full $fullAmount escrow back to the employer (${contract.shortEmployer}).\n\nThis will cancel the contract on Solana.';
         confirmLabel = 'Sign & Refund to Employer';
         actionColor = AppColors.warning;
         icon = Icons.replay_rounded;
         break;
       case DisputeResolution.split5050:
-        final half = amountVal / 2;
+        // Mirrors the program: worker gets amount / 2 (rounded down), employer
+        // gets the remainder, so an odd base unit is shown going to the employer.
+        final workerShare = contract.formatBaseUnits(contract.splitWorkerShare);
+        final employerShare = contract.formatBaseUnits(contract.splitEmployerShare);
         title = 'Execute 50/50 Compromise?';
         description =
             'You are proposing a mutual 50/50 amicable split on Solana:\n\n'
-            '• Worker receives $half $unit\n'
-            '• Employer receives $half $unit (+ rent lamports)\n\n'
+            '• Worker receives $workerShare\n'
+            '• Employer receives $employerShare (+ rent lamports)\n\n'
             'This binding settlement will mark the contract completed.';
         confirmLabel = 'Sign & Split 50/50';
         actionColor = AppColors.primary;

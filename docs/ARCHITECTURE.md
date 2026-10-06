@@ -286,6 +286,59 @@ Clients discover and display full review feedback using a two-stage read pattern
 2. **Decentralized GraphQL / Gateway Read**: The app queries Irys GraphQL by worker address (`tags: [{name: "Worker", values: [workerPubkey]}]`) or resolves directly via `https://gateway.irys.xyz/<arweave_id>`.
 3. **Local Drift Storage & Offline Resilience**: Retrieved review text is cached in Drift (`LocalReviews` table). When creating a review offline, the draft is stored in `ReviewDrafts`; once connectivity returns, the payload is published to Irys, and the resulting Arweave ID is linked to the Solana MWA transaction.
 
+## Seeker attestation (real $SKR Guardian stake)
+
+A wallet is **Seeker Attested** when it has **≥ 250 $SKR actively staked** with a Solana Mobile Guardian. Users stake through Solana Mobile's own flow — [stake.solanamobile.com](https://stake.solanamobile.com) or Seed Vault Wallet. ClockIn only *reads* the result; it never signs, stakes, unstakes, or holds tokens. Implementation: `app/lib/core/solana/skr_staking.dart` (reader), `app/lib/core/database/attestation_repository.dart` (threshold, cache, failure policy).
+
+This replaced an earlier implementation that set `isAttested: true` locally on a button press without reading any chain state, and a dormant `stakeSkrToGuardian` that would have transferred $SKR into a ClockIn-owned PDA with no withdrawal instruction (permanently locking it). Both were removed.
+
+### Where the constants come from
+
+Solana Mobile publishes neither an IDL nor an account layout for the staking program. Everything below was recovered and verified against the live chain on 2026-10-06:
+
+| | Mainnet | Devnet |
+|---|---|---|
+| Staking program | `SKRskrmtL83pcL4YqLWt6iPefDqwXQWHSw9S9vz94BZ` | `HC5a2WahqscUXB61JVUCjhzAbr8NebKWVWSXEJnVBjAF` |
+| $SKR mint | `SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3` | `Gn72vA2mZWDhP2WQh91Tud9hh3AC3zy2Wyu2nmqfEwY9` |
+| Solana Mobile Guardian | `SKRGdBwzb1AtFW2chhBnZpGFnFLj6Mi7HM7iwjXALvw` | `7fLs8CKVvv8Dd5VRMhYakr8JEoNBivKZBwpXj7mMfoLy` |
+
+- **Program IDs, mints, guardians:** from the staking site's own frontend bundle, which carries a config object for each cluster.
+- **Account types:** Anchor discriminators — `sha256("account:StakeConfig")[:8]` and `sha256("account:UserStake")[:8]` match the on-chain accounts.
+- **PDA seeds:** recovered from the bump stored in real accounts, then confirmed against four real mainnet stakers (the derived `UserStake` is exactly the account their staking transaction wrote):
+  - `StakeConfig = ["stake_config"]`
+  - `GuardianPool = ["guardian_pool", stake_config, guardian]`
+  - `UserStake = ["user_stake", stake_config, user, guardian_pool]`
+- **Amount formula — `active = shares × share_price / 1e9`:** on devnet the sum of every user's `shares` equals `StakeConfig.total_shares` exactly, and active stake + pending unstakes reconciles with the vault's real token balance to within 0.0025 $SKR of rounding dust. On mainnet the stored price is bounded by `vault / total_shares` as it must be. `cooldown_seconds` reads 172,800 on mainnet — the 48-hour cooldown the staking site advertises.
+
+### Layouts (only the fields ClockIn reads)
+
+```
+StakeConfig (193 bytes)            UserStake (146 devnet / 169 mainnet)
+  @0   discriminator [8]             @0   discriminator [8]
+  @41  mint          Pubkey          @9   stake_config   Pubkey
+  @73  vault         Pubkey          @41  user           Pubkey
+  @105 min_stake     u64             @73  guardian_pool  Pubkey
+  @113 cooldown_secs u64             @105 shares         u128
+  @121 total_shares  u64
+  @137 share_price   u64 (1e9 fixed point)
+```
+
+Mainnet's program is a newer version than devnet's: `UserStake` grows from 146 to 169 bytes and the fields *after* `shares` are rearranged. ClockIn reads nothing past `shares`, so both versions decode. Unstaking $SKR is already excluded from `shares` (proven by the devnet reconciliation), so active stake needs no unstake fields.
+
+### Trust and failure policy
+
+- Every account is checked for **owner == staking program**, the expected discriminator, a minimum length, and (for `UserStake`) that its `stake_config`, `user` and `guardian_pool` fields match its PDA. Anything unexpected raises `SkrStakeLayoutException` and is shown as "couldn't verify" — never read as zero or as staked.
+- One `getMultipleAccounts` call per lookup (config + each guardian position). No indexed queries, so the public mainnet RPC works; heavier use should set `--dart-define=CLOCKIN_SKR_STAKE_RPC=<url>`.
+- Results are cached in Drift (`SeekerAttestations`) and re-read after 5 minutes. If the chain can't be reached, a cached result is honoured for at most **24 hours**, flagged as unverified; past that the wallet shows as unattested. With no cache, a failure is always unattested.
+- Status is read per address, so counterparties see the same verified badge the owner sees.
+- `--dart-define=CLOCKIN_SKR_STAKE_CLUSTER=devnet` reads Solana Mobile's devnet deployment instead (useful for testing).
+
+### Known limits
+
+- **Only the Solana Mobile Guardian is configured** — it is the only guardian in the staking site's config today. Stake delegated to another Guardian is not counted until its address is added to `SkrStakingDeployment.guardians`.
+- **This is an unpublished, reverse-engineered interface.** If Solana Mobile upgrades the program in a way that changes these layouts, verification fails closed and the UI says so; the fix is to re-derive the layout, not to loosen validation.
+- The devnet **escrow** $SKR (`Gd1eTEXD…`, self-minted, faucet-backed) is unrelated to stake and can never produce an attestation.
+
 ## Security / trust model
 
 - **Sybil resistance is now escrow-linked, not just signature-based.** In the previous architecture, a review only required the reviewer's signature — one person could generate five free wallets and review "themselves" from each. Now, each escrow-linked review requires real SOL to be locked and transferred, making the cost of fabrication equal to the cost of actual payment. Standalone `submit_review` (without escrow) still exists for backward compatibility but should be clearly marked as "unverified" in the UI and weighted lower in any aggregate score.

@@ -404,51 +404,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               const SizedBox(width: 8),
               InkWell(
                 borderRadius: BorderRadius.circular(999),
-                onTap: () async {
+                // Status is read from Solana Mobile's staking program, so it
+                // can't be toggled here — the sheet shows the live stake and
+                // links to stake.solanamobile.com to change it.
+                onTap: () {
                   HapticFeedback.selectionClick();
-                  final repo = ref.read(attestationRepositoryProvider);
-                  if (isAttested) {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: Text(
-                          'Reset Attestation?',
-                          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-                        ),
-                        content: Text(
-                          'Resetting will mark your profile as unverified for demo/testing purposes.',
-                          style: GoogleFonts.plusJakartaSans(fontSize: 13),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(false),
-                            child: const Text('Cancel'),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.error,
-                              foregroundColor: Colors.white,
-                            ),
-                            onPressed: () => Navigator.of(ctx).pop(true),
-                            child: const Text('Reset'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm == true) {
-                      await repo.unstakeDevnetSkr(address: address);
-                      ref.invalidate(seekerAttestationProvider(address));
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Attestation reset. Profile marked unverified for testing.'),
-                          ),
-                        );
-                      }
-                    }
-                  } else {
-                    SeekerStakingSheet.show(context, address: address);
-                  }
+                  SeekerStakingSheet.show(context, address: address);
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),

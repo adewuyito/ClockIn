@@ -29,6 +29,110 @@ void main() {
     });
   });
 
+  group('EscrowCurrency classification & exact amount formatting', () {
+    const otherMint = 'So11111111111111111111111111111111111111112';
+
+    EscrowContract contractWith({
+      required BigInt amount,
+      bool isToken = false,
+      String? tokenMint,
+    }) =>
+        EscrowContract(
+          contractId: 'ctr-fmt',
+          employer: 'Fx1gLqXSeYBMwTM4VvFJ8pQPY1dPDLBsMFJNNVVPYPkZ',
+          worker: 'A1b2C3d4E5f6G7h8J9kLMnPQRsTUVWXYZabcdefghijk',
+          amount: amount,
+          termsHash: '00',
+          status: ContractStatus.funded,
+          createdAt: DateTime.utc(2026, 10, 6),
+          isToken: isToken,
+          tokenMint: tokenMint,
+        );
+
+    test('classifies SOL, USDC and \$SKR by mint', () {
+      expect(EscrowCurrency.fromMintOrToken(isToken: false), EscrowCurrency.sol);
+      expect(
+        EscrowCurrency.fromMintOrToken(isToken: true, tokenMint: NetworkConfig.devnetUsdcMint),
+        EscrowCurrency.usdc,
+      );
+      expect(
+        EscrowCurrency.fromMintOrToken(isToken: true, tokenMint: NetworkConfig.devnetSkrMint),
+        EscrowCurrency.skr,
+      );
+    });
+
+    test('an unrecognised mint is UNKNOWN, never mislabelled as \$SKR', () {
+      final c = contractWith(
+        amount: BigInt.from(500000000),
+        isToken: true,
+        tokenMint: otherMint,
+      );
+      expect(c.currency, EscrowCurrency.unknown);
+      expect(c.isUnknownMint, isTrue);
+      expect(c.isSkr, isFalse);
+      expect(c.currencySymbol, isNot(contains('SKR')));
+      expect(c.formattedAmount, equals('500000000 base units (unverified token)'));
+      expect(EscrowCurrency.unknown.mintAddress, isNull);
+      expect(EscrowCurrency.unknown.isRecognised, isFalse);
+    });
+
+    test('a legacy token row with no recorded mint is treated as \$SKR', () {
+      // Rows cached before multi-currency support had no mint; $SKR was the
+      // only token escrow that existed then.
+      expect(EscrowCurrency.fromMintOrToken(isToken: true), EscrowCurrency.skr);
+      expect(EscrowCurrency.fromMintOrToken(isToken: true, tokenMint: ''), EscrowCurrency.skr);
+    });
+
+    test('formats each currency by its own decimals', () {
+      expect(contractWith(amount: BigInt.from(1500000000)).formattedAmount, '1.5 SOL');
+      expect(
+        contractWith(amount: BigInt.from(50000000), isToken: true, tokenMint: NetworkConfig.devnetUsdcMint)
+            .formattedAmount,
+        '50 USDC',
+      );
+      expect(
+        contractWith(amount: BigInt.from(500000000), isToken: true, tokenMint: NetworkConfig.devnetSkrMint)
+            .formattedAmount,
+        '500 \$SKR',
+      );
+    });
+
+    test('formatting is exact — no float rounding of sub-cent amounts', () {
+      final usdc = contractWith(
+        amount: BigInt.from(12345678),
+        isToken: true,
+        tokenMint: NetworkConfig.devnetUsdcMint,
+      );
+      expect(usdc.formattedAmount, '12.345678 USDC');
+      expect(usdc.formatBaseUnits(BigInt.one), '0.000001 USDC');
+      expect(contractWith(amount: BigInt.from(400000)).formattedAmount, '0.0004 SOL');
+      expect(contractWith(amount: BigInt.from(1)).formattedAmount, '0.000000001 SOL');
+    });
+
+    test('50/50 split mirrors the program: worker floors, employer gets the remainder', () {
+      final odd = contractWith(
+        amount: BigInt.from(50000001),
+        isToken: true,
+        tokenMint: NetworkConfig.devnetUsdcMint,
+      );
+      expect(odd.splitWorkerShare, BigInt.from(25000000));
+      expect(odd.splitEmployerShare, BigInt.from(25000001));
+      expect(odd.splitWorkerShare + odd.splitEmployerShare, odd.amount);
+      expect(odd.formatBaseUnits(odd.splitWorkerShare), '25 USDC');
+      expect(odd.formatBaseUnits(odd.splitEmployerShare), '25.000001 USDC');
+    });
+
+    test('amountUi scales by the contract currency, not a fixed SOL divisor', () {
+      final usdc = contractWith(
+        amount: BigInt.from(50000000),
+        isToken: true,
+        tokenMint: NetworkConfig.devnetUsdcMint,
+      );
+      expect(usdc.amountUi, 50.0);
+      expect(contractWith(amount: BigInt.from(500000000)).amountUi, 0.5);
+    });
+  });
+
   group('ContractStatus.isTerminal — notification suppression gate', () {
     test('settled states are terminal', () {
       expect(ContractStatus.completed.isTerminal, isTrue);
@@ -137,8 +241,8 @@ void main() {
       expect(contract.employer, equals(employerKey.toBase58()));
       expect(contract.worker, equals(workerKey.toBase58()));
       expect(contract.amount, equals(BigInt.from(1500000000)));
-      expect(contract.amountSol, equals(1.5));
-      expect(contract.formattedSol, equals('1.5 SOL'));
+      expect(contract.amountUi, equals(1.5));
+      expect(contract.formattedAmount, equals('1.5 SOL'));
       expect(contract.status, equals(ContractStatus.funded));
       expect(contract.deadline, isNotNull);
       expect(contract.rating, equals(0));
@@ -253,7 +357,7 @@ void main() {
       final contracts = await repository.watchContractsForWallet(employer).first;
       expect(contracts.length, equals(1));
       expect(contracts.first.contractId, equals(contractId));
-      expect(contracts.first.amountSol, equals(2.0));
+      expect(contracts.first.amountUi, equals(2.0));
       expect(contracts.first.termsText, equals('Full stack website development'));
       expect(contracts.first.status, equals(ContractStatus.funded));
 

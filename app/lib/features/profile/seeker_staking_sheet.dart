@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../../core/database/attestation_repository.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/models/seeker_attestation.dart';
 import '../../core/services/device_service.dart';
+import '../../core/solana/skr_staking.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/seeker_logo.dart';
 
-/// Modal bottom sheet for Non-Custodial Seeker Guardian Attestation (Option 1).
-/// Verifies the worker's active $SKR stake delegated to an official Solana Mobile Guardian
-/// via stake.solanamobile.com or the Seeker Seed Vault. ClockIn NEVER takes custody of staked funds.
+/// Seeker attestation sheet.
+///
+/// Shows the wallet's *active* $SKR stake as read from Solana Mobile's Guardian
+/// staking program. Users stake through stake.solanamobile.com or Seed Vault
+/// Wallet; this sheet only reads and refreshes that on-chain state. Nothing here
+/// can mark a wallet attested — only a successful read of ≥250 staked $SKR does.
 class SeekerStakingSheet extends ConsumerStatefulWidget {
   final String address;
 
@@ -47,6 +53,9 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
     final skrBalance = skrBalanceAsync.valueOrNull ?? 0.0;
     final seekerDevice = ref.watch(seekerDeviceProvider);
     final isSeekerHardware = seekerDevice.isSeeker;
+    final attestationAsync = ref.watch(seekerAttestationProvider(widget.address));
+    final attestation = attestationAsync.valueOrNull;
+    final hasVerified = attestation != null && attestation.syncedAt.millisecondsSinceEpoch > 0;
 
     return Container(
       decoration: const BoxDecoration(
@@ -114,7 +123,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Solana Mobile • Non-Custodial Verification',
+                      'Solana Mobile Guardian stake • read-only',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         color: AppColors.onSurfaceVariant,
@@ -133,7 +142,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
 
           // Explainer text
           Text(
-            'ClockIn verifies your active \$SKR stake directly from Solana Mobile’s official Guardian network. ClockIn is 100% non-custodial and never holds your staked tokens. Delegate 250+ \$SKR via your Seeker Seed Vault or the official portal.',
+            'Stake 250+ \$SKR with a Guardian at stake.solanamobile.com or in Seed Vault Wallet. ClockIn reads your active stake straight from Solana Mobile’s staking program — it never asks you to sign anything here and never touches your tokens.',
             style: AppTypography.bodyMd.copyWith(
               color: AppColors.onSurfaceVariant,
               height: 1.45,
@@ -152,35 +161,58 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
             child: Column(
               children: [
                 _buildMetricRow(
-                  label: 'Designated Guardian',
-                  value: 'Solana Mobile',
+                  label: 'Active Guardian Stake',
+                  value: attestationAsync.isLoading && attestation == null
+                      ? 'Reading…'
+                      : (hasVerified
+                          ? '${_formatSkr(attestation.stakedAmount)} \$SKR'
+                          : 'Not verified'),
+                  isPositive: hasVerified ? attestation.isAttested : null,
                 ),
                 const SizedBox(height: 10),
                 const Divider(height: 1, color: AppColors.outlineVariant),
                 const SizedBox(height: 10),
                 _buildMetricRow(
-                  label: 'Required Stake Amount',
-                  value: r'250.0 $SKR',
-                  isPositive: true,
+                  label: 'Required for Attestation',
+                  value: '${_formatSkr(AttestationRepository.minimumStakeThreshold)} \$SKR',
                 ),
                 const SizedBox(height: 10),
                 const Divider(height: 1, color: AppColors.outlineVariant),
                 const SizedBox(height: 10),
                 _buildMetricRow(
-                  label: 'Custody Model',
-                  value: 'Non-Custodial (Official)',
-                  isPositive: true,
+                  label: 'Guardian',
+                  value: hasVerified && attestation.stakedAmount > 0
+                      ? attestation.guardianName
+                      : '—',
                 ),
-
                 const SizedBox(height: 10),
                 const Divider(height: 1, color: AppColors.outlineVariant),
                 const SizedBox(height: 10),
                 _buildMetricRow(
-                  label: r'Liquid Wallet $SKR Balance',
+                  label: 'Last Verified On-Chain',
+                  value: hasVerified ? _timeAgo(attestation.syncedAt) : 'Never',
+                  isPositive: attestation?.verificationError != null ? false : null,
+                ),
+                const SizedBox(height: 10),
+                const Divider(height: 1, color: AppColors.outlineVariant),
+                const SizedBox(height: 10),
+                _buildMetricRow(
+                  label: 'Read From',
+                  value: SkrStakingDeployment.active.cluster == SkrStakingCluster.mainnet
+                      ? 'Solana Mainnet'
+                      : 'Solana Devnet',
+                ),
+                const SizedBox(height: 10),
+                const Divider(height: 1, color: AppColors.outlineVariant),
+                const SizedBox(height: 10),
+                // The escrow faucet token is a devnet stand-in: it is NOT stake
+                // and can never count toward attestation.
+                _buildMetricRow(
+                  label: r'Devnet Escrow $SKR (test)',
                   value: skrBalanceAsync.when(
-                    data: (b) => '${b >= 1.0 ? b.toStringAsFixed(1) : b.toStringAsFixed(0)} \$SKR',
+                    data: (b) => '${_formatSkr(b)} \$SKR',
                     loading: () => 'Loading...',
-                    error: (_, _) => '0.0 \$SKR',
+                    error: (_, _) => '—',
                   ),
                 ),
               ],
@@ -304,68 +336,16 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
             child: ElevatedButton.icon(
               onPressed: _isVerifying || _isClaiming
                   ? null
-                  : () async {
-                      final navigator = Navigator.of(context);
-                      final messenger = ScaffoldMessenger.of(context);
-                      HapticFeedback.mediumImpact();
-                      setState(() {
-                        _isVerifying = true;
-                        _isError = false;
-                        _statusMessage = 'Querying Solana Mobile Guardian staking state...';
-                      });
-
-                      try {
-                        final repo = ref.read(attestationRepositoryProvider);
-
-                        // Verify non-custodial attestation with official Solana Mobile Guardian
-                        await repo.verifyAttestation(
-                          address: widget.address,
-                          guardianName: 'Solana Mobile',
-                          stakedAmount: AttestationRepository.minimumStakeThreshold,
-                        );
-
-                        // Invalidate attestation provider for instant reactive UI updates
-                        ref.invalidate(seekerAttestationProvider(widget.address));
-
-                        if (mounted) {
-                          setState(() {
-                            _isVerifying = false;
-                            _isError = false;
-                            _statusMessage = 'Verified! Active stake confirmed with Solana Mobile Guardian.';
-                          });
-
-                          HapticFeedback.heavyImpact();
-
-                          await Future.delayed(const Duration(milliseconds: 900));
-                          if (mounted) {
-                            navigator.pop();
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                backgroundColor: Color(0xFF1F9D5B),
-                                content: Text('Seeker Attestation verified! Active stake confirmed with Solana Mobile Guardian.'),
-                              ),
-                            );
-                          }
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          setState(() {
-                            _isVerifying = false;
-                            _isError = true;
-                            _statusMessage = 'Verification failed: $e';
-                          });
-                        }
-                      }
-                    },
+                  : _refreshStake,
               icon: _isVerifying
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
-                  : const Icon(Icons.verified_rounded, size: 20),
+                  : const Icon(Icons.refresh_rounded, size: 20),
               label: Text(
-                _isVerifying ? 'Verifying on Solana...' : 'Verify On-Chain Attestation',
+                _isVerifying ? 'Reading stake from Solana…' : 'Refresh Stake from Solana',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -431,7 +411,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
                       )
                     : const Icon(Icons.water_drop_outlined, size: 18),
                 label: Text(
-                  _isClaiming ? 'Claiming Devnet \$SKR...' : r'Claim 500 Devnet $SKR (For Escrow Contracts)',
+                  _isClaiming ? 'Claiming Devnet \$SKR...' : r'Claim 500 Devnet $SKR for Escrow (not stake)',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -450,7 +430,7 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
           // Security footnote
           Center(
             child: Text(
-              'ClockIn is 100% non-custodial. Your staked tokens remain in your official Solana Mobile staking account.',
+              'Read-only: ClockIn never signs, stakes, or moves \$SKR. Your stake stays in Solana Mobile’s staking program.',
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
@@ -461,6 +441,61 @@ class _SeekerStakingSheetState extends ConsumerState<SeekerStakingSheet> {
         ],
       ),
     );
+  }
+
+  /// Forces an on-chain read and reports exactly what was found. Each outcome
+  /// gets its own message — "below threshold" and "couldn't reach Solana" must
+  /// never look like each other, or like success.
+  Future<void> _refreshStake() async {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _isVerifying = true;
+      _isError = false;
+      _statusMessage = 'Reading your stake from Solana Mobile’s staking program…';
+    });
+
+    final repo = ref.read(attestationRepositoryProvider);
+    final SeekerAttestation result =
+        await repo.getAttestation(widget.address, forceRefresh: true);
+    ref.invalidate(seekerAttestationProvider(widget.address));
+    if (!mounted) return;
+
+    final staked = _formatSkr(result.stakedAmount);
+    final needed = _formatSkr(AttestationRepository.minimumStakeThreshold);
+    setState(() {
+      _isVerifying = false;
+      if (result.verificationError != null) {
+        _isError = true;
+        _statusMessage = '${result.verificationError} Try again in a moment.';
+      } else if (result.isAttested) {
+        _isError = false;
+        _statusMessage =
+            'Verified on-chain: $staked \$SKR actively staked with ${result.guardianName}.';
+      } else if (result.stakedAmount > 0) {
+        _isError = true;
+        _statusMessage =
+            'Found $staked \$SKR staked — $needed needed. Add more at stake.solanamobile.com, then refresh.';
+      } else {
+        _isError = true;
+        _statusMessage =
+            'No active \$SKR stake found for this wallet. Stake $needed+ at stake.solanamobile.com, then refresh.';
+      }
+    });
+    if (result.isAttested && result.verificationError == null) {
+      HapticFeedback.heavyImpact();
+    }
+  }
+
+  static final NumberFormat _skrFormat = NumberFormat('#,##0.##');
+
+  static String _formatSkr(double amount) => _skrFormat.format(amount);
+
+  static String _timeAgo(DateTime when) {
+    final diff = DateTime.now().toUtc().difference(when.toUtc());
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 
   Widget _buildMetricRow({

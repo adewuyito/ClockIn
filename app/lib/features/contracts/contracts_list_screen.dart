@@ -298,19 +298,25 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
             c.status == ContractStatus.inProgress)
         .length;
 
-    final totalSol = contracts
-        .where((c) =>
-            !c.isToken &&
-            (c.status == ContractStatus.funded ||
-                c.status == ContractStatus.inProgress))
-        .fold(0.0, (sum, c) => sum + c.amountSol);
+    // Locked value per currency, each scaled by its own decimals. Currencies
+    // are never summed together, and unverified mints are counted but not
+    // valued — their decimals and worth are unknown.
+    final lockedContracts = contracts.where((c) =>
+        c.status == ContractStatus.funded || c.status == ContractStatus.inProgress);
+    double lockedIn(EscrowCurrency currency) => lockedContracts
+        .where((c) => c.currency == currency)
+        .fold(0.0, (sum, c) => sum + c.amountUi);
 
-    final totalSkr = contracts
-        .where((c) =>
-            c.isToken &&
-            (c.status == ContractStatus.funded ||
-                c.status == ContractStatus.inProgress))
-        .fold(0.0, (sum, c) => sum + c.amountSol);
+    final totalSol = lockedIn(EscrowCurrency.sol);
+    final tokenTotals = <String>[
+      for (final currency in [EscrowCurrency.usdc, EscrowCurrency.skr])
+        if (lockedIn(currency) > 0)
+          '${_compactAmount(lockedIn(currency))} ${currency.symbol}',
+    ];
+    final unverifiedCount =
+        lockedContracts.where((c) => c.isUnknownMint).length;
+    if (unverifiedCount > 0) tokenTotals.add('$unverifiedCount unverified');
+    final hasTokenTotals = tokenTotals.isNotEmpty;
 
     final completedCount =
         contracts.where((c) => c.status == ContractStatus.completed).length;
@@ -404,7 +410,7 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        totalSkr > 0
+                        hasTokenTotals
                             ? '${totalSol.toStringAsFixed(1)} SOL'
                             : '${totalSol.toStringAsFixed(2)} SOL',
                         style: GoogleFonts.jetBrainsMono(
@@ -414,13 +420,15 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                         ),
                       ),
                       Text(
-                        totalSkr > 0
-                            ? '+ ${totalSkr >= 1000 ? '${(totalSkr / 1000).toStringAsFixed(1)}k' : totalSkr.toStringAsFixed(0)} \$SKR'
+                        hasTokenTotals
+                            ? '+ ${tokenTotals.join(' · ')}'
                             : '≈ \$${(totalSol * 140).toStringAsFixed(0)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 10.5,
-                          fontWeight: totalSkr > 0 ? FontWeight.w600 : FontWeight.w400,
-                          color: totalSkr > 0 ? const Color(0xFF6750A4) : AppColors.onSurfaceVariant,
+                          fontWeight: hasTokenTotals ? FontWeight.w600 : FontWeight.w400,
+                          color: hasTokenTotals ? const Color(0xFF6750A4) : AppColors.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -682,15 +690,15 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF6750A4).withValues(alpha: 0.12),
+                              color: _currencyColor(contract.currency).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              r'$SKR',
+                              contract.currencySymbol,
                               style: GoogleFonts.jetBrainsMono(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF6750A4),
+                                color: _currencyColor(contract.currency),
                                 letterSpacing: 0.5,
                               ),
                             ),
@@ -771,17 +779,22 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          contract.formattedAmount,
+                          // Unverified mints show a short raw count here; the
+                          // full "base units (unverified token)" text is too
+                          // wide for the row and is shown on the detail screen.
+                          contract.isUnknownMint
+                              ? '${contract.amount} units'
+                              : contract.formattedAmount,
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
-                            color: contract.isToken ? const Color(0xFF6750A4) : AppColors.onSurface,
+                            color: _currencyColor(contract.currency),
                           ),
                         ),
                         Text(
                           contract.isToken
-                              ? 'Seeker SPL'
-                              : '≈ \$${(contract.amountSol * 140).toStringAsFixed(1)} USD',
+                              ? contract.currency.subtitle
+                              : '≈ \$${(contract.amountUi * 140).toStringAsFixed(1)} USD',
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 10.5,
                             color: AppColors.onSurfaceVariant,
@@ -924,5 +937,28 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
 
   String _formatDate(DateTime dt) {
     return '${dt.month}/${dt.day}/${dt.year}';
+  }
+
+  /// Accent colour for a contract's currency. Unverified mints use the error
+  /// colour so they never visually pass for a recognised token.
+  Color _currencyColor(EscrowCurrency currency) {
+    switch (currency) {
+      case EscrowCurrency.sol:
+        return AppColors.onSurface;
+      case EscrowCurrency.usdc:
+        return const Color(0xFF2775CA);
+      case EscrowCurrency.skr:
+        return const Color(0xFF6750A4);
+      case EscrowCurrency.unknown:
+        return AppColors.error;
+    }
+  }
+
+  /// Compact figure for the summary card: "1.2k" above 1000, else up to two
+  /// decimals with trailing zeros trimmed.
+  String _compactAmount(double value) {
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}k';
+    final fixed = value.toStringAsFixed(2);
+    return fixed.replaceAll(RegExp(r'\.?0+$'), '');
   }
 }

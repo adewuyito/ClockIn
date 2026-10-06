@@ -1,21 +1,55 @@
 import 'package:clockin/core/database/app_database.dart' hide SeekerAttestation;
 import 'package:clockin/core/database/attestation_repository.dart';
 import 'package:clockin/core/solana/contract_service.dart';
+import 'package:clockin/core/solana/skr_staking.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class FakeContractService extends ContractService {
-  double fakeSkrBalance = 0.0;
+  @override
+  Future<double> getSkrBalance(String address) async => 0.0;
+}
+
+class FakeSkrStakeSource implements SkrStakeSource {
+  @override
+  SkrStakingCluster get cluster => SkrStakingCluster.devnet;
+
+  double fakeStakeSkr = 0.0;
+  List<String> fakeGuardians = ['Solana Mobile'];
+  bool shouldThrow = false;
 
   @override
-  Future<double> getSkrBalance(String address) async {
-    return fakeSkrBalance;
+  Future<SkrStakeSnapshot> fetch(String wallet) async {
+    if (shouldThrow) {
+      throw Exception('RPC timeout / node unreachable');
+    }
+    final baseUnits = BigInt.from((fakeStakeSkr * 1e6).round());
+    final positions = [
+      if (fakeStakeSkr > 0)
+        SkrStakePosition(
+          guardian: SkrGuardian(
+            name: fakeGuardians.first,
+            address: 'FakeGuardian11111111111111111111111111111111',
+          ),
+          shares: baseUnits,
+          activeBaseUnits: baseUnits,
+        ),
+    ];
+    return SkrStakeSnapshot(
+      wallet: wallet,
+      cluster: cluster,
+      positions: positions,
+      sharePrice: skrSharePriceScale,
+      cooldownSeconds: 172800,
+      fetchedAt: DateTime.now().toUtc(),
+    );
   }
 }
 
 void main() {
   late AppDatabase db;
   late FakeContractService fakeContractService;
+  late FakeSkrStakeSource fakeStakeSource;
   late AttestationRepository repo;
 
   const testAddress = '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM';
@@ -23,9 +57,11 @@ void main() {
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     fakeContractService = FakeContractService();
+    fakeStakeSource = FakeSkrStakeSource();
     repo = AttestationRepository(
       db: db,
       contractService: fakeContractService,
+      stakeSource: fakeStakeSource,
     );
   });
 
@@ -33,38 +69,41 @@ void main() {
     await db.close();
   });
 
-  group('AttestationRepository & Drift v6 SeekerAttestations', () {
-    test('initial state for unverified address is not attested', () async {
-      fakeContractService.fakeSkrBalance = 0.0;
+  group('AttestationRepository & Real Guardian Staking Drift Cache', () {
+    test('initial state for un-staked address is not attested', () async {
+      fakeStakeSource.fakeStakeSkr = 0.0;
       final attestation = await repo.getAttestation(testAddress);
 
       expect(attestation.address, testAddress);
       expect(attestation.isAttested, isFalse);
       expect(attestation.stakedAmount, 0.0);
+      expect(attestation.hasSufficientStake, isFalse);
+      expect(attestation.isFreshlyVerified, isTrue);
     });
 
-    test('address holding liquid SKR without staking is NOT attested', () async {
-      fakeContractService.fakeSkrBalance = 350.0;
+    test(r'stake below minimum threshold (100 < 250 $SKR) is NOT attested', () async {
+      fakeStakeSource.fakeStakeSkr = 100.0;
       final attestation = await repo.getAttestation(testAddress);
 
-      // Liquid balance does NOT grant attestation without active locked stake
       expect(attestation.isAttested, isFalse);
-      expect(attestation.stakedAmount, 0.0);
+      expect(attestation.stakedAmount, 100.0);
+      expect(attestation.hasSufficientStake, isFalse);
 
-      // Verify it is cached as un-attested in Drift SQLite
       final cachedRows = await db.select(db.seekerAttestations).get();
       expect(cachedRows.length, 1);
-      expect(cachedRows.first.address, testAddress);
       expect(cachedRows.first.isAttested, isFalse);
-      expect(cachedRows.first.stakedAmount, 0.0);
+      expect(cachedRows.first.stakedAmount, 100.0);
     });
 
-    test('verifyAttestation updates Drift and sets active Solana Mobile guardian attestation', () async {
-      final attestation = await repo.verifyAttestation(address: testAddress);
+    test(r'stake >= 250 $SKR grants Seeker attestation and persists to Drift', () async {
+      fakeStakeSource.fakeStakeSkr = 250.0;
+      fakeStakeSource.fakeGuardians = ['Solana Mobile Guardian Alpha'];
+      final attestation = await repo.getAttestation(testAddress);
 
       expect(attestation.isAttested, isTrue);
       expect(attestation.stakedAmount, 250.0);
-      expect(attestation.guardianName, 'Solana Mobile');
+      expect(attestation.hasSufficientStake, isTrue);
+      expect(attestation.guardianName, 'Solana Mobile Guardian Alpha');
 
       final row = await (db.select(db.seekerAttestations)
             ..where((t) => t.address.equals(testAddress)))
@@ -72,59 +111,41 @@ void main() {
 
       expect(row.isAttested, isTrue);
       expect(row.stakedAmount, 250.0);
-      expect(row.guardianName, 'Solana Mobile');
-      expect(row.cooldownActive, isTrue);
+      expect(row.guardianName, 'Solana Mobile Guardian Alpha');
     });
 
-    test('stakeDevnetSkr updates Drift and sets active guardian stake', () async {
-      await repo.stakeDevnetSkr(address: testAddress, amount: 250.0);
+    test('serves cached attestation on network failure within maxStaleness', () async {
+      // 1. Prime the cache with verified stake
+      fakeStakeSource.fakeStakeSkr = 500.0;
+      await repo.getAttestation(testAddress);
 
-      final row = await (db.select(db.seekerAttestations)
-            ..where((t) => t.address.equals(testAddress)))
-          .getSingle();
+      // 2. Network fails, force refresh
+      fakeStakeSource.shouldThrow = true;
+      final fallback = await repo.getAttestation(testAddress, forceRefresh: true);
 
-      expect(row.isAttested, isTrue);
-      expect(row.stakedAmount, 250.0);
-      expect(row.guardianName, 'Solana Mobile');
-      expect(row.cooldownActive, isTrue);
+      expect(fallback.isAttested, isTrue);
+      expect(fallback.stakedAmount, 500.0);
+      expect(fallback.verificationError, isNotNull);
+      expect(fallback.isFreshlyVerified, isFalse);
     });
 
-    test('unstakeDevnetSkr resets attestation to unverified in Drift', () async {
-      await repo.stakeDevnetSkr(address: testAddress, amount: 250.0);
-      await repo.unstakeDevnetSkr(address: testAddress);
-
-      final row = await (db.select(db.seekerAttestations)
-            ..where((t) => t.address.equals(testAddress)))
-          .getSingle();
-
-      expect(row.isAttested, isFalse);
-      expect(row.stakedAmount, 0.0);
-      expect(row.cooldownActive, isFalse);
-    });
-
-    test('watchAttestation streams real-time updates when Drift table changes', () async {
+    test('watchAttestation streams updates from Drift database cache', () async {
       final stream = repo.watchAttestation(testAddress);
-
       final emissions = <bool>[];
       final subscription = stream.listen((att) {
         emissions.add(att.isAttested);
       });
 
-      // Allow initial emission
-      await Future.delayed(const Duration(milliseconds: 50));
+      await pumpEventQueue();
 
-      // Stake
-      await repo.stakeDevnetSkr(address: testAddress, amount: 250.0);
-      await Future.delayed(const Duration(milliseconds: 50));
+      // Update stake and verify
+      fakeStakeSource.fakeStakeSkr = 300.0;
+      await repo.getAttestation(testAddress, forceRefresh: true);
 
-      // Unstake
-      await repo.unstakeDevnetSkr(address: testAddress);
-      await Future.delayed(const Duration(milliseconds: 50));
-
+      await pumpEventQueue();
       await subscription.cancel();
 
       expect(emissions.contains(true), isTrue);
-      expect(emissions.last, isFalse);
     });
   });
 }

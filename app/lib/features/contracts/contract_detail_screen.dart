@@ -365,21 +365,23 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(
-                    contract.formattedAmount,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.onSurface,
+                  Flexible(
+                    child: Text(
+                      contract.formattedAmount,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: contract.isUnknownMint ? 20 : 32,
+                        fontWeight: FontWeight.w800,
+                        color: contract.isUnknownMint
+                            ? AppColors.error
+                            : AppColors.onSurface,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    contract.isUsdc
-                        ? 'USD Coin (SPL)'
-                        : (contract.isSkr
-                            ? 'Seeker SPL Token'
-                            : '≈ \$${(contract.amountSol * 140).toStringAsFixed(2)} USD'),
+                    contract.isToken
+                        ? contract.currency.subtitle
+                        : '≈ \$${(contract.amountUi * 140).toStringAsFixed(2)} USD',
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 13,
                       color: AppColors.onSurfaceVariant,
@@ -387,6 +389,10 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
                   ),
                 ],
               ),
+              if (contract.isUnknownMint) ...[
+                const SizedBox(height: 12),
+                _buildUnverifiedMintWarning(contract),
+              ],
             ],
           ),
         ),
@@ -1654,6 +1660,64 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
           color: fg,
           letterSpacing: 0.5,
         ),
+      ),
+    );
+  }
+
+  /// Warning shown when a token escrow uses a mint ClockIn does not recognise.
+  ///
+  /// The program accepts any SPL mint, so a counterparty can fund an escrow
+  /// with a token that merely *looks* like a payment. Without this card a
+  /// worker could accept work against a vault holding a worthless token.
+  Widget _buildUnverifiedMintWarning(EscrowContract contract) {
+    final mint = contract.tokenMint ?? 'unknown';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.errorContainer,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded, size: 20, color: AppColors.error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Unverified token',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.error,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'This escrow is funded with an SPL token ClockIn does not '
+                  'recognise — not USDC or \$SKR. Its value is unknown. Verify '
+                  'the mint independently before accepting any work against it.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SelectableText(
+                  mint,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

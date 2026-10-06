@@ -46,11 +46,11 @@ The 8-phase plan is in `docs/ROADMAP.md` (Mobile Wallet Adapter pulled forward t
 | Solana connectivity | [`solana`](https://pub.dev/packages/solana) (Dart RPC/tx SDK) | |
 | Wallet / signing | [`solana_mobile_client`](https://pub.dev/packages/solana_mobile_client) | Mobile Wallet Adapter — the app never holds a private key; it asks an installed wallet app (e.g. Phantom, Solflare) to sign via MWA's intent-based protocol. This is the actual "mobile-native" part of the submission, not incidental. |
 | Local persistence | [`drift`](https://pub.dev/packages/drift) / `drift_flutter` | Offline-first cache of on-chain state; see the note above on trust/re-verification. |
-| Network target (MVP) | Solana **Devnet** only | No mainnet keys, no mainnet program ID, no real funds anywhere in this repo until a deliberate later decision — same discipline as StellarRep's testnet-only rule. |
+| Network target (MVP) | Solana **Devnet** only — one read-only exception | No mainnet keys, no real funds, and no mainnet *writes* anywhere in this repo. **Single deliberate exception (decided 2026-10-06):** Seeker attestation *reads* a wallet's $SKR Guardian stake from Solana Mobile's mainnet staking program (`SKRskrmt…94BZ`), because that is where real users stake. It is read-only RPC — no keypair, no signing, no transactions. See `app/lib/core/solana/skr_staking.dart` and the "Seeker attestation" section of `docs/ARCHITECTURE.md`. |
 
 ## Ground rules
 
-1. **Devnet only until told otherwise.** Never wire in a mainnet keypair or prompt the user for one.
+1. **Devnet only until told otherwise.** Never wire in a mainnet keypair or prompt the user for one. The only mainnet access is the read-only $SKR stake lookup for Seeker attestation (see Tech stack) — don't extend mainnet use beyond reads without a fresh, explicit decision.
 2. **Don't trust hardcoded versions/URLs in these docs.** The Solana/Anchor ecosystem moves fast (Anchor's own canonical repo has moved between orgs already). Resolve current versions and repo locations at build time, not from what's written here.
 3. **Small, real, and working beats large and mocked.** Same as StellarRep — hackathon judges look for genuine functionality. A 2-instruction Anchor program that actually deploys and a wallet-signed transaction that actually lands on devnet beats a polished UI with no chain behind it.
 4. **Mobile-native is the point, not a checkbox.** This hackathon is specifically about Solana *Mobile* — Mobile Wallet Adapter actually working end-to-end (real signing via an installed wallet app, not a hardcoded keypair in the app) is probably worth more to judges than any other single feature.

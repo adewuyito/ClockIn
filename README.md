@@ -86,7 +86,7 @@ See [`program/DEPLOYED.md`](program/DEPLOYED.md) for the full on-chain deploymen
 - **Solana Mobile Wallet Adapter (MWA)**: Zero key custody. Sessions and transactions are signed natively inside installed wallets (Phantom, Solflare) using Android intent handoffs.
 - **Arweave & Irys Storage**: Decentralized provenance network for permanently archiving rich review notes, rating breakdowns, and deliverable cryptographic hashes to the Arweave permaweb.
 - **Drift (SQLite Schema v10)**: Offline-first reactive local cache. Automatically mirrors on-chain contracts, worker profiles, and reviews for fast startup, offline draft review authoring, and low RPC overhead.
-- **Seeker Guardian Attestation**: Non-custodial proof-of-human verification via official Solana Mobile Guardian staking (250 $SKR) and native Solana Seeker hardware detection, eliminating bot risks with zero custody of staked assets.
+- **Seeker Guardian Attestation**: Reads a wallet's real $SKR stake directly from Solana Mobile's Guardian staking program — users stake 250+ $SKR at stake.solanamobile.com or in Seed Vault Wallet, and ClockIn verifies it on-chain (read-only; never signs or holds tokens). Native Solana Seeker hardware detection lights up the Seeker emblem.
 - **Pretty QR**: Apple-style rounded scannable QR passes for in-person and video call reputation exchange.
 - **Riverpod 2.0**: Declarative reactive state management streaming contract updates and wallet session status.
 - **Anchor 1.2.0 / Solana SBF**: Rust program enforcing deterministic PDA derivation, space bounding, and atomicity.
@@ -165,7 +165,7 @@ ClockIn is currently deployed on **Solana Devnet**. Ensure your mobile wallet is
 ## Known Scope & Non-Goals (MVP Honesty)
 
 - **Dual-Currency Support (SOL & $SKR)**: Contracts support both native SOL and the Solana Seeker ecosystem SPL token ($SKR) with parallel, gas-optimized Anchor instructions. Additional SPL tokens (USDC/USDT) are roadmapped for Phase 2.
-- **Seeker Attested Proof-of-Human**: Workers can prove human identity and earn the "Seeker Attested" verification badge by staking 250 $SKR delegated to Solana Mobile Guardians, providing economic Sybil resistance without biometric surveillance. Native Seeker hardware detection lights up the official Seeker emblem for authentic device owners.
+- **Seeker Attested Workers**: The "Seeker Attested" badge requires 250+ $SKR actively staked with a Solana Mobile Guardian, read straight from Solana Mobile's mainnet staking program — so it costs real, locked stake to earn and is visible to every counterparty, adding economic Sybil resistance without biometric surveillance. Unstaking removes the badge on the next read.
 - **Dual-Layer Provenance**: Lightweight on-chain Review PDAs store numerical scores and cryptographic seeds, while subjective feedback notes and deliverable proofs are stored on Arweave via Irys, preventing high Solana rent costs while guaranteeing permaweb permanence.
 - **Single-Milestone Delivery**: Escrows represent atomic full-delivery agreements. Multi-stage milestone payouts are roadmapped.
 - **On-Chain Dispute Recording**: Parties can raise disputes on-chain to freeze release. Automated dispute arbitration (e.g. Court DAO / multisig judges) is deferred to future protocol upgrades.

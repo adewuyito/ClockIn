@@ -9,7 +9,6 @@ import '../../core/database/app_database.dart' hide WorkerProfile, Review, Escro
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/solana/contract_service.dart';
-import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/qr_scanner_sheet.dart';
 import 'contract_detail_screen.dart';
@@ -38,7 +37,6 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
   int _selectedPresetDays = 7;
   bool _isSubmitting = false;
   EscrowCurrency _currency = EscrowCurrency.sol;
-  bool get _isSkr => _currency == EscrowCurrency.skr;
   bool get _isToken => _currency != EscrowCurrency.sol;
   String? _errorMessage;
   int? _activeDraftId;
@@ -382,10 +380,17 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                         onTap: () {
                           setState(() {
                             _activeDraftId = draft.id;
-                            _currency = EscrowCurrency.fromMintOrToken(
+                            // Drafts are only ever written by this screen, so
+                            // an unrecognised mint means a corrupted row: fall
+                            // back to SOL rather than leaving a currency with
+                            // no mint selected, which would fail at signing.
+                            final restored = EscrowCurrency.fromMintOrToken(
                               isToken: draft.isToken,
                               tokenMint: draft.tokenMint,
                             );
+                            _currency = restored.isRecognised
+                                ? restored
+                                : EscrowCurrency.sol;
                             _contractIdController.text = draft.contractId;
                             _workerController.text = draft.workerAddress;
                             _amountController.text = draft.amountSol.toString();
@@ -676,7 +681,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                               }
 
                               if (_isToken) {
-                                final baseUnits = BigInt.from((amountSol * 1e6).round());
+                                final baseUnits = BigInt.from((amountSol * _currency.divisor).round());
                                 await contractRepo.createAndFund(
                                   contractId: contractId,
                                   workerAddress: workerAddress,
@@ -1219,14 +1224,17 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Contract Timeline & Deadline',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.onSurface,
+                Expanded(
+                  child: Text(
+                    'Contract Timeline & Deadline',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onSurface,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 InkWell(
                   onTap: _pickCustomDeadline,
                   borderRadius: BorderRadius.circular(8),

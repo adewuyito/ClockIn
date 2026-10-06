@@ -121,17 +121,14 @@ void main() {
     test('watchLatestSubmission emits updates when new deliverable is submitted', () async {
       const contractId = 'ctr_stream_test';
       final stream = repository.watchLatestSubmission(contractId);
+      final emissions = <DeliverableSubmission?>[];
+      final sub = stream.listen(emissions.add);
+      addTearDown(sub.cancel);
 
-      expect(
-        stream,
-        emitsInOrder([
-          isNull, // Initially no submissions
-          predicate<DeliverableSubmission?>((sub) =>
-              sub != null && sub.contractId == contractId && sub.completionNote == 'Note 1'),
-          predicate<DeliverableSubmission?>((sub) =>
-              sub != null && sub.contractId == contractId && sub.completionNote == 'Revision 2'),
-        ]),
-      );
+      // Initial emission is null because no submissions exist yet
+      await pumpEventQueue();
+      expect(emissions.isNotEmpty, isTrue);
+      expect(emissions.last, isNull);
 
       // First submission
       final key1 = encryptionService.generateKey();
@@ -143,7 +140,13 @@ void main() {
         completionNote: 'Note 1',
       );
 
+      await pumpEventQueue();
+      expect(emissions.length, greaterThanOrEqualTo(2));
+      expect(emissions.last?.contractId, equals(contractId));
+      expect(emissions.last?.completionNote, equals('Note 1'));
+
       // Second submission (revision)
+      await Future.delayed(const Duration(milliseconds: 10));
       final key2 = encryptionService.generateKey();
       await repository.submitDeliverable(
         contractId: contractId,
@@ -152,6 +155,11 @@ void main() {
         encryptionKey: key2,
         completionNote: 'Revision 2',
       );
+
+      await pumpEventQueue();
+      expect(emissions.length, greaterThanOrEqualTo(3));
+      expect(emissions.last?.contractId, equals(contractId));
+      expect(emissions.last?.completionNote, equals('Revision 2'));
     });
 
     test('saveReceivedSubmission imports submission from QR code and deduplicates', () async {

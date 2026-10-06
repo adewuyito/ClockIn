@@ -36,10 +36,13 @@ class DeliverableRepository {
       ..where((tbl) => tbl.contractId.equals(contractId))
       ..orderBy([
         (tbl) => OrderingTerm(expression: tbl.submittedAt, mode: OrderingMode.desc),
+        (tbl) => OrderingTerm(expression: tbl.id, mode: OrderingMode.desc),
       ])
       ..limit(1);
 
-    return query.watchSingleOrNull().map((row) => row != null ? _rowToDomain(row) : null);
+    return query.watch().map<domain.DeliverableSubmission?>(
+          (rows) => rows.isNotEmpty ? _rowToDomain(rows.first) : null,
+        );
   }
 
   // ==================== READS ====================
@@ -50,6 +53,7 @@ class DeliverableRepository {
       ..where((tbl) => tbl.contractId.equals(contractId))
       ..orderBy([
         (tbl) => OrderingTerm(expression: tbl.submittedAt, mode: OrderingMode.desc),
+        (tbl) => OrderingTerm(expression: tbl.id, mode: OrderingMode.desc),
       ]);
 
     final rows = await query.get();
@@ -62,6 +66,7 @@ class DeliverableRepository {
       ..where((tbl) => tbl.contractId.equals(contractId))
       ..orderBy([
         (tbl) => OrderingTerm(expression: tbl.submittedAt, mode: OrderingMode.desc),
+        (tbl) => OrderingTerm(expression: tbl.id, mode: OrderingMode.desc),
       ])
       ..limit(1);
 

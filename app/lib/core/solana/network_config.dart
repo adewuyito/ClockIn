@@ -179,20 +179,6 @@ class NetworkConfig {
     return decoded;
   }
 
-  /// Computes the Guardian Stake Vault PDA.
-  /// Seeds: [b"guardian_vault", guardian_name]
-  static Future<Ed25519HDPublicKey> findGuardianVaultPda({
-    String guardianName = 'helius',
-  }) async {
-    return Ed25519HDPublicKey.findProgramAddress(
-      seeds: [
-        utf8.encode('guardian_vault'),
-        utf8.encode(guardianName.toLowerCase()),
-      ],
-      programId: programId,
-    );
-  }
-
   /// Computes the Associated Token Account (ATA) for a wallet/PDA and mint.
   /// Seeds: [wallet_address, token_program_id, mint_address]
   static Future<Ed25519HDPublicKey> findAssociatedTokenAddress({
