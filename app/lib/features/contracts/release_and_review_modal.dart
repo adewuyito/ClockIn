@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -250,18 +252,39 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    // Small screens (e.g. a 360×640dp Galaxy J7) can't fit this sheet's
+    // content, so the sheet is height-capped and its body scrolls while the
+    // action buttons stay pinned and reachable. The cap leaves a gap above the
+    // sheet so it still reads as dismissible, and shrinks with the keyboard so
+    // the note field and buttons are never pushed off-screen.
+    final media = MediaQuery.of(context);
+    final belowStatusBar = media.size.height - media.viewPadding.top;
+    final maxHeight = math.min(
+      belowStatusBar * 0.92,
+      belowStatusBar - media.viewInsets.bottom,
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            // Clear the gesture/nav bar when the keyboard is closed.
+            (media.viewInsets.bottom > 0 ? 0 : media.viewPadding.bottom) + 16,
+          ),
+          child: _isSuccess
+              ? SingleChildScrollView(child: _buildSuccessView())
+              : _buildFormView(),
+        ),
       ),
-      padding: EdgeInsets.fromLTRB(
-        20,
-        16,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: _isSuccess ? _buildSuccessView() : _buildFormView(),
     );
   }
 
@@ -315,242 +338,255 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
         ),
         const SizedBox(height: 16),
 
-        // Release Callout
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-          ),
-          child: Column(
-            children: [
-              Text(
-                'RELEASING FROM ESCROW TO WORKER',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onSurfaceVariant,
-                  letterSpacing: 0.5,
+        // Body scrolls; the header above and the action buttons below stay
+        // fixed so "Release & Submit Review" is reachable on any screen size.
+        Flexible(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Release Callout
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'RELEASING FROM ESCROW TO WORKER',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.onSurfaceVariant,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.contract.formattedAmount,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.contract.isToken
+                            ? 'Vault ATA → Worker ATA (${widget.contract.shortWorker})'
+                            : 'To: ${widget.contract.shortWorker}',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.contract.formattedAmount,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.onSurface,
+
+                // Submitted Deliverables Inspection Card
+                if (submission != null) ...[
+                  const SizedBox(height: 14),
+                  _buildDeliverableCard(submission),
+                ],
+
+                const SizedBox(height: 20),
+
+                // Rating Section
+                Text(
+                  'Rate Worker Performance',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurface,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                widget.contract.isToken
-                    ? 'Vault ATA → Worker ATA (${widget.contract.shortWorker})'
-                    : 'To: ${widget.contract.shortWorker}',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    final starIndex = index + 1;
+                    final isFilled = starIndex <= _selectedRating;
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _selectedRating = starIndex);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Icon(
+                          isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
+                          size: 38,
+                          color: isFilled ? const Color(0xFFE5A100) : AppColors.outlineVariant,
+                        ),
+                      ),
+                    );
+                  }),
                 ),
-              ),
-            ],
-          ),
-        ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    _ratingLabels[_selectedRating - 1],
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFC97A0A),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-        // Submitted Deliverables Inspection Card
-        if (submission != null) ...[
-          const SizedBox(height: 14),
-          _buildDeliverableCard(submission),
-        ],
+                // Feedback Note (stored permanently on Arweave)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Feedback Note (Optional)',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    Text(
+                      '${_notesController.text.length} / 280',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _notesController,
+                  maxLines: 2,
+                  maxLength: 280,
+                  onChanged: (_) => setState(() {}),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    color: AppColors.onSurface,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'e.g. Excellent work, delivered on time and high quality.',
+                    hintStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+                    counterText: '',
+                    filled: true,
+                    fillColor: AppColors.surfaceContainerLow,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, top: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cloud_done_rounded, size: 13, color: AppColors.primary),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          'Inscribed permanently to Arweave permaweb via Irys & anchored on Solana.',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-        const SizedBox(height: 20),
-
-        // Rating Section
-        Text(
-          'Rate Worker Performance',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.onSurface,
+                // Atomic settlement note
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: widget.contract.isToken
+                        ? const Color(0xFFF3EDF7)
+                        : AppColors.primaryContainer.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: widget.contract.isToken
+                          ? const Color(0xFF6750A4).withValues(alpha: 0.25)
+                          : AppColors.primaryContainer.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.flash_on_rounded,
+                            size: 18,
+                            color: widget.contract.isToken
+                                ? const Color(0xFF6750A4)
+                                : AppColors.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            widget.contract.isToken
+                                ? 'ATOMIC ${widget.contract.currencySymbol} SETTLEMENT (1 TX BLOCK)'
+                                : 'ATOMIC ESCROW SETTLEMENT (1 TX BLOCK)',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              color: widget.contract.isToken
+                                  ? const Color(0xFF6750A4)
+                                  : AppColors.primary,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      if (widget.contract.isToken) ...[
+                        _buildAtomicStep('1', '${widget.contract.formattedAmount} transfers from Vault ATA to Worker ATA'),
+                        const SizedBox(height: 5),
+                        _buildAtomicStep('2', 'Program closes Vault ATA and refunds rent lamports to you'),
+                        const SizedBox(height: 5),
+                        _buildAtomicStep('3', 'Immutable Review PDA is minted on Solana'),
+                        const SizedBox(height: 5),
+                        _buildAtomicStep('4', "Worker's aggregate reputation score increments"),
+                      ] else ...[
+                        _buildAtomicStep('1', '${widget.contract.formattedAmount} transfers from Vault PDA to Worker'),
+                        const SizedBox(height: 5),
+                        _buildAtomicStep('2', 'Vault PDA rent lamports automatically refund to you'),
+                        const SizedBox(height: 5),
+                        _buildAtomicStep('3', 'Immutable Review PDA is minted on Solana'),
+                        const SizedBox(height: 5),
+                        _buildAtomicStep('4', "Worker's aggregate reputation score increments"),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(5, (index) {
-            final starIndex = index + 1;
-            final isFilled = starIndex <= _selectedRating;
-            return GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() => _selectedRating = starIndex);
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Icon(
-                  isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
-                  size: 38,
-                  color: isFilled ? const Color(0xFFE5A100) : AppColors.outlineVariant,
-                ),
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 8),
-        Center(
-          child: Text(
-            _ratingLabels[_selectedRating - 1],
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFFC97A0A),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Feedback Note (stored permanently on Arweave)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Feedback Note (Optional)',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.onSurface,
-              ),
-            ),
-            Text(
-              '${_notesController.text.length} / 280',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                color: AppColors.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _notesController,
-          maxLines: 2,
-          maxLength: 280,
-          onChanged: (_) => setState(() {}),
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            color: AppColors.onSurface,
-          ),
-          decoration: InputDecoration(
-            hintText: 'e.g. Excellent work, delivered on time and high quality.',
-            hintStyle: GoogleFonts.plusJakartaSans(
-              fontSize: 12.5,
-              color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
-            ),
-            counterText: '',
-            filled: true,
-            fillColor: AppColors.surfaceContainerLow,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 4, top: 4),
-          child: Row(
-            children: [
-              const Icon(Icons.cloud_done_rounded, size: 13, color: AppColors.primary),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  'Inscribed permanently to Arweave permaweb via Irys & anchored on Solana.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Atomic settlement note
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: widget.contract.isToken
-                ? const Color(0xFFF3EDF7)
-                : AppColors.primaryContainer.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: widget.contract.isToken
-                  ? const Color(0xFF6750A4).withValues(alpha: 0.25)
-                  : AppColors.primaryContainer.withValues(alpha: 0.15),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.flash_on_rounded,
-                    size: 18,
-                    color: widget.contract.isToken
-                        ? const Color(0xFF6750A4)
-                        : AppColors.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    widget.contract.isToken
-                        ? 'ATOMIC ${widget.contract.currencySymbol} SETTLEMENT (1 TX BLOCK)'
-                        : 'ATOMIC ESCROW SETTLEMENT (1 TX BLOCK)',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                      color: widget.contract.isToken
-                          ? const Color(0xFF6750A4)
-                          : AppColors.primary,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              if (widget.contract.isToken) ...[
-                _buildAtomicStep('1', '${widget.contract.formattedAmount} transfers from Vault ATA to Worker ATA'),
-                const SizedBox(height: 5),
-                _buildAtomicStep('2', 'Program closes Vault ATA and refunds rent lamports to you'),
-                const SizedBox(height: 5),
-                _buildAtomicStep('3', 'Immutable Review PDA is minted on Solana'),
-                const SizedBox(height: 5),
-                _buildAtomicStep('4', "Worker's aggregate reputation score increments"),
-              ] else ...[
-                _buildAtomicStep('1', '${widget.contract.formattedAmount} transfers from Vault PDA to Worker'),
-                const SizedBox(height: 5),
-                _buildAtomicStep('2', 'Vault PDA rent lamports automatically refund to you'),
-                const SizedBox(height: 5),
-                _buildAtomicStep('3', 'Immutable Review PDA is minted on Solana'),
-                const SizedBox(height: 5),
-                _buildAtomicStep('4', "Worker's aggregate reputation score increments"),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
 
         if (_errorMessage != null) ...[
           Container(
@@ -600,7 +636,7 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
                   ),
           ),
         ),
-        if (submission != null) ...[
+        if (submission != null && widget.contract.acceptsDeliverableActions) ...[
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
@@ -773,6 +809,7 @@ class _ReleaseAndReviewModalState extends ConsumerState<ReleaseAndReviewModal> {
   }
 
   Future<void> _handleRequestRevision(DeliverableSubmission submission) async {
+    if (!widget.contract.acceptsDeliverableActions) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

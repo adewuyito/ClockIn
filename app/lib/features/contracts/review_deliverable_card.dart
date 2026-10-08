@@ -153,7 +153,10 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
 
       widget.onKeyDecrypted?.call(key);
 
-      if (autoReview && widget.isEmployer && mounted) {
+      if (autoReview &&
+          widget.isEmployer &&
+          widget.contract.acceptsDeliverableActions &&
+          mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _openEmployerReviewSheet();
         });
@@ -167,6 +170,7 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
   }
 
   Future<void> _openEmployerReviewSheet() async {
+    if (!widget.contract.acceptsDeliverableActions) return;
     final result = await ReleaseAndReviewModal.show(
       context,
       widget.contract,
@@ -193,6 +197,7 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
   }
 
   Future<void> _handleRequestRevision() async {
+    if (!widget.contract.acceptsDeliverableActions) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -591,7 +596,11 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
               color: AppColors.textPrimary,
             ),
           ),
-          if (widget.isEmployer) ...[
+          if (widget.isEmployer && !widget.contract.acceptsDeliverableActions) ...[
+            const SizedBox(height: 14),
+            _buildActionsClosedNotice(),
+          ],
+          if (widget.isEmployer && widget.contract.acceptsDeliverableActions) ...[
             const SizedBox(height: 14),
             const Divider(height: 1, color: AppColors.border),
             const SizedBox(height: 12),
@@ -804,9 +813,12 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
   }
 
   Widget _buildWorkerInfoView() {
-    return Row(
+    final canRevise = widget.contract.acceptsDeliverableActions;
+    final row = Row(
       children: [
-        Expanded(
+        // Revisions only while the contract is active. Sharing the key stays
+        // available: the employer may still need it to read the final work.
+        if (canRevise) Expanded(
           child: OutlinedButton.icon(
             onPressed: () => SubmitDeliverablesSheet.show(context, widget.contract),
             icon: const Icon(Icons.upload_file_rounded, size: 16),
@@ -824,7 +836,7 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        if (canRevise) const SizedBox(width: 10),
         Expanded(
           child: ElevatedButton.icon(
             onPressed: _showWorkerKeySheet,
@@ -848,6 +860,46 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
           ),
         ),
       ],
+    );
+    if (canRevise) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildActionsClosedNotice(),
+        const SizedBox(height: 10),
+        row,
+      ],
+    );
+  }
+
+  /// Explains why deliverable actions are gone, so a settled contract doesn't
+  /// look like a broken screen.
+  Widget _buildActionsClosedNotice() {
+    final reason = widget.contract.deliverableActionsClosedReason ??
+        'Deliverable actions are closed.';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              reason,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

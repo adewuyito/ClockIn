@@ -7,6 +7,10 @@ import 'package:solana/solana.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/models/dispute_case.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/config/feature_flags.dart';
+import '../../core/models/split_proposal.dart';
+import '../../core/database/contract_repository.dart';
+import '../../core/solana/wallet_adapter.dart';
 import '../../core/solana/network_config.dart';
 import '../../core/solana/program_instructions.dart';
 import '../../core/theme/app_colors.dart';
@@ -41,6 +45,8 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
   }
 
   Future<void> _refreshData() async {
+    // Any settlement closes an open split offer on-chain; re-read it too.
+    ref.invalidate(splitProposalProvider(widget.contractId));
     try {
       await Future.wait([
         ref.read(contractRepositoryProvider).refreshDisputeCase(widget.contractId),
@@ -323,8 +329,11 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
     );
   }
 
+  /// [sheetContext] is the settlement sheet to close first, or null when the
+  /// action comes from the screen itself (e.g. the split-offer card) — popping
+  /// the screen's own context would close the whole dispute screen.
   Future<void> _handleResolveDispute(
-    BuildContext modalContext,
+    BuildContext? sheetContext,
     EscrowContract contract,
     DisputeResolution resolution,
   ) async {
@@ -376,7 +385,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
       return;
     }
 
-    Navigator.of(modalContext).pop();
+    if (sheetContext != null) Navigator.of(sheetContext).pop();
 
     final confirmed = await _showConfirmationDialog(contract, resolution);
     if (confirmed != true || !mounted) return;
@@ -458,13 +467,13 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
         // gets the remainder, so an odd base unit is shown going to the employer.
         final workerShare = contract.formatBaseUnits(contract.splitWorkerShare);
         final employerShare = contract.formatBaseUnits(contract.splitEmployerShare);
-        title = 'Execute 50/50 Compromise?';
+        title = 'Accept the 50/50 Split?';
         description =
-            'You are proposing a mutual 50/50 amicable split on Solana:\n\n'
+            'You are accepting the other party\'s offer to settle 50/50. Funds move immediately:\n\n'
             '• Worker receives $workerShare\n'
             '• Employer receives $employerShare (+ rent lamports)\n\n'
-            'This binding settlement will mark the contract completed.';
-        confirmLabel = 'Sign & Split 50/50';
+            'This is final and marks the contract completed.';
+        confirmLabel = 'Sign & Accept Split';
         actionColor = AppColors.primary;
         icon = Icons.pie_chart_outline_rounded;
         break;
@@ -526,7 +535,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
     );
   }
 
-  void _showSettlementModal(EscrowContract contract) {
+  void _showSettlementModal(EscrowContract contract, SplitProposal? splitProposal) {
     final wallet = ref.read(walletStateProvider);
     final userAddress = wallet.publicKey?.toBase58();
     final isEmployer = contract.isEmployer(userAddress);
@@ -579,7 +588,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                         ),
                       ),
                       Text(
-                        'Resolve dispute mutually on Solana without waiting for juror quorum.',
+                        'Settle the dispute on Solana between the two of you.',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           color: AppColors.onSurfaceVariant,
@@ -615,19 +624,195 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
               onTap: () => _handleResolveDispute(ctx, contract, DisputeResolution.refundToEmployer),
             ),
             const SizedBox(height: 10),
-            _buildSettlementOption(
-              title: 'Split 50% / 50% Compromise',
-              subtitle: 'Both parties agree to split the escrow deposit equally.',
-              badge: (isEmployer || isWorker) ? 'Either Party' : null,
-              icon: Icons.pie_chart_outline_rounded,
-              color: AppColors.primary,
-              isEnabled: isEmployer || isWorker,
-              onTap: () => _handleResolveDispute(ctx, contract, DisputeResolution.split5050),
-            ),
+            _buildSplitOption(ctx, contract, splitProposal, userAddress, isEmployer || isWorker),
           ],
         ),
       ),
     );
+  }
+
+  /// The split option in the settlement sheet. A split needs both parties, so
+  /// what it offers depends on whether — and by whom — one has been proposed.
+  Widget _buildSplitOption(
+    BuildContext sheetContext,
+    EscrowContract contract,
+    SplitProposal? proposal,
+    String? userAddress,
+    bool isParty,
+  ) {
+    final otherParty = contract.isEmployer(userAddress) ? 'worker' : 'employer';
+    if (proposal == null) {
+      return _buildSettlementOption(
+        title: 'Propose a 50/50 Split',
+        subtitle: 'Sends an offer to the $otherParty. Nothing moves unless they accept.',
+        badge: isParty ? 'Needs Both Parties' : null,
+        icon: Icons.pie_chart_outline_rounded,
+        color: AppColors.primary,
+        isEnabled: isParty,
+        onTap: () => _handleProposeSplit(sheetContext, contract),
+      );
+    }
+    if (proposal.isProposedBy(userAddress)) {
+      return _buildSettlementOption(
+        title: 'Withdraw Your Split Offer',
+        subtitle: 'Your 50/50 offer is waiting for the $otherParty to accept.',
+        badge: 'Waiting',
+        icon: Icons.undo_rounded,
+        color: AppColors.onSurfaceVariant,
+        isEnabled: true,
+        onTap: () => _handleCancelSplit(sheetContext, contract),
+      );
+    }
+    return _buildSettlementOption(
+      title: 'Accept the 50/50 Split',
+      subtitle: 'The $otherParty offered to split ${contract.formattedAmount} equally.',
+      badge: 'Offer Received',
+      icon: Icons.handshake_outlined,
+      color: AppColors.success,
+      isEnabled: isParty,
+      onTap: () => _handleResolveDispute(sheetContext, contract, DisputeResolution.split5050),
+    );
+  }
+
+  /// Banner shown on the dispute screen while a 50/50 offer is open, so the
+  /// other party sees it without opening the settlement sheet.
+  Widget _buildSplitProposalCard(EscrowContract contract, SplitProposal proposal) {
+    final userAddress = ref.watch(walletStateProvider).publicKey?.toBase58();
+    final mine = proposal.isProposedBy(userAddress);
+    final isParty = contract.isEmployer(userAddress) || contract.isWorker(userAddress);
+    final proposerRole = proposal.proposer == contract.employer ? 'Employer' : 'Worker';
+    final workerShare = contract.formatBaseUnits(contract.splitWorkerShare);
+    final employerShare = contract.formatBaseUnits(contract.splitEmployerShare);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.pie_chart_outline_rounded, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  mine ? 'You offered a 50/50 split' : '$proposerRole offered a 50/50 split',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Worker would receive $workerShare and the employer $employerShare. '
+            '${mine ? 'Waiting for the other party to accept.' : 'Nothing moves unless you accept.'}',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              height: 1.45,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+          if (isParty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: mine
+                  ? OutlinedButton.icon(
+                      onPressed: _isResolving ? null : () => _handleCancelSplit(null, contract),
+                      icon: const Icon(Icons.undo_rounded, size: 18),
+                      label: const Text('Withdraw Offer'),
+                    )
+                  : ElevatedButton.icon(
+                      onPressed: _isResolving
+                          ? null
+                          : () => _handleResolveDispute(null, contract, DisputeResolution.split5050),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Icons.handshake_outlined, size: 18),
+                      label: const Text('Review & Accept Split'),
+                    ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleProposeSplit(BuildContext? sheetContext, EscrowContract contract) async {
+    await _runSplitAction(
+      sheetContext,
+      contract,
+      successMessage: '50/50 offer sent. It settles when the other party accepts.',
+      action: (repo, wallet, adapter) => repo.proposeSplit(
+        contract: contract,
+        proposer: wallet,
+        walletAdapter: adapter,
+      ),
+    );
+  }
+
+  Future<void> _handleCancelSplit(BuildContext? sheetContext, EscrowContract contract) async {
+    await _runSplitAction(
+      sheetContext,
+      contract,
+      successMessage: 'Split offer withdrawn.',
+      action: (repo, wallet, adapter) => repo.cancelSplitProposal(
+        contract: contract,
+        proposer: wallet,
+        walletAdapter: adapter,
+      ),
+    );
+  }
+
+  /// Shared flow for proposing / withdrawing a split: wallet check, sign via
+  /// MWA, refresh the proposal, and report the outcome.
+  Future<void> _runSplitAction(
+    BuildContext? sheetContext,
+    EscrowContract contract, {
+    required String successMessage,
+    required Future<String> Function(
+      ContractRepository repo,
+      Ed25519HDPublicKey wallet,
+      WalletAdapter adapter,
+    ) action,
+  }) async {
+    final wallet = ref.read(walletStateProvider);
+    if (!wallet.isConnected || wallet.publicKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please connect your Solana wallet first.'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+    if (sheetContext != null) Navigator.of(sheetContext).pop();
+    setState(() => _isResolving = true);
+    try {
+      await action(ref.read(contractRepositoryProvider), wallet.publicKey!, ref.read(walletAdapterProvider));
+      ref.invalidate(splitProposalProvider(contract.contractId));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(successMessage), backgroundColor: AppColors.success),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update the split offer: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isResolving = false);
+    }
   }
 
   Widget _buildSettlementOption({
@@ -784,8 +969,12 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
           }
 
           final caseId = 'DISP-${contract.contractId.substring(0, contract.contractId.length >= 6 ? 6 : contract.contractId.length).toUpperCase()}';
-          final disputeCaseAsync = ref.watch(disputeCaseProvider(contract.contractId));
-          final disputeCase = disputeCaseAsync.valueOrNull;
+          // With juror arbitration disabled the screen behaves as if no jury
+          // case exists: no panel, no juror role, settlement between the parties.
+          final disputeCase = FeatureFlags.juryArbitration
+              ? ref.watch(disputeCaseProvider(contract.contractId)).valueOrNull
+              : null;
+          final splitProposal = ref.watch(splitProposalProvider(contract.contractId)).valueOrNull;
 
           return FutureBuilder<Ed25519HDPublicKey>(
             future: NetworkConfig.findVaultPda(contract.contractId),
@@ -818,12 +1007,20 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                     // Filed Dispute Claim & Statement
                     _buildDisputeClaimCard(contract),
 
-                    // Assemble Juror Panel CTA (if not yet assembled)
-                    if (disputeCase == null) _buildAssembleJurorPanelCard(contract),
+                    // Open 50/50 split offer, visible to both parties.
+                    if (splitProposal != null) ...[
+                      _buildSplitProposalCard(contract, splitProposal),
+                      const SizedBox(height: 18),
+                    ],
 
-                    // Seeker Guardian Jurors Panel
-                    _buildGuardianJurorsPanel(disputeCase, contract),
-                    const SizedBox(height: 18),
+                    if (FeatureFlags.juryArbitration) ...[
+                      // Assemble Juror Panel CTA (if not yet assembled)
+                      if (disputeCase == null) _buildAssembleJurorPanelCard(contract),
+
+                      // Seeker Guardian Jurors Panel
+                      _buildGuardianJurorsPanel(disputeCase, contract),
+                      const SizedBox(height: 18),
+                    ],
 
                     // Juror Action & Quorum Execution Cards
                     if (disputeCase != null) ...[
@@ -844,7 +1041,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton.icon(
-                          onPressed: _isResolving ? null : () => _showSettlementModal(contract),
+                          onPressed: _isResolving ? null : () => _showSettlementModal(contract, splitProposal),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
@@ -939,9 +1136,10 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
       chipBg = const Color(0xFFBA1A1A);
       chipText = Colors.white;
       heroTitle = 'DISPUTE ACTIVE • VAULT FROZEN';
-      statusBadge = 'PANEL PENDING';
-      description =
-          'Escrow funds are programmatically locked in the Solana Vault PDA. Assemble a 3-juror Seeker Guardian panel on Devnet to begin evidence review and arbitration.';
+      statusBadge = FeatureFlags.juryArbitration ? 'PANEL PENDING' : 'AWAITING SETTLEMENT';
+      description = FeatureFlags.juryArbitration
+          ? 'Escrow funds are locked in the Solana Vault PDA. Assemble a 3-juror panel to begin evidence review and arbitration.'
+          : 'Escrow funds are locked in the Solana Vault PDA until the dispute is settled. The employer can release payment, the worker can refund it, or either of you can propose a 50/50 split for the other to accept.';
       statusIcon = Icons.gavel_rounded;
     } else if (disputeCase.status == DisputeCaseStatus.voting) {
       headerColor = AppColors.primary;
@@ -952,7 +1150,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
       heroTitle = 'ARBITRATION IN PROGRESS • 3 JURORS';
       statusBadge = '${disputeCase.votesCastCount}/3 VOTED';
       description =
-          'Escrow funds are locked in the Solana Vault PDA pending Seeker Guardian arbitration. 3 Seeker Guardian Jurors have been cryptographically assigned on Solana Devnet to review deliverables and issue a binding ruling.';
+          'Escrow funds are locked in the Solana Vault PDA pending arbitration. Three jurors are assigned on-chain to review the evidence and issue a binding 2-of-3 ruling.';
       statusIcon = Icons.shield_rounded;
     } else if (disputeCase.status == DisputeCaseStatus.quorumReached) {
       headerColor = AppColors.success;
@@ -1160,7 +1358,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
       roleBadge = 'YOU (JUROR #${jurorIndex + 1})';
       roleTitle = 'Seeker Guardian Juror';
       roleDescription =
-          'You have been randomly selected from active \$SKR stakers as Juror #${jurorIndex + 1}. Please review the submitted terms and evidence, then cast your binding cryptographic vote below.';
+          'You are Juror #${jurorIndex + 1} on this case. Review the terms and evidence, then cast your vote below. Two matching votes decide the outcome.';
       roleIcon = Icons.shield_rounded;
       roleColor = AppColors.primary;
     } else {
@@ -1749,7 +1947,7 @@ class _DisputeResolutionScreenState extends ConsumerState<DisputeResolutionScree
           const SizedBox(height: 6),
           Text(
             disputeCase == null
-                ? 'Guardian Jurors will be randomly selected from active stakers upon panel assembly.'
+                ? 'Jurors are assigned when the panel is assembled.'
                 : 'Decentralized juror panel reviewing deliverables on Solana Devnet. 2/3 majority vote required to release or refund escrow.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,

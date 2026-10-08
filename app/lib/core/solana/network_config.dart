@@ -108,6 +108,18 @@ class NetworkConfig {
     );
   }
 
+  /// Computes the SplitProposal PDA — an open offer by one party to settle a
+  /// disputed contract 50/50. Seeds: [b"split_proposal", contract_id]
+  static Future<Ed25519HDPublicKey> findSplitProposalPda(String contractId) async {
+    return Ed25519HDPublicKey.findProgramAddress(
+      seeds: [
+        utf8.encode('split_proposal'),
+        utf8.encode(contractId),
+      ],
+      programId: programId,
+    );
+  }
+
   /// SPL Token Program ID: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
   static final Ed25519HDPublicKey tokenProgramId =
       Ed25519HDPublicKey.fromBase58('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');

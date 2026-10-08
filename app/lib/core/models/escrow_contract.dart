@@ -251,6 +251,29 @@ class EscrowContract {
   /// Currency symbol ("SOL", "USDC", "$SKR", or "UNVERIFIED").
   String get currencySymbol => currency.symbol;
 
+  /// Whether deliverables can still be submitted, revised, accepted, or sent
+  /// back for changes. Only while the work is underway: once a contract is
+  /// completed or cancelled the deliverables are final, and during a dispute
+  /// the on-chain release that "accept" triggers is not possible anyway.
+  bool get acceptsDeliverableActions => status == ContractStatus.inProgress;
+
+  /// Why deliverable actions are closed, for display — null while they're open.
+  String? get deliverableActionsClosedReason {
+    switch (status) {
+      case ContractStatus.inProgress:
+        return null;
+      case ContractStatus.completed:
+        return 'Contract completed — deliverables are final.';
+      case ContractStatus.cancelled:
+        return 'Contract cancelled — deliverables are closed.';
+      case ContractStatus.disputed:
+        return 'Contract in dispute — deliverable changes are paused.';
+      case ContractStatus.created:
+      case ContractStatus.funded:
+        return 'Deliverables open once the worker accepts the contract.';
+    }
+  }
+
   /// Amount in whole units of this contract's own currency (scaled by its
   /// decimals). This is the only amount accessor: per-currency getters such as
   /// a fixed ÷1e9 "amountSol" silently mis-scale token contracts, which is how

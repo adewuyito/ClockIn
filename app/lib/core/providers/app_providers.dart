@@ -7,6 +7,7 @@ import '../database/attestation_repository.dart';
 import '../database/deliverable_repository.dart';
 import '../models/escrow_contract.dart';
 import '../models/dispute_case.dart';
+import '../models/split_proposal.dart';
 import '../models/deliverable_submission.dart';
 import '../models/review.dart';
 import '../models/seeker_attestation.dart';
@@ -273,6 +274,13 @@ final contractProvider = StreamProvider.family<EscrowContract?, String>((ref, co
   final repository = ref.watch(contractRepositoryProvider);
   repository.getContract(contractId);
   return repository.watchContract(contractId);
+});
+
+/// The contract's open 50/50 split proposal, read from chain. Invalidate after
+/// proposing, withdrawing, or settling a dispute.
+final splitProposalProvider =
+    FutureProvider.autoDispose.family<SplitProposal?, String>((ref, contractId) {
+  return ref.watch(contractRepositoryProvider).getSplitProposal(contractId);
 });
 
 /// Watches a DisputeCase for a contract reactively from local Drift database,

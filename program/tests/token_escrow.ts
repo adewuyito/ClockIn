@@ -391,4 +391,99 @@ describe("SPL token ($SKR) escrow protocol", () => {
       }
     });
   });
+
+  describe("Disputes: $SKR 50/50 split needs both parties", () => {
+    const depositAmount = new anchor.BN(300 * 1_000_000); // 300 $SKR
+    const termsHash = computeTermsHash("token split consent test");
+
+    const findSplitProposalPda = (id: string): PublicKey =>
+      PublicKey.findProgramAddressSync([Buffer.from("split_proposal"), Buffer.from(id)], program.programId)[0];
+
+    const setUpDisputedTokenContract = async (id: string) => {
+      const [escrowPda] = findEscrowPda(id);
+      await program.methods
+        .createAndFundToken(id, worker.publicKey, depositAmount, termsHash, new anchor.BN(0))
+        .accounts({
+          employer: employer.publicKey,
+          mint: mockSkrMint,
+          employerTokenAccount: employerSkrAta,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([employer])
+        .rpc();
+      await program.methods
+        .acceptContract(id)
+        .accountsPartial({ worker: worker.publicKey, escrowContract: escrowPda })
+        .signers([worker])
+        .rpc();
+      await program.methods
+        .raiseDispute(id)
+        .accountsPartial({ caller: employer.publicKey, escrowContract: escrowPda })
+        .signers([employer])
+        .rpc();
+      return escrowPda;
+    };
+
+    const resolveTokenSplit = (id: string, caller: Keypair, escrowPda: PublicKey) => {
+      const [vaultPda] = findVaultPda(id);
+      return program.methods
+        .resolveTokenDispute(id, { split5050: {} })
+        .accountsPartial({
+          caller: caller.publicKey,
+          escrowContract: escrowPda,
+          mint: mockSkrMint,
+          vault: vaultPda,
+          vaultTokenAccount: getVaultTokenAddress(id, mockSkrMint),
+          worker: worker.publicKey,
+          workerTokenAccount: workerSkrAta,
+          employer: employer.publicKey,
+          employerTokenAccount: employerSkrAta,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          splitProposal: findSplitProposalPda(id),
+        })
+        .signers([caller])
+        .rpc();
+    };
+
+    it("rejects a one-sided $SKR split", async () => {
+      const id = "tok-split-unilateral";
+      const escrowPda = await setUpDisputedTokenContract(id);
+      try {
+        await resolveTokenSplit(id, worker, escrowPda);
+        expect.fail("a one-sided split must not execute");
+      } catch (err: any) {
+        expect(err.toString()).to.include("SplitNeedsCounterpartyConsent");
+      }
+    });
+
+    it("employer proposes, worker accepts: $SKR splits 50/50", async () => {
+      const id = "tok-split-consent";
+      const escrowPda = await setUpDisputedTokenContract(id);
+      await program.methods
+        .proposeSplit(id)
+        .accountsPartial({
+          proposer: employer.publicKey,
+          escrowContract: escrowPda,
+          splitProposal: findSplitProposalPda(id),
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([employer])
+        .rpc();
+
+      const workerBefore = (await getAccount(provider.connection, workerSkrAta)).amount;
+      const employerBefore = (await getAccount(provider.connection, employerSkrAta)).amount;
+      await resolveTokenSplit(id, worker, escrowPda);
+      const workerAfter = (await getAccount(provider.connection, workerSkrAta)).amount;
+      const employerAfter = (await getAccount(provider.connection, employerSkrAta)).amount;
+
+      const half = BigInt(depositAmount.toString()) / 2n;
+      expect(workerAfter - workerBefore).to.equal(half);
+      expect(employerAfter - employerBefore).to.equal(BigInt(depositAmount.toString()) - half);
+      expect(await provider.connection.getAccountInfo(findSplitProposalPda(id))).to.equal(null);
+      const contract = await program.account.escrowContract.fetch(escrowPda);
+      expect(contract.status).to.deep.equal({ completed: {} });
+    });
+  });
 });

@@ -6,6 +6,7 @@ import 'package:solana/encoder.dart';
 import 'package:solana/solana.dart';
 import '../models/escrow_contract.dart';
 import '../models/dispute_case.dart';
+import '../models/split_proposal.dart';
 import 'account_decoders.dart';
 import 'network_config.dart';
 import 'program_instructions.dart';
@@ -650,6 +651,64 @@ class ContractService {
       return null;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Fetches the contract's open split proposal, or null if there is none.
+  Future<SplitProposal?> getSplitProposal(String contractId) async {
+    final pda = await NetworkConfig.findSplitProposalPda(contractId);
+    final accountInfo = await solanaClient.rpcClient.getAccountInfo(
+      pda.toBase58(),
+      encoding: Encoding.base64,
+      commitment: Commitment.confirmed,
+    );
+    final account = accountInfo.value;
+    if (account == null || account.owner != NetworkConfig.programIdString) return null;
+    final data = account.data;
+    return data is BinaryAccountData ? AccountDecoders.decodeSplitProposal(data.data) : null;
+  }
+
+  /// Proposes settling a disputed contract 50/50. The other party must accept.
+  Future<String> proposeSplit({
+    required Ed25519HDPublicKey proposer,
+    required String contractId,
+    required WalletAdapter walletAdapter,
+  }) =>
+      _sendSingle(
+        feePayer: proposer,
+        walletAdapter: walletAdapter,
+        build: () => ProgramInstructions.proposeSplit(proposer: proposer, contractId: contractId),
+      );
+
+  /// Withdraws the caller's own unaccepted split proposal.
+  Future<String> cancelSplitProposal({
+    required Ed25519HDPublicKey proposer,
+    required String contractId,
+    required WalletAdapter walletAdapter,
+  }) =>
+      _sendSingle(
+        feePayer: proposer,
+        walletAdapter: walletAdapter,
+        build: () => ProgramInstructions.cancelSplitProposal(proposer: proposer, contractId: contractId),
+      );
+
+  /// Signs, sends, and waits for confirmation of a single-instruction
+  /// transaction; a transaction that lands with an error throws.
+  Future<String> _sendSingle({
+    required Ed25519HDPublicKey feePayer,
+    required WalletAdapter walletAdapter,
+    required Future<Instruction> Function() build,
+  }) async {
+    try {
+      final signature = await _signAndSendWithRetry(
+        feePayer: feePayer,
+        walletAdapter: walletAdapter,
+        buildInstruction: build,
+      );
+      await solanaClient.waitForSignatureStatus(signature, status: Commitment.confirmed);
+      return signature;
+    } catch (e) {
+      throw ReputationException.from(e);
     }
   }
 

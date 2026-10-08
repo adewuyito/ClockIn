@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 108 108">
+  <!-- ClockIn icon concept D: Settled Seal (108dp adaptive-icon grid) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#127c9a"/><stop offset="1" stop-color="#00485d"/></linearGradient>
+    <clipPath id="mask"><path d="M54,0 C9,0 0,9 0,54 S9,108 54,108 S108,99 108,54 S99,0 54,0Z"/></clipPath>
+  </defs>
+  <g clip-path="url(#mask)">
+  <rect width="108" height="108" fill="url(#bg)"/>
+  <polygon points="54.00,24.50 59.17,28.01 65.29,26.75 68.72,31.97 74.86,33.14 76.03,39.28 81.25,42.71 79.99,48.83 83.50,54.00 79.99,59.17 81.25,65.29 76.03,68.72 74.86,74.86 68.72,76.03 65.29,81.25 59.17,79.99 54.00,83.50 48.83,79.99 42.71,81.25 39.28,76.03 33.14,74.86 31.97,68.72 26.75,65.29 28.01,59.17 24.50,54.00 28.01,48.83 26.75,42.71 31.97,39.28 33.14,33.14 39.28,31.97 42.71,26.75 48.83,28.01" fill="#ffffff" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>
+  <circle cx="54" cy="54" r="19" fill="#0f6f8c"/>
+  <line x1="54" y1="54" x2="54" y2="42.5" stroke="#ffffff" stroke-width="4.2" stroke-linecap="round"/>
+  <line x1="54" y1="54" x2="62.5" y2="58" stroke="#5fe3a1" stroke-width="4.2" stroke-linecap="round"/>
+  <circle cx="54" cy="54" r="3" fill="#ffffff"/>
+  </g>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 108 108">
+  <!-- ClockIn icon concept C: Clocked In (108dp adaptive-icon grid) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#127c9a"/><stop offset="1" stop-color="#00485d"/></linearGradient>
+    <clipPath id="mask"><path d="M54,0 C9,0 0,9 0,54 S9,108 54,108 S108,99 108,54 S99,0 54,0Z"/></clipPath>
+  </defs>
+  <g clip-path="url(#mask)">
+  <rect width="108" height="108" fill="url(#bg)"/>
+  <path d="M72.4,69.4 A24,24 0 1 1 72.4,38.6" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+  <line x1="54" y1="54" x2="54" y2="40" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round"/>
+  <line x1="54" y1="54" x2="69" y2="54" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round"/>
+  <circle cx="54" cy="54" r="4" fill="#ffffff"/>
+  <circle cx="79.5" cy="54" r="4.6" fill="#5fe3a1"/>
+  </g>
+</svg>

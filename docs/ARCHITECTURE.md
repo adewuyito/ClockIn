@@ -146,13 +146,16 @@ stateDiagram-v2
 ### 5. Dispute resolution
 
 1. Either party can raise a dispute on an `InProgress` contract, moving it to `Disputed`. Vault funds stay locked.
-2. **Direct resolution.** Either party may call `resolve_dispute` (SOL) or `resolve_token_dispute` ($SKR) with one of three outcomes: `ReleaseToWorker`, `RefundToEmployer`, or a 50/50 `Split`. This is the fast path for a dispute the parties settle between themselves.
-3. **Juror arbitration.** For disputes the parties will not settle, `initialize_dispute_case` opens a `DisputeCase` PDA (seeds `[b"dispute_case", contract_id]`) naming exactly three distinct jurors. The program rejects a juror set containing the employer or the worker, so neither party can sit on their own case.
-4. Each juror calls `cast_juror_vote` once (`Release` / `Refund` / `Split`). Votes are recorded per juror index, and double-voting is rejected. The program tallies after every vote and flips the case to `QuorumReached` as soon as any outcome holds a 2-of-3 majority, recording `quorum_outcome` and `resolved_at`.
-5. `execute_dispute_ruling` (SOL) / `execute_token_dispute_ruling` ($SKR) then moves the vault funds according to the recorded quorum outcome and settles the contract. Execution is guarded so a case can only be executed once, and only after quorum.
-6. Disputes being on-chain and timestamped remains valuable in itself — an immutable record of disagreement, independent of how it was resolved.
+2. **Concessions — one party alone.** `resolve_dispute` (SOL) / `resolve_token_dispute` ($SKR) let each side give ground against itself only: the **employer** can `ReleaseToWorker`, the **worker** can `RefundToEmployer`.
+3. **50/50 split — needs both parties.** A split takes money from both sides, so neither can impose it. One party calls `propose_split`, creating a `SplitProposal` PDA (`[b"split_proposal", contract_id]`). The split executes only when the *other* party calls `resolve_dispute` / `resolve_token_dispute` with `Split5050`; the program rejects a split with no proposal, or the proposer accepting their own (`SplitNeedsCounterpartyConsent`). The proposer can withdraw with `cancel_split_proposal`. Whenever the dispute settles by any route, an open proposal is closed and its rent refunded to the proposer.
 
-**Still out of scope:** how jurors are *chosen*. The caller supplies the three pubkeys; there is no election, staking bond, random sampling, or slashing for bad verdicts. That governance layer is the real remaining work before this is trustworthy with strangers' money.
+   *Why:* the original split could be forced by either party alone, so any in-progress contract could be turned into "I take half" by one side — raise a dispute, then split. Changed 2026-10-08.
+4. **Juror arbitration — built, disabled.** `initialize_dispute_case`, `cast_juror_vote` and `execute_dispute_ruling` / `execute_token_dispute_ruling` implement a 3-juror, 2-of-3 quorum ruling, but opening a case is refused (`JuryNotEnabled`) while the program constant `JURY_ENABLED` is false, and the app hides all jury UI unless built with `--dart-define=CLOCKIN_ENABLE_JURY=true`.
+
+   *Why disabled:* whoever opens a case names all three jurors, and the program only checks they are distinct and not the employer or worker — so a party could name three wallets they control. The app also filled the panel with three hardcoded wallets that have never transacted and hold no SOL, so no case could ever reach a verdict. Two such cases exist on devnet (`ctr-338795`, `ctr-582864`); both contracts are still `Disputed` and can be settled directly.
+5. Disputes being on-chain and timestamped remains valuable in itself — an immutable record of disagreement, independent of how it was resolved.
+
+**Planned: a real jury.** To re-enable arbitration safely, jurors must be chosen by the protocol, not by a party. The intended design: draw three jurors at random from wallets with active $SKR Guardian stake (readable today via `SkrStakeReader`), excluding both parties; require each juror to stake or bond so a bad verdict costs something; add a voting deadline with a fallback (e.g. the split) so a case can't stall; then flip `JURY_ENABLED` and `CLOCKIN_ENABLE_JURY` together. Until then the existing account layout (`DisputeCase`) and instructions stay in place so the feature can be enabled without a data migration.
 
 ### 6. Reputation lookup (unchanged)
 
@@ -188,13 +191,15 @@ These instructions mirror the SOL escrow lifecycle but use SPL Token CPI (`ancho
 
 ### Dispute Resolution Instructions
 
-Two tiers: either party can settle a dispute directly, or a three-juror quorum can rule on it. Both tiers have a SOL and a $SKR variant. See the "Dispute resolution" data flow above.
+Parties settle directly; a 50/50 split needs both of them. Juror arbitration is built but disabled (see "Dispute resolution" above). SOL and $SKR variants share the same rules.
 
 | Instruction | Signer | What it does |
 |---|---|---|
-| `resolve_dispute` | employer OR worker | Settles a `Disputed` SOL contract directly with outcome `ReleaseToWorker`, `RefundToEmployer`, or 50/50 `Split`. |
-| `resolve_token_dispute` | employer OR worker | Same, for a $SKR contract, moving tokens via SPL Token CPI. |
-| `initialize_dispute_case` | either party | Opens a `DisputeCase` PDA (`[b"dispute_case", contract_id]`) naming three distinct jurors. Rejects any juror set containing the employer or worker. |
+| `resolve_dispute` | employer OR worker | Settles a `Disputed` SOL contract. `ReleaseToWorker` — employer only. `RefundToEmployer` — worker only. `Split5050` — only as acceptance of the *other* party's open `SplitProposal`. Closes any open proposal. |
+| `resolve_token_dispute` | employer OR worker | Same rules, for a $SKR contract, moving tokens via SPL Token CPI. |
+| `propose_split` | employer OR worker | Opens a `SplitProposal` PDA (`[b"split_proposal", contract_id]`) offering a 50/50 settlement. One per contract. |
+| `cancel_split_proposal` | the proposer | Withdraws an unaccepted proposal; rent refunded. |
+| `initialize_dispute_case` | either party | **Disabled** (`JuryNotEnabled`) until jurors are protocol-selected. Would open a `DisputeCase` PDA naming three distinct jurors. |
 | `cast_juror_vote` | assigned juror | Records one juror's vote (`Release` / `Refund` / `Split`). Rejects non-jurors and double votes. Flips the case to `QuorumReached` on a 2-of-3 majority. |
 | `execute_dispute_ruling` | any | Executes the recorded quorum outcome against a SOL vault and settles the contract. Only after quorum, only once. |
 | `execute_token_dispute_ruling` | any | Same, for a $SKR vault ATA. |
@@ -408,7 +413,7 @@ anchor test --skip-build --validator legacy
 
 Intentionally excluded from the first working version. Each is a real candidate for a post-hackathon issue:
 
-- ~~**Automated dispute resolution / arbitration DAO**~~ — **no longer a non-goal; implemented.** The program now ships a 3-juror quorum arbitration system alongside direct party resolution. See "Dispute resolution" below. What remains out of scope is *juror selection governance*: jurors are supplied as an explicit `[Pubkey; 3]` by the caller of `initialize_dispute_case`, not elected, staked, or randomly sampled.
+- **Juror arbitration (live)** — the 3-juror quorum code exists but is disabled on-chain and hidden in the app until jurors are selected by the protocol rather than a party. See "Dispute resolution" above for the planned design.
 - **Multi-milestone contracts** — MVP supports single-payment escrow. Phased milestones (release 30% at checkpoint 1, 70% at completion) are a natural extension but significantly more complex state management.
 - **Additional SPL tokens beyond $SKR** — the token escrow architecture is generic (accepts any mint), but the MVP UI only surfaces SOL and $SKR. USDC/USDT support is a post-hackathon addition.
 - **On-chain terms storage** — only the hash is stored directly on Solana; full terms documents and qualitative review commentary are offloaded to the Arweave permaweb via Irys (see the Permanent Review & Deliverables Storage section above).

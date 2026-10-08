@@ -85,6 +85,18 @@ class ProgramInstructions {
     42, 3, 244, 169, 158, 178, 251, 10
   ];
 
+  /// Anchor instruction discriminator for propose_split:
+  /// sha256("global:propose_split")[0..8]
+  static const List<int> proposeSplitDiscriminator = [
+    38, 104, 30, 96, 107, 245, 76, 252
+  ];
+
+  /// Anchor instruction discriminator for cancel_split_proposal:
+  /// sha256("global:cancel_split_proposal")[0..8]
+  static const List<int> cancelSplitProposalDiscriminator = [
+    146, 182, 54, 15, 167, 13, 205, 179
+  ];
+
   /// Anchor instruction discriminator for initialize_dispute_case:
   /// sha256("global:initialize_dispute_case")[0..8]
   static const List<int> initializeDisputeCaseDiscriminator = [
@@ -685,6 +697,7 @@ class ProgramInstructions {
   }) async {
     final escrowPda = await NetworkConfig.findEscrowPda(contractId);
     final vaultPda = await NetworkConfig.findVaultPda(contractId);
+    final splitProposalPda = await NetworkConfig.findSplitProposalPda(contractId);
     final contractIdBytes = utf8.encode(contractId);
 
     final totalLen = 8 + 4 + contractIdBytes.length + 1;
@@ -708,6 +721,9 @@ class ProgramInstructions {
         AccountMeta.writeable(pubKey: worker, isSigner: false),
         AccountMeta.writeable(pubKey: employer, isSigner: false),
         AccountMeta.readonly(pubKey: systemProgramId, isSigner: false),
+        // Open split proposal, if any. Required for Split5050 (it must be the
+        // other party's proposal); closed on any settlement.
+        AccountMeta.writeable(pubKey: splitProposalPda, isSigner: false),
       ],
       data: ByteArray(uint8List),
     );
@@ -763,9 +779,68 @@ class ProgramInstructions {
         AccountMeta.writeable(pubKey: employer, isSigner: false),
         AccountMeta.writeable(pubKey: employerTokenAta, isSigner: false),
         AccountMeta.readonly(pubKey: NetworkConfig.tokenProgramId, isSigner: false),
+        AccountMeta.writeable(
+          pubKey: await NetworkConfig.findSplitProposalPda(contractId),
+          isSigner: false,
+        ),
       ],
       data: ByteArray(uint8List),
     );
+  }
+
+  /// Builds a `propose_split` instruction: one party offers to settle a
+  /// disputed contract 50/50. Nothing moves until the other party accepts by
+  /// sending `resolve_dispute` / `resolve_token_dispute` with Split5050.
+  /// Accounts:
+  /// 0. [writable, signer] proposer (employer or worker; pays the proposal rent)
+  /// 1. [] escrow_contract (PDA: [b"escrow", contract_id])
+  /// 2. [writable] split_proposal (PDA: [b"split_proposal", contract_id])
+  /// 3. [] system_program
+  static Future<Instruction> proposeSplit({
+    required Ed25519HDPublicKey proposer,
+    required String contractId,
+  }) async {
+    return Instruction(
+      programId: NetworkConfig.programId,
+      accounts: [
+        AccountMeta.writeable(pubKey: proposer, isSigner: true),
+        AccountMeta.readonly(pubKey: await NetworkConfig.findEscrowPda(contractId), isSigner: false),
+        AccountMeta.writeable(pubKey: await NetworkConfig.findSplitProposalPda(contractId), isSigner: false),
+        AccountMeta.readonly(pubKey: systemProgramId, isSigner: false),
+      ],
+      data: ByteArray(_discriminatorWithContractId(proposeSplitDiscriminator, contractId)),
+    );
+  }
+
+  /// Builds a `cancel_split_proposal` instruction: the proposer withdraws an
+  /// unaccepted offer and gets its rent back.
+  /// Accounts:
+  /// 0. [writable, signer] proposer
+  /// 1. [writable] split_proposal (PDA: [b"split_proposal", contract_id])
+  static Future<Instruction> cancelSplitProposal({
+    required Ed25519HDPublicKey proposer,
+    required String contractId,
+  }) async {
+    return Instruction(
+      programId: NetworkConfig.programId,
+      accounts: [
+        AccountMeta.writeable(pubKey: proposer, isSigner: true),
+        AccountMeta.writeable(pubKey: await NetworkConfig.findSplitProposalPda(contractId), isSigner: false),
+      ],
+      data: ByteArray(_discriminatorWithContractId(cancelSplitProposalDiscriminator, contractId)),
+    );
+  }
+
+  /// Instruction data for handlers whose only argument is `contract_id`:
+  /// discriminator · u32 LE length · UTF-8 bytes.
+  static Uint8List _discriminatorWithContractId(List<int> discriminator, String contractId) {
+    final idBytes = utf8.encode(contractId);
+    final byteData = ByteData(8 + 4 + idBytes.length);
+    final bytes = byteData.buffer.asUint8List();
+    bytes.setRange(0, 8, discriminator);
+    byteData.setUint32(8, idBytes.length, Endian.little);
+    bytes.setRange(12, 12 + idBytes.length, idBytes);
+    return bytes;
   }
 
   /// Builds an `initialize_dispute_case` instruction.

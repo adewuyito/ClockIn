@@ -88,7 +88,14 @@ erDiagram
 - **Space:** `8 (discriminator) + 1 (bump) = 9 bytes`
 - **Token contracts** additionally use an Associated Token Account owned by this PDA, which the program signs for via seeds `[b"vault", contract_id, &[vault_bump]]`.
 
-### 1.5 DisputeCase PDA
+### 1.5 SplitProposal PDA
+- **PDA Seeds:** `[b"split_proposal", contract_id.as_bytes()]`
+- **Purpose:** One party's open offer to settle a disputed contract 50/50. The split executes only when the *other* party accepts via `resolve_dispute` / `resolve_token_dispute` with `Split5050`.
+- **Lifecycle:** created by `propose_split` (proposer pays rent); closed by `cancel_split_proposal` (proposer only), or automatically when the dispute settles by any route, with rent refunded to the proposer.
+- **Space:** `8 + 32 (escrow_contract) + 32 (proposer) + 8 (created_at) + 1 (bump) = 81 bytes`
+
+### 1.6 DisputeCase PDA (juror arbitration — disabled)
+- **Status:** `initialize_dispute_case` is refused while the program constant `JURY_ENABLED` is false; see ARCHITECTURE.md, "Dispute resolution".
 - **PDA Seeds:** `[b"dispute_case", contract_id.as_bytes()]`
 - **Purpose:** Created only when a `Disputed` contract escalates to juror arbitration. Records the three assigned jurors, their votes, and the tallied quorum outcome.
 - **Constraints:** the three jurors must be distinct, and none may be the contract's employer or worker — neither party can sit on their own case.

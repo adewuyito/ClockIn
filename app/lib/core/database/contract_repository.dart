@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:solana/solana.dart';
 import '../models/escrow_contract.dart' as domain;
 import '../models/dispute_case.dart';
+import '../models/split_proposal.dart';
 import '../solana/contract_service.dart';
 import '../solana/network_config.dart';
 import '../solana/program_instructions.dart';
@@ -387,6 +388,35 @@ class ContractRepository {
   }
 
   /// Resolves an active dispute on Solana (either SOL or token).
+  /// The contract's open 50/50 split proposal, read from chain (null if none).
+  Future<SplitProposal?> getSplitProposal(String contractId) =>
+      contractService.getSplitProposal(contractId);
+
+  /// Offers to settle a disputed contract 50/50. Funds move only when the other
+  /// party accepts via [resolveDispute] with [DisputeResolution.split5050].
+  Future<String> proposeSplit({
+    required domain.EscrowContract contract,
+    required Ed25519HDPublicKey proposer,
+    required WalletAdapter walletAdapter,
+  }) =>
+      contractService.proposeSplit(
+        proposer: proposer,
+        contractId: contract.contractId,
+        walletAdapter: walletAdapter,
+      );
+
+  /// Withdraws the caller's own unaccepted split proposal.
+  Future<String> cancelSplitProposal({
+    required domain.EscrowContract contract,
+    required Ed25519HDPublicKey proposer,
+    required WalletAdapter walletAdapter,
+  }) =>
+      contractService.cancelSplitProposal(
+        proposer: proposer,
+        contractId: contract.contractId,
+        walletAdapter: walletAdapter,
+      );
+
   Future<String> resolveDispute({
     required domain.EscrowContract contract,
     required Ed25519HDPublicKey caller,

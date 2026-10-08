@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 108 108">
+  <!-- ClockIn icon concept A: Verified Hour (108dp adaptive-icon grid) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#127c9a"/><stop offset="1" stop-color="#00485d"/></linearGradient>
+    <clipPath id="mask"><path d="M54,0 C9,0 0,9 0,54 S9,108 54,108 S108,99 108,54 S99,0 54,0Z"/></clipPath>
+  </defs>
+  <g clip-path="url(#mask)">
+  <rect width="108" height="108" fill="url(#bg)"/>
+  <circle cx="54" cy="54" r="25" fill="none" stroke="#ffffff" stroke-width="5.5"/>
+  <rect x="52" y="31.5" width="4" height="6" rx="2" fill="#ffffff"/>
+  <polyline points="42,53.5 50.5,62 67,44.5" fill="none" stroke="#5fe3a1" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="50.5" cy="62" r="3.6" fill="#ffffff"/>
+  </g>
+</svg>

@@ -55,7 +55,8 @@ describe("escrow protocol", () => {
       SystemProgram.transfer({
         fromPubkey: provider.wallet.publicKey,
         toPubkey: employer.publicKey,
-        lamports: 10 * LAMPORTS_PER_SOL,
+        // Dispute tests leave several 1-SOL escrows deliberately unresolved.
+        lamports: 25 * LAMPORTS_PER_SOL,
       }),
       SystemProgram.transfer({
         fromPubkey: provider.wallet.publicKey,
@@ -449,44 +450,160 @@ describe("escrow protocol", () => {
       expect(contract.status).to.deep.equal({ cancelled: {} });
     });
 
-    it("either party can resolve dispute via 50/50 compromise split", async () => {
-      const splitContractId = "ctr-dispute-split-406";
-      const [escrowPda] = findEscrowPda(splitContractId);
-      const [vaultPda] = findVaultPda(splitContractId);
+    // --- 50/50 split needs both parties: one proposes, the other accepts ---
 
+    const findSplitProposalPda = (id: string): [PublicKey, number] =>
+      PublicKey.findProgramAddressSync([Buffer.from("split_proposal"), Buffer.from(id)], program.programId);
+
+    /** create → fund → accept → raise dispute; returns the escrow + vault PDAs. */
+    const setUpDisputedContract = async (id: string) => {
+      const [escrowPda] = findEscrowPda(id);
+      const [vaultPda] = findVaultPda(id);
       await program.methods
-        .createAndFund(splitContractId, worker.publicKey, depositAmount, termsHash, new anchor.BN(0))
-        .accountsPartial({
-          employer: employer.publicKey,
-          escrowContract: escrowPda,
-          vault: vaultPda,
-          systemProgram: SystemProgram.programId,
-        })
+        .createAndFund(id, worker.publicKey, depositAmount, termsHash, new anchor.BN(0))
+        .accountsPartial({ employer: employer.publicKey, escrowContract: escrowPda, vault: vaultPda, systemProgram: SystemProgram.programId })
         .signers([employer])
         .rpc();
-
       await program.methods
-        .acceptContract(splitContractId)
+        .acceptContract(id)
+        .accountsPartial({ worker: worker.publicKey, escrowContract: escrowPda })
+        .signers([worker])
+        .rpc();
+      await program.methods
+        .raiseDispute(id)
+        .accountsPartial({ caller: worker.publicKey, escrowContract: escrowPda })
+        .signers([worker])
+        .rpc();
+      return { escrowPda, vaultPda };
+    };
+
+    const resolveSplit = (id: string, caller: Keypair, escrowPda: PublicKey, vaultPda: PublicKey) =>
+      program.methods
+        .resolveDispute(id, { split5050: {} })
         .accountsPartial({
+          caller: caller.publicKey,
+          escrowContract: escrowPda,
+          vault: vaultPda,
           worker: worker.publicKey,
-          escrowContract: escrowPda,
+          employer: employer.publicKey,
+          systemProgram: SystemProgram.programId,
+          splitProposal: findSplitProposalPda(id)[0],
         })
-        .signers([worker])
+        .signers([caller])
         .rpc();
 
-      await program.methods
-        .raiseDispute(splitContractId)
+    const proposeSplit = (id: string, proposer: Keypair, escrowPda: PublicKey) =>
+      program.methods
+        .proposeSplit(id)
         .accountsPartial({
-          caller: worker.publicKey,
+          proposer: proposer.publicKey,
           escrowContract: escrowPda,
+          splitProposal: findSplitProposalPda(id)[0],
+          systemProgram: SystemProgram.programId,
         })
-        .signers([worker])
+        .signers([proposer])
         .rpc();
 
-      const workerBalanceBefore = await provider.connection.getBalance(worker.publicKey);
+    it("rejects a one-sided 50/50 split with no proposal from the other party", async () => {
+      const id = "ctr-split-unilateral";
+      const { escrowPda, vaultPda } = await setUpDisputedContract(id);
+      try {
+        await resolveSplit(id, employer, escrowPda, vaultPda);
+        expect.fail("a one-sided split must not execute");
+      } catch (err: any) {
+        expect(err.toString()).to.include("SplitNeedsCounterpartyConsent");
+      }
+      const contract = await program.account.escrowContract.fetch(escrowPda);
+      expect(contract.status).to.deep.equal({ disputed: {} });
+    });
+
+    it("a party cannot accept their own split proposal", async () => {
+      const id = "ctr-split-self-accept";
+      const { escrowPda, vaultPda } = await setUpDisputedContract(id);
+      await proposeSplit(id, employer, escrowPda);
+      try {
+        await resolveSplit(id, employer, escrowPda, vaultPda);
+        expect.fail("proposer must not be able to accept their own proposal");
+      } catch (err: any) {
+        expect(err.toString()).to.include("SplitNeedsCounterpartyConsent");
+      }
+    });
+
+    it("a stranger cannot propose a split", async () => {
+      const id = "ctr-split-stranger";
+      const { escrowPda } = await setUpDisputedContract(id);
+      try {
+        await proposeSplit(id, stranger, escrowPda);
+        expect.fail("non-party must not propose");
+      } catch (err: any) {
+        expect(err.toString()).to.include("UnauthorizedParticipant");
+      }
+    });
+
+    it("worker proposes, employer accepts: funds split 50/50 and the proposal is closed", async () => {
+      const id = "ctr-split-consent";
+      const { escrowPda, vaultPda } = await setUpDisputedContract(id);
+      const [proposalPda] = findSplitProposalPda(id);
+
+      await proposeSplit(id, worker, escrowPda);
+      const proposal = await program.account.splitProposal.fetch(proposalPda);
+      expect(proposal.proposer.toBase58()).to.equal(worker.publicKey.toBase58());
+      const proposalRent = await provider.connection.getBalance(proposalPda);
+
+      const workerBefore = await provider.connection.getBalance(worker.publicKey);
+      await resolveSplit(id, employer, escrowPda, vaultPda);
+      const workerAfter = await provider.connection.getBalance(worker.publicKey);
+
+      // Worker gets half the escrow plus the proposal rent they paid back.
+      expect(workerAfter - workerBefore).to.equal(depositAmount.toNumber() / 2 + proposalRent);
+      expect(await provider.connection.getAccountInfo(proposalPda)).to.equal(null);
+      const contract = await program.account.escrowContract.fetch(escrowPda);
+      expect(contract.status).to.deep.equal({ completed: {} });
+    });
+
+    it("the proposer can withdraw an unaccepted proposal; the other party cannot", async () => {
+      const id = "ctr-split-cancel";
+      const { escrowPda, vaultPda } = await setUpDisputedContract(id);
+      const [proposalPda] = findSplitProposalPda(id);
+      await proposeSplit(id, employer, escrowPda);
+
+      try {
+        await program.methods
+          .cancelSplitProposal(id)
+          .accountsPartial({ proposer: worker.publicKey, splitProposal: proposalPda })
+          .signers([worker])
+          .rpc();
+        expect.fail("only the proposer can withdraw");
+      } catch (err: any) {
+        expect(err.toString()).to.match(/UnauthorizedParticipant|ConstraintSeeds|ConstraintHasOne/);
+      }
 
       await program.methods
-        .resolveDispute(splitContractId, { split5050: {} })
+        .cancelSplitProposal(id)
+        .accountsPartial({ proposer: employer.publicKey, splitProposal: proposalPda })
+        .signers([employer])
+        .rpc();
+      expect(await provider.connection.getAccountInfo(proposalPda)).to.equal(null);
+
+      // With the proposal gone, the worker can no longer accept a split.
+      try {
+        await resolveSplit(id, worker, escrowPda, vaultPda);
+        expect.fail("withdrawn proposal must not be acceptable");
+      } catch (err: any) {
+        expect(err.toString()).to.include("SplitNeedsCounterpartyConsent");
+      }
+    });
+
+    it("settling another way closes an open proposal and refunds its rent to the proposer", async () => {
+      const id = "ctr-split-then-release";
+      const { escrowPda, vaultPda } = await setUpDisputedContract(id);
+      const [proposalPda] = findSplitProposalPda(id);
+      await proposeSplit(id, worker, escrowPda);
+      const proposalRent = await provider.connection.getBalance(proposalPda);
+
+      const workerBefore = await provider.connection.getBalance(worker.publicKey);
+      await program.methods
+        .resolveDispute(id, { releaseToWorker: {} })
         .accountsPartial({
           caller: employer.publicKey,
           escrowContract: escrowPda,
@@ -494,15 +611,38 @@ describe("escrow protocol", () => {
           worker: worker.publicKey,
           employer: employer.publicKey,
           systemProgram: SystemProgram.programId,
+          splitProposal: proposalPda,
         })
         .signers([employer])
         .rpc();
+      const workerAfter = await provider.connection.getBalance(worker.publicKey);
 
-      const workerBalanceAfter = await provider.connection.getBalance(worker.publicKey);
-      expect(workerBalanceAfter).to.equal(workerBalanceBefore + 0.5 * LAMPORTS_PER_SOL);
+      expect(workerAfter - workerBefore).to.equal(depositAmount.toNumber() + proposalRent);
+      expect(await provider.connection.getAccountInfo(proposalPda)).to.equal(null);
+    });
 
-      const contract = await program.account.escrowContract.fetch(escrowPda);
-      expect(contract.status).to.deep.equal({ completed: {} });
+    it("opening a juror case is refused while the jury is disabled", async () => {
+      const id = "ctr-jury-disabled";
+      const { escrowPda } = await setUpDisputedContract(id);
+      const [disputeCasePda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("dispute_case"), Buffer.from(id)],
+        program.programId
+      );
+      try {
+        await program.methods
+          .initializeDisputeCase(id, [Keypair.generate().publicKey, Keypair.generate().publicKey, Keypair.generate().publicKey])
+          .accountsPartial({
+            caller: worker.publicKey,
+            escrowContract: escrowPda,
+            disputeCase: disputeCasePda,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([worker])
+          .rpc();
+        expect.fail("jury must be disabled");
+      } catch (err: any) {
+        expect(err.toString()).to.include("JuryNotEnabled");
+      }
     });
   });
 

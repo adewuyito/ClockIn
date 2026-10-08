@@ -10,6 +10,13 @@ declare_id!("FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9"); // program keypair 
 pub const MAX_JOB_ID_LEN: usize = 32;
 pub const MAX_CONTRACT_ID_LEN: usize = 32;
 
+/// Juror arbitration is switched off until jurors can be selected by the
+/// protocol rather than by a party to the dispute. With it on, whoever opens a
+/// case names all three jurors — so a party could name wallets they control.
+/// The DisputeCase / vote / ruling code is kept for that future jury; only
+/// opening a new case is refused. See docs/ARCHITECTURE.md, "Dispute resolution".
+pub const JURY_ENABLED: bool = false;
+
 #[program]
 pub mod reputation {
     use super::*;
@@ -275,6 +282,7 @@ pub mod reputation {
         _contract_id: String,
         resolution: DisputeResolution,
     ) -> Result<()> {
+        let escrow_key = ctx.accounts.escrow_contract.key();
         let contract = &mut ctx.accounts.escrow_contract;
         require!(contract.status == ContractStatus::Disputed, ReputationError::InvalidContractStatus);
         require!(!contract.is_token, ReputationError::TokenContract);
@@ -295,7 +303,9 @@ pub mod reputation {
                 require!(caller == contract.worker, ReputationError::WorkerMismatch);
             },
             DisputeResolution::Split5050 => {
-                require!(caller == contract.employer || caller == contract.worker, ReputationError::UnauthorizedParticipant);
+                // A split takes money from both sides, so it needs both: it only
+                // executes as the *acceptance* of a proposal the other party made.
+                require_counterparty_split_proposal(&ctx.accounts.split_proposal, escrow_key, caller)?;
             },
         }
 
@@ -350,6 +360,25 @@ pub mod reputation {
             },
         }
 
+        settle_split_proposal(&ctx.accounts.split_proposal, &ctx.accounts.employer, &ctx.accounts.worker)?;
+        Ok(())
+    }
+
+    /// Either party proposes settling a disputed contract 50/50. Nothing moves
+    /// yet: the split executes only when the *other* party accepts it by calling
+    /// `resolve_dispute` / `resolve_token_dispute` with `Split5050`.
+    pub fn propose_split(ctx: Context<ProposeSplit>, _contract_id: String) -> Result<()> {
+        let proposal = &mut ctx.accounts.split_proposal;
+        proposal.escrow_contract = ctx.accounts.escrow_contract.key();
+        proposal.proposer = ctx.accounts.proposer.key();
+        proposal.created_at = Clock::get()?.unix_timestamp;
+        proposal.bump = ctx.bumps.split_proposal;
+        Ok(())
+    }
+
+    /// The proposer withdraws an unaccepted split proposal; its rent is refunded
+    /// by the `close = proposer` constraint.
+    pub fn cancel_split_proposal(_ctx: Context<CancelSplitProposal>, _contract_id: String) -> Result<()> {
         Ok(())
     }
 
@@ -535,6 +564,7 @@ pub mod reputation {
         _contract_id: String,
         resolution: DisputeResolution,
     ) -> Result<()> {
+        let escrow_key = ctx.accounts.escrow_contract.key();
         let contract = &mut ctx.accounts.escrow_contract;
         require!(contract.status == ContractStatus::Disputed, ReputationError::InvalidContractStatus);
         require!(contract.is_token, ReputationError::NotTokenContract);
@@ -555,7 +585,9 @@ pub mod reputation {
                 require!(caller == contract.worker, ReputationError::WorkerMismatch);
             },
             DisputeResolution::Split5050 => {
-                require!(caller == contract.employer || caller == contract.worker, ReputationError::UnauthorizedParticipant);
+                // A split takes money from both sides, so it needs both: it only
+                // executes as the *acceptance* of a proposal the other party made.
+                require_counterparty_split_proposal(&ctx.accounts.split_proposal, escrow_key, caller)?;
             },
         }
 
@@ -632,6 +664,7 @@ pub mod reputation {
         };
         token::close_account(CpiContext::new_with_signer(ctx.accounts.token_program.key(), close_accounts, signer_seeds))?;
 
+        settle_split_proposal(&ctx.accounts.split_proposal, &ctx.accounts.employer, &ctx.accounts.worker)?;
         Ok(())
     }
 
@@ -645,6 +678,7 @@ pub mod reputation {
         contract_id: String,
         jurors: [Pubkey; 3],
     ) -> Result<()> {
+        require!(JURY_ENABLED, ReputationError::JuryNotEnabled);
         require!(contract_id.len() <= MAX_CONTRACT_ID_LEN, ReputationError::ContractIdTooLong);
         require!(
             jurors[0] != jurors[1] && jurors[1] != jurors[2] && jurors[0] != jurors[2],
@@ -1007,6 +1041,69 @@ impl DisputeCase {
 // ERROR CODES
 // =============================================================================
 
+/// PDA seeds: [b"split_proposal", contract_id.as_bytes()]
+///
+/// An open offer by one party to settle a disputed contract 50/50. At most one
+/// exists per contract; it is closed when the dispute is settled any way.
+#[account]
+pub struct SplitProposal {
+    pub escrow_contract: Pubkey, // 32
+    pub proposer: Pubkey,        // 32
+    pub created_at: i64,         // 8
+    pub bump: u8,                // 1
+}
+
+impl SplitProposal {
+    pub const SPACE: usize = 8 + 32 + 32 + 8 + 1;
+}
+
+/// Reads the split proposal at `info` if it exists and belongs to this program.
+fn read_split_proposal(info: &AccountInfo) -> Result<Option<SplitProposal>> {
+    if *info.owner != crate::ID || info.data_is_empty() {
+        return Ok(None);
+    }
+    let data = info.try_borrow_data()?;
+    Ok(Some(SplitProposal::try_deserialize(&mut &data[..])?))
+}
+
+/// Allows a 50/50 split only as acceptance of the counterparty's proposal for
+/// this exact escrow. The caller's own proposal does not count.
+fn require_counterparty_split_proposal(info: &AccountInfo, escrow_key: Pubkey, caller: Pubkey) -> Result<()> {
+    match read_split_proposal(info)? {
+        Some(p) if p.escrow_contract == escrow_key && p.proposer != caller => Ok(()),
+        _ => err!(ReputationError::SplitNeedsCounterpartyConsent),
+    }
+}
+
+/// Closes an open split proposal, if any, refunding its rent to the proposer.
+/// Called whenever a dispute is settled so no proposal is left stranded.
+fn settle_split_proposal<'info>(
+    info: &AccountInfo<'info>,
+    employer: &AccountInfo<'info>,
+    worker: &AccountInfo<'info>,
+) -> Result<()> {
+    let Some(proposal) = read_split_proposal(info)? else {
+        return Ok(());
+    };
+    let destination = if proposal.proposer == employer.key() {
+        employer
+    } else if proposal.proposer == worker.key() {
+        worker
+    } else {
+        return err!(ReputationError::UnauthorizedParticipant);
+    };
+
+    let rent = info.lamports();
+    **destination.try_borrow_mut_lamports()? = destination
+        .lamports()
+        .checked_add(rent)
+        .ok_or(ReputationError::Overflow)?;
+    **info.try_borrow_mut_lamports()? = 0;
+    info.assign(&system_program::ID);
+    info.resize(0)?;
+    Ok(())
+}
+
 #[error_code]
 pub enum ReputationError {
     #[msg("This address is already registered.")]
@@ -1061,6 +1158,10 @@ pub enum ReputationError {
     ContractNotDisputed,
     #[msg("Dispute case has already been executed.")]
     DisputeAlreadyExecuted,
+    #[msg("A 50/50 split needs the other party to have proposed it first.")]
+    SplitNeedsCounterpartyConsent,
+    #[msg("Juror arbitration is not enabled yet.")]
+    JuryNotEnabled,
 }
 
 // =============================================================================
@@ -1281,6 +1382,12 @@ pub struct ResolveDispute<'info> {
     #[account(mut)]
     pub employer: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
+    /// CHECK: The contract's split-proposal PDA. It usually does not exist; it
+    /// is only read when it is owned by this program, and is closed (rent back
+    /// to its proposer) whenever the dispute is settled. See
+    /// `require_counterparty_split_proposal` and `settle_split_proposal`.
+    #[account(mut, seeds = [b"split_proposal", contract_id.as_bytes()], bump)]
+    pub split_proposal: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1463,6 +1570,50 @@ pub struct ResolveTokenDispute<'info> {
     )]
     pub employer_token_account: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
+    /// CHECK: The contract's split-proposal PDA. It usually does not exist; it
+    /// is only read when it is owned by this program, and is closed (rent back
+    /// to its proposer) whenever the dispute is settled. See
+    /// `require_counterparty_split_proposal` and `settle_split_proposal`.
+    #[account(mut, seeds = [b"split_proposal", contract_id.as_bytes()], bump)]
+    pub split_proposal: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
+pub struct ProposeSplit<'info> {
+    #[account(mut)]
+    pub proposer: Signer<'info>,
+    #[account(
+        seeds = [b"escrow", contract_id.as_bytes()],
+        bump = escrow_contract.bump,
+        constraint = escrow_contract.status == ContractStatus::Disputed @ ReputationError::ContractNotDisputed,
+        constraint = proposer.key() == escrow_contract.employer || proposer.key() == escrow_contract.worker @ ReputationError::UnauthorizedParticipant,
+    )]
+    pub escrow_contract: Account<'info, EscrowContract>,
+    #[account(
+        init,
+        payer = proposer,
+        space = SplitProposal::SPACE,
+        seeds = [b"split_proposal", contract_id.as_bytes()],
+        bump,
+    )]
+    pub split_proposal: Account<'info, SplitProposal>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(contract_id: String)]
+pub struct CancelSplitProposal<'info> {
+    #[account(mut)]
+    pub proposer: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"split_proposal", contract_id.as_bytes()],
+        bump = split_proposal.bump,
+        has_one = proposer @ ReputationError::UnauthorizedParticipant,
+        close = proposer,
+    )]
+    pub split_proposal: Account<'info, SplitProposal>,
 }
 
 #[derive(Accounts)]

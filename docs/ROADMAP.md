@@ -167,6 +167,13 @@ Tasks prioritized for post-hackathon mainnet readiness:
 - [ ] **Anchor Integration Tests**:
   - Automated tests verifying accurate math, treasury balance increment, worker receipt, and admin-only fee modification.
 
+### 1b. Real Juror Arbitration (code present, disabled)
+- [ ] Select jurors on-chain at random from wallets with active $SKR Guardian stake, excluding both parties — never supplied by a party (today `initialize_dispute_case` takes them from the caller, which is why it's disabled).
+- [ ] Juror bond or stake at risk, so a bad verdict has a cost.
+- [ ] Voting deadline with a fallback outcome so a case can't stall.
+- [ ] Anchor tests for the full juror path (open → vote → quorum → execute), which has no coverage today.
+- [ ] Flip `JURY_ENABLED` (program) and `CLOCKIN_ENABLE_JURY` (app) together; remove the hardcoded juror wallets from `dispute_resolution_screen.dart`.
+
 ### 2. Mainnet Security & Infrastructure
 - [ ] Squads v4 multisig setup for program upgrade authority (`GBZqh...` dev keypair transfer).
 - [ ] Formal Anchor security audit (reentrancy, PDA seed validation, arithmetic overflow).

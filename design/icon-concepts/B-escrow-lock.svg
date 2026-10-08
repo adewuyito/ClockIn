@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 108 108">
+  <!-- ClockIn icon concept B: Escrow Lock (108dp adaptive-icon grid) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#127c9a"/><stop offset="1" stop-color="#00485d"/></linearGradient>
+    <clipPath id="mask"><path d="M54,0 C9,0 0,9 0,54 S9,108 54,108 S108,99 108,54 S99,0 54,0Z"/></clipPath>
+  </defs>
+  <g clip-path="url(#mask)">
+  <rect width="108" height="108" fill="url(#bg)"/>
+  <g transform="translate(54 58) scale(1.1) translate(-54 -58)">
+  <path d="M43,50 V44 a11,11 0 0 1 22,0 V50" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+  <rect x="35" y="48" width="38" height="31" rx="9" fill="#ffffff"/>
+  <circle cx="54" cy="63.5" r="9.5" fill="none" stroke="#0f6f8c" stroke-width="2.8"/>
+  <line x1="54" y1="63.5" x2="54" y2="57.5" stroke="#0f6f8c" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="54" y1="63.5" x2="58.5" y2="65.5" stroke="#1f9d5b" stroke-width="2.8" stroke-linecap="round"/>
+  </g>
+  </g>
+</svg>

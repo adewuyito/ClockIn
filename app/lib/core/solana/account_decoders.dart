@@ -5,10 +5,34 @@ import '../models/worker_profile.dart';
 import '../models/review.dart';
 import '../models/escrow_contract.dart';
 import '../models/dispute_case.dart';
+import '../models/split_proposal.dart';
 
 /// Decoders for Anchor accounts stored on Solana.
 class AccountDecoders {
   AccountDecoders._();
+
+  /// Anchor account discriminator: sha256("account:SplitProposal")[0..8].
+  static const List<int> splitProposalDiscriminator = [196, 6, 68, 150, 254, 209, 221, 200];
+
+  /// Decodes a `SplitProposal` account:
+  /// 8 discriminator · 32 escrow_contract · 32 proposer · i64 created_at · u8 bump.
+  /// Returns null for anything that isn't a SplitProposal.
+  static SplitProposal? decodeSplitProposal(List<int> data) {
+    if (data.length < 8 + 32 + 32 + 8 + 1) return null;
+    for (var i = 0; i < 8; i++) {
+      if (data[i] != splitProposalDiscriminator[i]) return null;
+    }
+    final bytes = Uint8List.fromList(data);
+    final view = ByteData.sublistView(bytes);
+    return SplitProposal(
+      escrowContract: Ed25519HDPublicKey(bytes.sublist(8, 40)).toBase58(),
+      proposer: Ed25519HDPublicKey(bytes.sublist(40, 72)).toBase58(),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        view.getInt64(72, Endian.little) * 1000,
+        isUtc: true,
+      ),
+    );
+  }
 
   /// Anchor account discriminator for WorkerProfile: sha256("account:WorkerProfile")[0..8]
   static const List<int> workerProfileDiscriminator = [
