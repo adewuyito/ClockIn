@@ -16,7 +16,7 @@ Status key: 🔴 not started · 🟡 discussed, not yet acted on · 🟢 locked 
 
 ### Locked-in Execution
 - [x] Reframed pitch hook: *"Lock funds. Do the work. Get paid and reviewed — atomically."*
-- [x] Deployed 18-instruction Anchor protocol to Solana Devnet (`FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9`) — reputation, native-SOL escrow, $SKR token escrow, and 3-juror dispute arbitration.
+- [x] Deployed 20-instruction Anchor protocol to Solana Devnet (`FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9`) — reputation, native-SOL escrow, $SKR token escrow, and two-party dispute settlement (a 50/50 split needs both parties). Juror arbitration is built but disabled on-chain until jurors are protocol-selected.
 - [x] Confirmed live on-chain lifecycle with real transactions on Solana Explorer.
 - [x] Explicitly documented Sybil resistance boundaries and roadmap in `README.md` and `ARCHITECTURE.md`.
 

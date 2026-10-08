@@ -6,12 +6,14 @@
 | **Cluster** | Solana Devnet (`https://api.devnet.solana.com`) |
 | **ProgramData account** | `GmfYDR7SLX8ZRhErkKnD5gt8pTzzbuaH21WUi1ueCnRH` |
 | **Upgrade authority** | `GBZqhLZXAjBtfeVkVWMYWFN8DGmxskwKna3UEXGvfh8P` |
-| **Last deployed in slot** | `506598660` |
+| **Last deployed in slot** | `508848800` |
 | **Upgrade transaction** | [`4KYwnZ1B7M2PYVrPZuj67a4P436hP9RnsHwk8EatJGaT2yLJXUJUDeG19c1R5fZQYLxJ9uaARDLUvgWMbx9gDdkp`](https://explorer.solana.com/tx/4KYwnZ1B7M2PYVrPZuj67a4P436hP9RnsHwk8EatJGaT2yLJXUJUDeG19c1R5fZQYLxJ9uaARDLUvgWMbx9gDdkp?cluster=devnet) |
-| **On-chain size** | 539,632 bytes |
-| **Rent balance** | 2.7422094 SOL |
+| **On-chain size** | 580,592 bytes allocated (565,296-byte program + headroom) |
+| **Rent balance** | 2.9502862 SOL |
 
-All figures above re-confirmed live against devnet RPC on 2026-10-05 (`solana program show FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9 --url devnet`). The deployed bytecode was additionally checked to contain all 18 instruction names, matching the current source.
+All figures above re-confirmed live against devnet RPC on 2026-10-08 (`solana program show FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9 --url devnet`). The deployed bytecode was dumped and is byte-identical to the local `cargo build-sbf --arch v1` output that passed the 39-case Anchor suite (SHA-256 `e35e388a…`), with 20 instructions including `propose_split` / `cancel_split_proposal` and juror arbitration disabled (`JURY_ENABLED = false`).
+
+**Deploying on public devnet RPC:** this 565KB program is ~1,100 write transactions, and `api.devnet.solana.com` rate-limits by IP partway through. The 2026-10-08 upgrade only completed through a private devnet RPC (Helius). Use one for future upgrades, and write to a named buffer (`solana program write-buffer … --buffer <keypair>`) so an interrupted upload can be resumed or reclaimed.
 
 Built via `cargo build-sbf --arch v1 --sbf-out-dir target/deploy` followed by `solana program deploy` (see `docs/ARCHITECTURE.md` for build toolchain specifications).
 

@@ -257,6 +257,57 @@ describe('/contracts/{contractId}/deliverables — encrypted envelopes', () => {
   });
 });
 
+describe('/contracts/{contractId}/messages — encrypted chat', () => {
+  const msg = () => ({
+    v: 1,
+    sender: WALLET,
+    sentAt: Date.now(),
+    ct: 'q83vEjRWeJA=',
+    nonce: 'AAECAwQFBgcICQoL',
+    mac: 'AAECAwQFBgcICQoLDA0ODw==',
+  });
+  const ref = (id = 'm1') => doc(db, 'contracts', CONTRACT, 'messages', id);
+
+  it('accepts a well-formed encrypted message', async () => {
+    await assertSucceeds(setDoc(ref(), msg()));
+  });
+
+  it('is readable — it is ciphertext only', async () => {
+    await seed(['contracts', CONTRACT, 'messages', 'm1'], msg());
+    await assertSucceeds(getDoc(ref()));
+  });
+
+  it('rejects a plaintext field smuggled alongside the ciphertext', async () => {
+    await assertFails(setDoc(ref(), { ...msg(), text: 'hello' }));
+  });
+
+  it('rejects a missing field, a wrong version, or a non-base58 sender', async () => {
+    const { mac, ...noMac } = msg();
+    await assertFails(setDoc(ref('a'), noMac));
+    await assertFails(setDoc(ref('b'), { ...msg(), v: 2 }));
+    await assertFails(setDoc(ref('c'), { ...msg(), sender: 'not-a-wallet' }));
+  });
+
+  it('rejects a non-integer or future-dated timestamp', async () => {
+    await assertFails(setDoc(ref('a'), { ...msg(), sentAt: String(Date.now()) }));
+    await assertFails(setDoc(ref('b'), { ...msg(), sentAt: Date.now() + 3600 * 1000 }));
+  });
+
+  it('accepts a late-committed offline send with an older timestamp', async () => {
+    await assertSucceeds(setDoc(ref(), { ...msg(), sentAt: Date.now() - 6 * 3600 * 1000 }));
+  });
+
+  it('rejects oversized ciphertext', async () => {
+    await assertFails(setDoc(ref(), { ...msg(), ct: 'A'.repeat(12001) }));
+  });
+
+  it('is append-only — messages cannot be edited or deleted', async () => {
+    await seed(['contracts', CONTRACT, 'messages', 'm1'], msg());
+    await assertFails(updateDoc(ref(), { ct: 'cmV3cml0dGVu' }));
+    await assertFails(deleteDoc(ref()));
+  });
+});
+
 describe('unmatched paths', () => {
   it('are denied by the catch-all', async () => {
     await assertFails(setDoc(doc(db, 'arbitrary', 'x'), { a: 1 }));
@@ -282,9 +333,12 @@ describe('suite integrity', () => {
       .filter((line) => !line.trimStart().startsWith('//'))
       .join('\n');
 
+    // request.time itself is fine (the chat rule rejects future-dated
+    // messages); what must never return is a fixed expiry date.
     assert.ok(
-      !executable.includes('request.time'),
-      'no executable rule may gate access on request.time — an expiry clause ' +
+      !/request\.time\s*<\s*timestamp\.date/.test(executable) &&
+        !executable.includes('timestamp.date('),
+      'no executable rule may gate access on a fixed expiry date — it ' +
         'silently denies all traffic once it passes',
     );
   });

@@ -6,9 +6,11 @@ import 'package:intl/intl.dart';
 import 'package:solana/solana.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sol_price_service.dart';
 import '../../core/solana/network_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/qr_scanner_sheet.dart';
+import 'contract_chat_screen.dart';
 import 'contract_share_screen.dart';
 import 'dispute_resolution_screen.dart';
 import 'raise_dispute_sheet.dart';
@@ -234,6 +236,24 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
         ),
         actions: [
           contractAsync.maybeWhen(
+            data: (contract) => contract != null &&
+                    (contract.isEmployer(currentAddress) || contract.isWorker(currentAddress))
+                ? IconButton(
+                    key: const Key('open-contract-chat'),
+                    tooltip: 'Chat',
+                    icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ContractChatScreen(contractId: contract.contractId),
+                        ),
+                      );
+                    },
+                  )
+                : const SizedBox.shrink(),
+            orElse: () => const SizedBox.shrink(),
+          ),
+          contractAsync.maybeWhen(
             data: (contract) => contract != null
                 ? IconButton(
                     icon: const Icon(Icons.share_rounded, color: AppColors.primary),
@@ -381,7 +401,9 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
                   Text(
                     contract.isToken
                         ? contract.currency.subtitle
-                        : '≈ \$${(contract.amountUi * 140).toStringAsFixed(2)} USD',
+                        : formatSolUsd(contract.amountUi,
+                                ref.watch(solUsdPriceProvider).valueOrNull) ??
+                            contract.currency.subtitle,
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 13,
                       color: AppColors.onSurfaceVariant,

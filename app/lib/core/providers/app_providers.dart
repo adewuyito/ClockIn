@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solana/solana.dart';
 import '../database/app_database.dart' hide WorkerProfile, Review, EscrowContract, SeekerAttestation;
@@ -12,9 +14,11 @@ import '../models/deliverable_submission.dart';
 import '../models/review.dart';
 import '../models/seeker_attestation.dart';
 import '../models/worker_profile.dart';
+import '../services/contract_chat_service.dart';
 import '../services/deliverable_encryption_service.dart';
 import '../services/encryption_key_registry.dart';
 import '../services/firebase_sync_service.dart';
+import '../services/sol_price_service.dart';
 import '../services/irys_storage_service.dart';
 import '../solana/network_config.dart';
 import '../solana/reputation_service.dart';
@@ -119,6 +123,25 @@ final encryptionKeyRegistryProvider = Provider<EncryptionKeyRegistry>((ref) {
     deliverableRepository: ref.watch(deliverableRepositoryProvider),
     syncService: ref.watch(firebaseSyncServiceProvider),
   );
+});
+
+/// End-to-end encrypted chat attached to each escrow contract.
+final contractChatServiceProvider = Provider<ContractChatService>((ref) {
+  return ContractChatService(
+    deliverableRepository: ref.watch(deliverableRepositoryProvider),
+    syncService: ref.watch(firebaseSyncServiceProvider),
+  );
+});
+
+final solPriceServiceProvider = Provider<SolPriceService>((ref) => SolPriceService());
+
+/// Live SOL/USD quote for indicative "≈ USD" labels. Refreshes every minute
+/// (sooner after a failure); null while unavailable, and the UI hides the figure.
+final solUsdPriceProvider = FutureProvider<SolUsdQuote?>((ref) async {
+  final quote = await ref.watch(solPriceServiceProvider).fetch();
+  final timer = Timer(Duration(seconds: quote == null ? 15 : 60), ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
+  return quote;
 });
 
 // ==================== WALLET STATE MANAGEMENT ====================
@@ -281,6 +304,22 @@ final contractProvider = StreamProvider.family<EscrowContract?, String>((ref, co
 final splitProposalProvider =
     FutureProvider.autoDispose.family<SplitProposal?, String>((ref, contractId) {
   return ref.watch(contractRepositoryProvider).getSplitProposal(contractId);
+});
+
+/// Whether the connected wallet can use this contract's chat, and the derived
+/// key if so. Invalidate after publishing an encryption key to re-check.
+final contractChatSessionProvider =
+    FutureProvider.autoDispose.family<ChatSession?, String>((ref, contractId) async {
+  final contract = ref.watch(contractProvider(contractId)).value;
+  if (contract == null) return null;
+  final me = ref.watch(walletStateProvider.select((w) => w.address));
+  return ref.watch(contractChatServiceProvider).openSession(contract, me);
+});
+
+/// Live decrypted messages for a ready chat session.
+final contractChatMessagesProvider =
+    StreamProvider.autoDispose.family<List<ChatMessage>, ChatSession>((ref, session) {
+  return ref.watch(contractChatServiceProvider).watch(session);
 });
 
 /// Watches a DisputeCase for a contract reactively from local Drift database,

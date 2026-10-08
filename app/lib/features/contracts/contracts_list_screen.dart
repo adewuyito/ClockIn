@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sol_price_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_header.dart';
 import '../../core/widgets/qr_scanner_sheet.dart';
@@ -422,7 +423,9 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                       Text(
                         hasTokenTotals
                             ? '+ ${tokenTotals.join(' · ')}'
-                            : '≈ \$${(totalSol * 140).toStringAsFixed(0)}',
+                            : (formatSolUsd(totalSol, ref.watch(solUsdPriceProvider).valueOrNull,
+                                        fractionDigits: 0) ??
+                                    'Native SOL'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.jetBrainsMono(
@@ -794,7 +797,10 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                         Text(
                           contract.isToken
                               ? contract.currency.subtitle
-                              : '≈ \$${(contract.amountUi * 140).toStringAsFixed(1)} USD',
+                              : formatSolUsd(contract.amountUi,
+                                      ref.watch(solUsdPriceProvider).valueOrNull,
+                                      fractionDigits: 1) ??
+                                  contract.currency.subtitle,
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 10.5,
                             color: AppColors.onSurfaceVariant,

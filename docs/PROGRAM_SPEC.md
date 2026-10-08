@@ -9,7 +9,7 @@
 
 ## 1. Account Architecture & PDA Seed Derivations
 
-The ClockIn program manages 5 distinct accounts across reputation, escrow, and dispute layers:
+The ClockIn program manages 6 distinct accounts across reputation, escrow, and dispute layers:
 
 ```mermaid
 erDiagram
@@ -61,7 +61,14 @@ erDiagram
     WorkerProfile ||--o{ Review : receives
     EscrowContract ||--|| EscrowVault : holds_lamports
     EscrowContract ||--|| Review : settles_with
+    SplitProposal {
+        Pubkey escrow_contract
+        Pubkey proposer
+        i64 created_at
+        u8 bump
+    }
     EscrowContract ||--o| DisputeCase : arbitrated_by
+    EscrowContract ||--o| SplitProposal : split_offered_by
 ```
 
 ### 1.1 WorkerProfile PDA

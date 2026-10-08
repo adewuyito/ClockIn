@@ -149,6 +149,36 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- encrypted contract chat ------------------------------------------
+    // Messages are AES-256-GCM ciphertext under a key only the two contract
+    // parties can derive (X25519 between their wallet-attested keys), with the
+    // contract id, sender and timestamp authenticated as associated data. A
+    // document written by anyone else simply fails to decrypt and is dropped
+    // by both clients. These rules cap shape and size, and make the thread
+    // append-only so neither party can erase what was said.
+    match /contracts/{contractId}/messages/{messageId} {
+      allow read: if true;
+
+      allow create: if contractId.size() <= 32
+        && request.resource.data.keys().hasAll(['v', 'sender', 'sentAt', 'ct', 'nonce', 'mac'])
+        && hasOnly(request.resource.data, ['v', 'sender', 'sentAt', 'ct', 'nonce', 'mac'])
+        && request.resource.data.v == 1
+        && isBase58Address(request.resource.data.sender)
+        && request.resource.data.sentAt is int
+        // No future-dated messages pinned to the bottom of a thread. Past
+        // timestamps are allowed: offline sends commit late.
+        && request.resource.data.sentAt <= request.time.toMillis() + 300000
+        // 2000 characters of UTF-8 (up to 8000 bytes) is ~10.7k base64.
+        && request.resource.data.ct is string
+        && request.resource.data.ct.size() <= 12000
+        && request.resource.data.nonce is string
+        && request.resource.data.nonce.size() <= 32
+        && request.resource.data.mac is string
+        && request.resource.data.mac.size() <= 32;
+
+      allow update, delete: if false;
+    }
+
     // Anything not matched above is denied.
     match /{document=**} {
       allow read, write: if false;

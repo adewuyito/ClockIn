@@ -8,6 +8,7 @@ import 'package:solana/solana.dart';
 import '../../core/database/app_database.dart' hide WorkerProfile, Review, EscrowContract;
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sol_price_service.dart';
 import '../../core/solana/contract_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/qr_scanner_sheet.dart';
@@ -554,7 +555,9 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                             ? 'USD Coin • SPL Token (6 Decimals)'
                             : (_currency == EscrowCurrency.skr
                                 ? 'Seeker Ecosystem SPL Token • 6 Decimals'
-                                : '≈ \$${(amountSol * 140).toStringAsFixed(2)} USD'),
+                                : formatSolUsd(amountSol,
+                                        ref.watch(solUsdPriceProvider).valueOrNull) ??
+                                    'Native SOL'),
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 12,
                           color: AppColors.onSurfaceVariant,

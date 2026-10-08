@@ -124,7 +124,7 @@ Everything from the original Phases 0–6 that still applies after the pivot. No
 - [x] Seed devnet with realistic multi-party contracts across all lifecycle states (`program/scripts/seed_devnet_contracts.ts`)
 - [x] Verified full on-chain escrow lifecycle on Solana Devnet with transaction explorer signatures
 - [x] 60–90 second judging demo walkthrough script prepared in `docs/JUDGING_PLAN.md`
-- [x] Full test suite passing: 31 Anchor integration tests + 75 Flutter unit/repository/widget tests (verified 2026-10-05)
+- [x] Full test suite passing: 39 Anchor integration tests + 162 Flutter unit/repository/widget tests (verified 2026-10-08)
 - [x] Production debug APK verified and built (`build/app/outputs/flutter-apk/app-debug.apk`)
 - [x] Production release APK built and verified (`build/app/outputs/flutter-apk/app-release.apk`, 83.1MB)
 
@@ -133,6 +133,8 @@ Everything from the original Phases 0–6 that still applies after the pivot. No
 - [x] **Camera QR Scanner** (`mobile_scanner` integration + `QrScannerSheet`) — scan counterparty Solana addresses, Solana Pay URIs, and contract deep links across Create Contract, Contracts List, Look Up Worker, and Submit Review screens.
 - [x] **Celebratory Settlement Animation** (`CelebrationBadge`) — elastic spring scale with radial particle sparkle burst on atomic release & review.
 - [x] **Tactile Haptic Feedback** — haptic clicks on star rating selection, tab switches, and heavy impact on on-chain settlements.
+- [x] **End-to-end encrypted contract chat** (`ContractChatScreen`, Stitch screen "13. Contract Chat (Active)") — per-contract X25519+HKDF key from both parties' wallet-attested keys, AES-GCM with authenticated metadata, append-only Firestore rules, inline on-chain milestones, read-only after settlement. See `docs/ARCHITECTURE.md`.
+- [ ] Per-message signatures so chat can be used as dispute evidence, and FCM pushes for new messages.
 - [x] **Offline Draft Contracts** (`DraftContracts` Drift table, schema v4) — save and restore pending contract terms, worker addresses, and deadlines locally with one-tap restore and auto-cleanup on on-chain confirmation.
 - [x] **Solana Explorer Deep Links** — one-tap copy and explorer lookup on settlement modal.
 
@@ -186,7 +188,7 @@ Tasks prioritized for post-hackathon mainnet readiness:
 ### 4. Firestore Write Authorization
 - [ ] Stand up server-side wallet-signature verification that mints a Firebase custom token, then restrict `/users/{addr}` and `/deviceTokens/{addr}` writes to `request.auth.uid == addr`.
   - Today writes are open by necessity: there is no backend and no Firebase Auth, so rules cannot tell who a writer is. Confidentiality does **not** depend on this — published X25519 keys are Ed25519-signed by their owning wallet and verified by every reader (`KeyAttestationService`), so a substituted key is rejected. What open writes still permit is nuisance: overwriting someone's directory entry to *deny* them key exchange (they fall back to out-of-band), or spamming notification inboxes.
-- [x] Firestore rules unit tests (`@firebase/rules-unit-testing`) covering the shape/size/append-only constraints in `firestore.rules` — 25 cases in `firestore-tests/rules.test.js`, all passing against the Firestore emulator (verified 2026-10-05).
+- [x] Firestore rules unit tests (`@firebase/rules-unit-testing`) covering the shape/size/append-only constraints in `firestore.rules` — 33 cases in `firestore-tests/rules.test.js` (including the chat messages collection), all passing against the Firestore emulator (verified 2026-10-08).
 
 ### 5. Devnet $SKR Faucet Key Rotation
 - [ ] **Rotate the devnet $SKR mint authority** (`GpCkbpkeXxX5sdFJF9joMmgqMs1P5uyVFHZxvvuDcoz`). Its 32-byte seed was committed in `app/lib/core/solana/network_config.dart` and shipped inside release APKs. The constant has been removed — the seed is now injected at build time via `--dart-define=CLOCKIN_SKR_FAUCET_SEED` and faucet builds report themselves unavailable without it — but **the key remains in git history**, so anyone with the repo can still mint unlimited devnet $SKR and forge the 250-$SKR Seeker attestation stake. Removing the constant stops the leak spreading; only rotation (new mint authority, or a new mint) invalidates the exposed key.

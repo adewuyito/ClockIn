@@ -344,6 +344,25 @@ Mainnet's program is a newer version than devnet's: `UserStake` grows from 146 t
 - **This is an unpublished, reverse-engineered interface.** If Solana Mobile upgrades the program in a way that changes these layouts, verification fails closed and the UI says so; the fix is to re-derive the layout, not to loosen validation.
 - The devnet **escrow** $SKR (`Gd1eTEXD…`, self-minted, faucet-backed) is unrelated to stake and can never produce an attestation.
 
+## Contract chat (end-to-end encrypted)
+
+Every contract has a chat between its employer and worker, opened from the chat icon on Contract Detail (`ContractChatScreen`). It exists so the two parties can agree on scope and hand-offs inside the app that holds the escrow, instead of in a separate messenger where the record is lost.
+
+- **Key.** No new keys and no key exchange. Each side runs X25519 between its own device key and the counterparty's **wallet-attested** X25519 key (the same directory and `KeyAttestationService` check used for deliverables), then HKDF-SHA256 with `salt = contractId` and `info = "ClockIn contract chat v1"`. Both devices derive the same 32-byte key independently. It differs on every contract, so a message can't be replayed into another thread (`ContractChatCrypto`).
+- **Messages.** AES-256-GCM. The contract id, sender address and send time are authenticated as associated data, so relabelling the sender, moving a message to another contract or changing its time all fail decryption. Firestore stores `contracts/{id}/messages/{auto}` = `{v, sender, sentAt, ct, nonce, mac}`, which is ciphertext only.
+- **Who can read.** Only holders of one of the two private keys. A document written by anyone else (the rules can't stop the write, since there is no Firebase Auth) doesn't decrypt, and both clients drop it silently. A document claiming a sender other than the two parties is also dropped before decryption is attempted (`ContractChatService.decodeMessage`).
+- **Setup states.** Chat opens only once both parties have published an attested key. Until then the screen shows why: *needs my key* (a one-time sign, no transaction), *waiting for counterparty*, *not a party*, or *Firebase unavailable*. Contract milestones still render while it is locked.
+- **Contract events in the thread.** "Escrow funded", "Worker submitted deliverable vN", "Dispute raised" and "Payment released" or "Contract cancelled" are drawn from the contract and deliverable state the app already syncs, not from the chat collection, so neither party can forge or delete them.
+- **Lifecycle.** The chat is writable while the contract is live, disputes included. Once it is completed or cancelled the history stays readable and the composer is replaced.
+- **Offline.** Firestore's own offline cache provides offline reading and queued sends. A queued message shows "Sending…" until the server acknowledges it (`hasPendingWrites`). There is deliberately no Drift table for chat.
+- **Rules.** `contracts/{id}/messages` accepts creates only. Every field is required and shape-checked: `v == 1`, a base58 sender, an integer `sentAt` no more than 5 minutes in the future (past times are allowed, because offline sends commit late), and `ct ≤ 12,000` characters (2,000 characters of UTF-8 is about 10.7k base64). No updates or deletes, so neither party can erase what was said.
+
+**Known limits.**
+- **Not yet evidence-grade.** The key is shared by both parties, so cryptographically either one could produce a message labelled as from the other. That's fine for conversation, but the chat is not yet proof in a dispute. The fix is a per-message Ed25519 signature from a device signing key that is itself wallet-attested.
+- **No push notification for new messages.** FCM is wired for contract events only.
+- **No attachments.** Files go through the encrypted deliverables flow instead.
+- **Metadata is visible.** Firestore can see who talks on which contract and when; only the content is hidden.
+
 ## Security / trust model
 
 - **Sybil resistance is now escrow-linked, not just signature-based.** In the previous architecture, a review only required the reviewer's signature — one person could generate five free wallets and review "themselves" from each. Now, each escrow-linked review requires real SOL to be locked and transferred, making the cost of fabrication equal to the cost of actual payment. Standalone `submit_review` (without escrow) still exists for backward compatibility but should be clearly marked as "unverified" in the UI and weighted lower in any aggregate score.
@@ -355,7 +374,7 @@ Mainnet's program is a newer version than devnet's: `UserStake` grows from 146 t
 
   This matters because the alternative was a live man-in-the-middle: with world-writable rules and unsigned keys, anyone could overwrite `/users/{employer}` with their own X25519 key and the worker's app would wrap the deliverable key for the attacker. Signature binding makes that forgery impossible without the victim's wallet key, independent of how permissive the rules are. The wallet signing prompt is a one-time cost per device keypair — the signature is cached in Drift (`UserEncryptionKeys.attestationSignature`).
 
-  `firestore.rules` is covered by 25 behavioural tests in `firestore-tests/rules.test.js`, run against the Firestore emulator:
+  `firestore.rules` is covered by 33 behavioural tests in `firestore-tests/rules.test.js`, run against the Firestore emulator:
 
   ```bash
   cd firestore-tests && npm install && cd ..
@@ -365,7 +384,7 @@ Mainnet's program is a newer version than devnet's: `UserStake` grows from 146 t
     "node firestore-tests/node_modules/mocha/bin/mocha.js --timeout 20000 firestore-tests/rules.test.js"
   ```
 
-  The suite asserts the security-relevant behaviour directly: keys are world-readable but shape-validated, a wallet address mismatched against its document id is rejected, an `fcmToken` cannot be smuggled into the public key document, `deviceTokens` is unreadable, notifications are append-only with only `isRead` mutable, deliverable ciphertext and hashes cannot be rewritten after submission, nothing anywhere can be deleted, and unmatched paths are denied. One test also fails the build if any executable rule ever gates on `request.time` again.
+  The suite asserts the security-relevant behaviour directly: keys are world-readable but shape-validated, a wallet address mismatched against its document id is rejected, an `fcmToken` cannot be smuggled into the public key document, `deviceTokens` is unreadable, notifications are append-only with only `isRead` mutable, deliverable ciphertext and hashes cannot be rewritten after submission, chat messages are append-only and shape-checked (no plaintext field, no future timestamps, ciphertext capped), nothing anywhere can be deleted, and unmatched paths are denied. One test also fails the build if any executable rule ever gates on a fixed expiry date (`timestamp.date(...)`) again.
 
   `firestore.rules` is tightened as defence in depth (document shapes, size caps, append-only notifications, no deletes, push tokens write-only in a separate `deviceTokens` collection) but deliberately carries **no expiry date** — the previous default test rule would have silently denied all traffic on expiry, breaking key exchange with no user-visible error. Restricting *writes* to the wallet owner needs server-side signature verification minting a Firebase custom token; that is a tracked pre-mainnet task, not a hackathon-scope item.
 - **The X25519 private key never leaves the device.** It lives in the Drift database and is excluded from Android backup and device-to-device transfer (`allowBackup=false`, `fullBackupContent=false`, plus `data_extraction_rules.xml` for API 31+), so cloud backup cannot export a key that decrypts deliverable envelopes. Encrypting the database itself (SQLCipher) is a further step not yet taken.
