@@ -241,6 +241,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     return 'just now';
   }
 
+  /// Initials from the wallet's account label ("Solana Test Wallet" → "ST"),
+  /// falling back to the address's first two characters when the wallet
+  /// doesn't provide a label.
+  static String _walletInitials(String? label, String address) {
+    final words = (label ?? '')
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty && RegExp(r'[A-Za-z0-9]').hasMatch(w[0]))
+        .toList();
+    if (words.isNotEmpty) {
+      return words.take(2).map((w) => w[0]).join().toUpperCase();
+    }
+    return address.length >= 2 ? address.substring(0, 2).toUpperCase() : '?';
+  }
+
   static String _shorten(String address) =>
       '${address.substring(0, 4)}…${address.substring(address.length - 4)}';
 
@@ -263,8 +278,14 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   color: AppColors.primaryContainer.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.account_circle_outlined,
-                    color: AppColors.primary, size: 26),
+                alignment: Alignment.center,
+                child: Text(
+                  _walletInitials(ref.watch(walletStateProvider).accountLabel, address),
+                  style: AppTypography.titleMd.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               if (isRegistered)
                 Positioned(
@@ -312,6 +333,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               ],
             ),
           ),
+          const SizedBox(width: 8),
           InkWell(
             borderRadius: BorderRadius.circular(8),
             onTap: () => ProfileQrSheet.show(
@@ -321,34 +343,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               isRegistered: isRegistered,
             ),
             child: Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: AppColors.primaryContainer.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.qr_code_2_rounded, size: 18, color: AppColors.primary),
-            ),
-          ),
-          const SizedBox(width: 6),
-          InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => _copyAddress(address, feedback: 'Copied'),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _shorten(address),
-                    style: AppTypography.labelSm.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.copy_rounded, size: 14, color: AppColors.outline),
-                ],
-              ),
+              child: const Icon(Icons.qr_code_2_rounded, size: 20, color: AppColors.primary),
             ),
           ),
         ],
@@ -507,19 +507,27 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1F9D5B),
                     foregroundColor: Colors.white,
-                    minimumSize: const Size(60, 28),
+                    minimumSize: const Size(60, 30),
+                    maximumSize: const Size(double.infinity, 30),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
+                    alignment: Alignment.center,
                     visualDensity: VisualDensity.compact,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
+                  // Plus Jakarta Sans carries a tall ascent; height 1 with even
+                  // leading keeps the label optically centred in the button.
                   child: Text(
                     'Stake',
+                    textHeightBehavior: const TextHeightBehavior(
+                      leadingDistribution: TextLeadingDistribution.even,
+                    ),
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
+                      height: 1.0,
                     ),
                   ),
                 ),

@@ -535,55 +535,76 @@ class _ReviewDeliverableCardState extends ConsumerState<ReviewDeliverableCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title + badge wrap onto a second line on narrow screens; the copy
+          // action stays pinned top-right. A compact tap target (not an
+          // IconButton, whose M3 minimum size padded this row by ~24px).
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.verified_rounded, size: 16, color: AppColors.success),
-              const SizedBox(width: 6),
-              Text(
-                'Decrypted & Integrity Verified',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.success,
-                ),
-              ),
-              if (_isAutoUnwrapped || widget.submission.hasWrappedKey) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1F9D5B).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.auto_awesome_rounded, size: 10, color: Color(0xFF1F9D5B)),
-                      const SizedBox(width: 3),
-                      Text(
-                        'X25519 Auto-Unwrapped',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF0B5E36),
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.verified_rounded, size: 16, color: AppColors.success),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Decrypted & Integrity Verified',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.success,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_isAutoUnwrapped || widget.submission.hasWrappedKey)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1F9D5B).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.auto_awesome_rounded,
+                                size: 10, color: Color(0xFF1F9D5B)),
+                            const SizedBox(width: 3),
+                            Text(
+                              'X25519 Auto-Unwrapped',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0B5E36),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Tooltip(
+                message: 'Copy Deliverable Content',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: _decryptedContent!));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Deliverable copied!')),
+                    );
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.copy_rounded, size: 16, color: AppColors.onSurfaceVariant),
                   ),
                 ),
-              ],
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.copy_rounded, size: 16),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                tooltip: 'Copy Deliverable Content',
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: _decryptedContent!));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Deliverable copied!')),
-                  );
-                },
               ),
             ],
           ),

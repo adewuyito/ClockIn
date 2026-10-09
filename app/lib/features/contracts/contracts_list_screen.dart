@@ -87,10 +87,9 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            AppHeader(
+      // In the Scaffold's appBar slot like the other tabs, so it extends under
+      // the status bar and takes the scrolled-under tint.
+      appBar: AppHeader(
               address: wallet.isConnected ? wallet.address : null,
               onCopyAddress: wallet.address != null
                   ? () {
@@ -102,8 +101,7 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                     }
                   : null,
             ),
-            Expanded(
-              child: contractsAsync.when(
+      body: contractsAsync.when(
                 loading: () => const Center(
                   child: CircularProgressIndicator(color: AppColors.primary),
                 ),
@@ -144,10 +142,6 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> {
                   return _buildContractList(context, wallet.address, allContracts);
                 },
               ),
-            ),
-          ],
-        ),
-      ),
       floatingActionButton: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
