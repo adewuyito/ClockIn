@@ -2,7 +2,7 @@
 
 > **Lock funds. Do the work. Get paid and reviewed — atomically.**
 
-ClockIn is a mobile-first **P2P Work Contract & Escrow Protocol** built on Solana. It enables freelancers, gig workers, and clients to negotiate agreements, lock milestone deposits safely inside Program Derived Address (PDA) escrow vaults, and execute guaranteed payment releases that mint permanent on-chain reputation and inscribe immutable review proofs to the **Arweave permaweb via Irys** at the exact moment of settlement.
+ClockIn is a mobile-first **P2P Work Contract & Escrow Protocol** built natively for the Solana Mobile Stack. It enables freelancers, gig workers, and clients to negotiate agreements, lock milestone deposits safely inside Program Derived Address (PDA) escrow vaults in **SOL, USDC, or $SKR**, communicate via **end-to-end encrypted contract chat**, and execute guaranteed payment releases that mint permanent on-chain reputation and inscribe immutable review proofs to the **Arweave permaweb via Irys** at the exact moment of settlement.
 
 Built for the **[CLOCK IN](https://solanamobile.radiant.nexus/)** Solana Mobile Hackathon.
 
@@ -12,10 +12,12 @@ Built for the **[CLOCK IN](https://solanamobile.radiant.nexus/)** Solana Mobile 
 
 | Traditional Gig Economy | ClockIn Escrow Protocol |
 |---|---|
-| **High Middleman Fees**: Platforms take 10%–20% cuts on every invoice. | **Zero Platform Cut**: Peer-to-peer on Solana. Only standard network gas fees apply. |
-| **Payment Risk**: Freelancers risk non-payment; employers risk paying for incomplete work. | **Atomic Escrow PDAs**: Client locks SOL or $SKR in a programmatic vault; funds can only be released upon completion or refunded on mutual cancellation. |
+| **High Middleman Fees**: Platforms take 10%–20% cuts on every invoice. | **Zero Platform Cut**: Direct peer-to-peer on Solana. Only standard network transaction fees apply. |
+| **Payment Risk**: Freelancers risk non-payment; employers risk paying for incomplete work. | **Atomic Escrow PDAs**: Client locks SOL, USDC, or $SKR in a programmatic vault; funds can only be released upon completion or refunded on cancellation. |
 | **Walled-Garden Reputation**: Upwork or Fiverr ratings are locked inside closed corporate silos and reset to zero on new platforms. | **Portable, Public Reputation**: Ratings and reviews are inscribed into Solana Anchor PDAs and permanently archived to the **Arweave permaweb via Irys**. |
-| **Custodial Key Exposure**: Apps require custody of API keys or private keys. | **Zero Key Custody**: 100% Mobile Wallet Adapter (MWA) v2.0 authorization. Private keys never touch ClockIn. |
+| **Unencrypted / Monitored Chat**: Private messages and deliverable drafts are stored in plain text on centralized servers. | **End-to-End Encrypted Chat & Deliverables**: Messages and work files are encrypted using **X25519 DH key agreement + AES-256-GCM**; only contract parties hold the keys. |
+| **Unilateral Dispute Arbitrariness**: Platforms resolve disputes arbitrarily or one side can drain escrowed funds unilaterally. | **Bilateral Dispute Settlement**: 50/50 splits require mutual agreement via `SplitProposal` PDAs (one proposes, the counterparty accepts). Neither party can force a split alone. |
+| **Custodial Key Exposure**: Apps require custody of API keys, seed phrases, or private keys. | **Zero Key Custody**: 100% Mobile Wallet Adapter (MWA) v2.0 authorization. Private keys never touch ClockIn. |
 
 ---
 
@@ -25,6 +27,7 @@ Built for the **[CLOCK IN](https://solanamobile.radiant.nexus/)** Solana Mobile 
 sequenceDiagram
     autonumber
     actor Employer as Employer (Client)
+    participant Chat as E2EE Contract Chat (X25519 + AES-GCM)
     participant Vault as Vault PDA [b"vault", id]
     participant Escrow as Escrow PDA [b"escrow", id]
     participant Program as ClockIn Anchor Program
@@ -33,37 +36,52 @@ sequenceDiagram
     participant Review as Review PDA
     participant Arweave as Arweave / Irys Permaweb
 
-    Note over Employer,Worker: 1. Agreement & Funding
-    Employer->>Program: create_and_fund (or create_and_fund_token)
+    Note over Employer,Worker: 1. Agreement & Multi-Currency Funding
+    Employer->>Program: create_and_fund (SOL) / create_and_fund_token (USDC / $SKR)
     Program->>Escrow: Initialize state (status = Funded)
-    Program->>Vault: Lock SOL or $SKR tokens into programmatic vault
+    Program->>Vault: Lock SOL, USDC, or $SKR into programmatic vault
 
-    Note over Worker: 2. Acceptance & Execution
+    Note over Employer,Worker: 2. Acceptance, E2EE Chat & Encrypted Delivery
     Worker->>Program: accept_contract(contract_id)
     Program->>Escrow: Transition status -> InProgress
+    Employer<<->>Worker: 1-on-1 encrypted chat with live contract milestone markers
+    Worker->>Arweave: Inscribe AES-256-GCM encrypted work with wrapped key & SHA-256 hash
+    Worker->>Employer: Deliverable submitted for verification
 
     Note over Employer,Worker: 3. Dual-Layer Atomic Settlement & Reputation
-    Employer->>Arweave: Inscribe review note, ratings, & deliverable hashes via Irys
+    Employer->>Employer: Decrypt deliverable with attested X25519 key & verify hash
+    Employer->>Arweave: Inscribe qualitative review note & rating breakdown via Irys
     Arweave-->>Employer: Return permanent Arweave Tx ID receipt
-    Employer->>Program: release_and_review(contract_id, rating: 1-5)
-    Program->>Vault: Transfer locked SOL / $SKR directly to Worker
+    Employer->>Program: release_and_review (SOL) / release_and_review_token (USDC / $SKR)
+    Program->>Vault: Transfer locked funds directly to Worker (closes token ATA & refunds rent)
     Program->>Review: Create immutable Review PDA on Solana
     Program->>Profile: Increment total_jobs & rating_sum
-    Program->>Escrow: Transition status -> Completed
+    Program->>Escrow: Transition status -> Completed (terminal state; chat & actions locked)
 ```
 
-### Protocol Instructions
-1. **`create_contract` / `fund_contract` / `create_and_fund`**: Native SOL contract creation and programmatic Vault PDA funding.
-2. **`create_and_fund_token`**: **$SKR SPL Token Escrow**. Initializes token contract, verifies mint, and transfers SPL tokens directly into the Vault's Associated Token Account (ATA).
-3. **`accept_contract`**: Worker reviews terms and commits to the contract (`status: InProgress`).
-4. **`release_and_review`**: **The atomic SOL settlement instruction**. Releases vault SOL to the worker, creates a verified `Review` PDA, updates `WorkerProfile` aggregate score, and sets contract to `Completed`.
-5. **`release_and_review_token`**: **The atomic $SKR settlement instruction**. Transfers locked tokens from Vault ATA to Worker's ATA (with automatic idempotent ATA initialization), closes Vault ATA reclaiming rent lamports to employer, creates permanent `Review` PDA, and updates worker score.
-6. **`cancel_contract` / `cancel_token_contract`**: Reclaims locked vault SOL or $SKR tokens back to employer if worker has not yet accepted.
-7. **`raise_dispute`**: Flags on-chain breach of terms for either party (`status: Disputed`).
-8. **`resolve_dispute` / `resolve_token_dispute`**: Settles a dispute between the parties. The employer can release to the worker; the worker can refund the employer; a 50/50 split executes only as acceptance of the *other* party's offer.
-9. **`propose_split` / `cancel_split_proposal`**: One party offers a 50/50 split (or withdraws it). Neither side can force a split alone.
+### Protocol Instructions (20 Anchor Instructions)
 
-Juror arbitration (`initialize_dispute_case`, `cast_juror_vote`, `execute_dispute_ruling`) is built but **disabled on-chain** until jurors are selected by the protocol rather than by a party to the dispute — see `docs/ARCHITECTURE.md`.
+1. **Worker Registration & Profile**:
+   - **`register_worker`**: Initializes the worker's on-chain `WorkerProfile` PDA with 0 completed jobs and 0 rating sum.
+2. **Native SOL Escrow**:
+   - **`create_contract` / `fund_contract` / `create_and_fund`**: Creates `EscrowContract` PDA and deposits SOL into programmatic `Vault` PDA.
+   - **`accept_contract`**: Worker reviews terms and commits to the agreement (`status: InProgress`).
+   - **`release_and_review`**: **Atomic SOL settlement**. Releases vault SOL to the worker, creates an immutable `Review` PDA, increments `WorkerProfile` aggregate score, and transitions contract to `Completed`.
+   - **`cancel_contract`**: Reclaims locked vault SOL back to employer if the worker has not yet accepted.
+3. **Multi-Currency SPL Token Escrow (USDC & $SKR)**:
+   - **`create_and_fund_token`**: Initializes token contract, validates mint, and transfers SPL tokens directly into the Vault's Associated Token Account (ATA). Supports exact integer base-unit precision (6 decimals for USDC, 6 for $SKR).
+   - **`release_and_review_token`**: **Atomic token settlement**. Transfers tokens from Vault ATA to Worker's ATA (with automatic idempotent ATA initialization), closes the Vault ATA reclaiming rent lamports back to the employer, mints `Review` PDA, and updates worker score.
+   - **`cancel_token_contract`**: Reclaims locked tokens from Vault ATA back to employer ATA and closes the Vault ATA before worker acceptance.
+4. **Bilateral Dispute Resolution & Split Proposals**:
+   - **`raise_dispute`**: Either party can freeze the contract on-chain upon breach of terms (`status: Disputed`).
+   - **`propose_split`**: Either party can open a `SplitProposal` PDA (`[b"split_proposal", contract_id]`) offering a 50/50 settlement. Proposer deposits rent.
+   - **`cancel_split_proposal`**: The proposer can withdraw their open offer at any time and reclaim their rent lamports.
+   - **`resolve_dispute` / `resolve_token_dispute`**: Settles a disputed contract:
+     - `ReleaseToWorker`: Executable by employer only.
+     - `RefundToEmployer`: Executable by worker only.
+     - `Split5050`: Executable **only as acceptance of the counterparty's open split proposal**. Closes the proposal and refunds rent to proposer.
+5. **Juror Arbitration (Guarded / Disabled)**:
+   - Instructions `initialize_dispute_case`, `cast_juror_vote`, `execute_dispute_ruling`, and `execute_token_dispute_ruling` are implemented in Anchor but **explicitly disabled on-chain** (`JURY_ENABLED = false`) and feature-flagged in the app (`CLOCKIN_ENABLE_JURY = false`) until decentralized juror selection from active $SKR Guardian stakers is implemented.
 
 ---
 
@@ -72,29 +90,57 @@ Juror arbitration (`initialize_dispute_case`, `cast_juror_vote`, `execute_disput
 | Parameter | Value |
 |---|---|
 | **Program ID** | [`FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9`](https://explorer.solana.com/address/FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9?cluster=devnet) |
-| **Cluster** | Solana Devnet (`https://api.devnet.solana.com`) |
-| **Upgrade Tx (Token Escrow)** | [`PfvNF1J2LGhs4t3snPnucmZ5EPtVhdcUS22qnUuV4GBVHM635Mq3XayNWMu4sBp9bv49n2HFcyHkxv1sFPecFTY`](https://explorer.solana.com/tx/PfvNF1J2LGhs4t3snPnucmZ5EPtVhdcUS22qnUuV4GBVHM635Mq3XayNWMu4sBp9bv49n2HFcyHkxv1sFPecFTY?cluster=devnet) |
-| **Devnet escrow $SKR (test token)** | [`Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9`](https://explorer.solana.com/address/Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9?cluster=devnet) |
+| **Cluster** | Solana Devnet (`https://api.devnet.solana.com` / Helius Devnet RPC) |
+| **ProgramData Account** | [`GmfYDR7SLX8ZRhErkKnD5gt8pTzzbuaH21WUi1ueCnRH`](https://explorer.solana.com/address/GmfYDR7SLX8ZRhErkKnD5gt8pTzzbuaH21WUi1ueCnRH?cluster=devnet) |
+| **Upgrade Authority** | `GBZqhLZXAjBtfeVkVWMYWFN8DGmxskwKna3UEXGvfh8P` |
+| **Last Deployed Slot** | `508848800` (Size: `565,296` bytes, verified 100% bytecode match) |
+| **Upgrade Tx** | [`YNtUAmHZBs7B4YvQMiM4i93ajTWb2JsCjYYHWGYrpH13SD4eHKuRjjsEntSvHnDrur5n34hBDpdcocrF5xz5XKe`](https://explorer.solana.com/tx/YNtUAmHZBs7B4YvQMiM4i93ajTWb2JsCjYYHWGYrpH13SD4eHKuRjjsEntSvHnDrur5n34hBDpdcocrF5xz5XKe?cluster=devnet) |
+| **Devnet $SKR Token Mint** | [`Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9`](https://explorer.solana.com/address/Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9?cluster=devnet) |
+| **Devnet USDC Token Mint** | [`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`](https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet) |
 | **Permaweb Gateway** | Irys Provenance Gateway (`https://gateway.irys.xyz/<arweave_tx_id>`) |
-| **Smart Contract Tests** | **39 automated Anchor integration test cases passing** (SOL + $SKR token escrows, two-party split settlement, jury gate) |
-| **Flutter Test Suite** | **162 automated unit, widget, Drift SQLite v13, key-attestation, $SKR stake, dispute, and encrypted-chat tests passing** |
+| **Anchor Integration Tests** | **39 test cases passing** (SOL + SPL tokens, bilateral splits, juror gate) |
+| **Flutter Test Suite** | **167 automated unit, widget, Drift SQLite v13, key attestation, and chat tests passing** |
+| **Firestore Security Tests** | **33 security rule emulator tests passing** (E2EE channel access restriction) |
 | **Sample Escrow Contract** | [`ctr-mu4o1bhi`](https://explorer.solana.com/tx/2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT?cluster=devnet) (Status: `Completed`, 5★ review) |
 
-See [`program/DEPLOYED.md`](program/DEPLOYED.md) for the full on-chain deployment record and live transaction logs.
+See [`program/DEPLOYED.md`](program/DEPLOYED.md) for complete deployment records, verification commands, and live transaction logs.
 
 ---
 
 ## Mobile Architecture & Technology Stack
 
-- **Flutter / Dart**: High-performance mobile UI built with design tokens matching Google Stitch UI specifications.
-- **Solana Mobile Wallet Adapter (MWA)**: Zero key custody. Sessions and transactions are signed natively inside installed wallets (Phantom, Solflare) using Android intent handoffs.
-- **Arweave & Irys Storage**: Decentralized provenance network for permanently archiving rich review notes, rating breakdowns, and deliverable cryptographic hashes to the Arweave permaweb.
-- **Drift (SQLite Schema v10)**: Offline-first reactive local cache. Automatically mirrors on-chain contracts, worker profiles, and reviews for fast startup, offline draft review authoring, and low RPC overhead.
-- **Seeker Guardian Attestation**: Reads a wallet's real $SKR stake directly from Solana Mobile's Guardian staking program — users stake 250+ $SKR at stake.solanamobile.com or in Seed Vault Wallet, and ClockIn verifies it on-chain (read-only; never signs or holds tokens). Native Solana Seeker hardware detection lights up the Seeker emblem.
-- **Encrypted Contract Chat**: Each contract has a chat between employer and worker. It is end-to-end encrypted with a per-contract key derived from both parties' wallet-attested X25519 keys, and works offline. On-chain milestones (funded, delivered, released) appear inline, and it becomes read-only once the contract settles.
-- **Pretty QR**: Apple-style rounded scannable QR passes for in-person and video call reputation exchange.
-- **Riverpod 2.0**: Declarative reactive state management streaming contract updates and wallet session status.
-- **Anchor 1.2.0 / Solana SBF**: Rust program enforcing deterministic PDA derivation, space bounding, and atomicity.
+- **Flutter / Dart & Riverpod 2.0**: High-fidelity mobile UI with reactive streams, built to Google Stitch design specifications with custom animations and status-bar scroll tinting.
+- **Solana Mobile Wallet Adapter (MWA v2.0)**: Zero key custody. Sessions, authorizations, and multi-instruction transactions are signed directly in installed wallet apps (Phantom, Solflare) via Android intents.
+- **Multi-Currency Accounting & Live Pricing**:
+  - Native SOL, USDC (6 decimals), and $SKR (6 decimals).
+  - Exact integer base-unit arithmetic prevents floating-point rounding errors on sub-cent amounts.
+  - **`SolPriceService`**: Real-time SOL-to-USD pricing feed via CoinGecko and Jupiter Price API with aggressive caching and offline fallback, providing live fiat estimations across all contract flows.
+- **End-to-End Encrypted Contract Chat (`ContractChatService`)**:
+  - Dedicated 1-on-1 communication channel for each escrow contract.
+  - **`ContractChatCrypto`**: Ephemeral per-contract AES-256-GCM symmetric encryption derived via X25519 Diffie-Hellman key agreement from wallet-attested public keys.
+  - Chronological in-stream contract milestone markers (Funded, Accepted, Delivered, Released, Disputed).
+  - Terminal-state locking: chat becomes permanently read-only once contracts settle.
+  - Backed by Firestore with offline persistence and strict security rules.
+- **Encrypted Deliverables & Arweave / Irys Pipeline**:
+  - Freelancers upload deliverables encrypted with AES-256-GCM.
+  - Symmetric key is wrapped with the employer's attested X25519 public key.
+  - Ciphertext and SHA-256 hash are archived to the Arweave permaweb via Irys.
+  - Employer automatically unwraps the key with their private key, verifying cryptographic integrity before releasing funds.
+  - Gated deliverable actions (`acceptsDeliverableActions`) automatically close revision requests and uploads on terminal or disputed contracts.
+- **Drift SQLite Cache (Schema v13)**:
+  - 10 reactive tables: `WorkerProfiles`, `Reviews`, `DraftReviews`, `RecentLookups`, `EscrowContracts`, `DraftContracts`, `SeekerAttestations`, `DisputeCases`, `DeliverableSubmissions`, `UserEncryptionKeys`.
+  - Idempotent SQLite `PRAGMA` introspection ensures safe, failure-proof database migrations.
+  - Full offline draft authoring and recovery for contracts and reviews.
+- **Seeker Guardian Stake & Hardware Detection**:
+  - Non-custodial read-only client for Solana Mobile's official SKR Guardian staking program (`stake.solanamobile.com`).
+  - Verifies 250+ $SKR stake on-chain via `SkrStakeReader` with 24-hour Drift offline caching.
+  - Detects genuine Solana Seeker hardware to display the verified hardware emblem; includes an optically centered `Stake` button and responsive narrow-screen wrapping.
+- **QR Code Viewfinder & Apple-Style Passes**:
+  - Real-time camera viewfinder (`QrScannerSheet`) powered by `mobile_scanner` that parses raw base58 Solana addresses, Solana Pay URIs (`solana:<addr>?amount=...`), and deep links.
+  - Apple-style rounded `ProfileQrSheet` and `ContractShareScreen` for frictionless in-person or video-call reputation verification.
+- **Adaptive Android Branding & Tactile Feedback**:
+  - Android adaptive launcher icons (vector foregrounds across all density buckets and `mipmap-anydpi-v26`).
+  - Tactile `HapticFeedback` on selections and celebratory spring scale-up burst (`CelebrationBadge`) upon atomic settlement.
 
 ---
 
@@ -106,16 +152,27 @@ ClockIn/
 │   ├── programs/reputation/      # Rust program source (20 instructions, 6 accounts)
 │   ├── tests/                    # Mocha/Chai test suite (39 integration test cases)
 │   ├── scripts/                  # On-chain devnet lifecycle & seeding scripts
+│   ├── DEPLOYED.md               # Detailed on-chain deployment log & verification
 │   └── Anchor.toml               # Anchor workspace configuration
 ├── app/                          # Flutter Android mobile application
 │   ├── lib/
-│   │   ├── core/                 # Database (Drift v13), Irys storage, Theme, Solana RPC
-│   │   └── features/             # Contracts, Reviews, Profile, Look Up, Settings, Wallet
-│   ├── test/                     # Unit, Drift in-memory repository, & Widget tests (162 tests)
-│   └── android/                  # Native Android configuration & mipmap icons
-└── docs/                         # Specifications & Architectural Documentation
+│   │   ├── core/
+│   │   │   ├── config/           # Feature flags (CLOCKIN_ENABLE_JURY, etc.)
+│   │   │   ├── database/         # Drift SQLite cache v13 (10 tables, idempotent migrations)
+│   │   │   ├── models/           # Contract, deliverable, review, & split proposal models
+│   │   │   ├── providers/        # Riverpod 2.0 reactive streams & state management
+│   │   │   ├── services/         # Contract chat (E2EE), Irys storage, SOL price service
+│   │   │   ├── solana/           # MWA v2.0 client, Anchor account decoders, instructions
+│   │   │   └── theme/            # Material 3 design tokens & styling
+│   │   └── features/             # Contracts, chat, disputes, deliverables, profile, lookup
+│   ├── test/                     # Unit, widget, Drift SQLite, crypto, and chat tests (167 tests)
+│   └── android/                  # Native Android configuration & adaptive mipmap icons
+├── firestore.rules               # Strict Firestore security rules for chat & notifications
+├── firestore-tests/              # Firestore rules test suite (33 Mocha test cases)
+├── design/                       # Icon concepts, SVG assets, and design system tokens
+└── docs/                         # Technical Specifications & Documentation
     ├── ARCHITECTURE.md           # System architecture, trust model, & data flow
-    ├── PITCH_DECK.md             # Complete 10-slide hackathon & investor pitch deck
+    ├── PITCH_DECK.md             # 10-slide hackathon & investor pitch deck
     ├── JUDGING_PLAN.md           # Judging criteria mapping & demo walkthrough script
     ├── ROADMAP.md                # Phase-by-phase implementation roadmap
     ├── PROGRAM_SPEC.md           # Smart contract account schemas & instruction specifications
@@ -130,6 +187,7 @@ ClockIn/
 - **Flutter SDK**: 3.29.x / Dart 3.7.x (via FVM)
 - **Solana CLI**: 3.1.x / `solana-cli`
 - **Anchor CLI**: 1.2.0
+- **Node.js**: v18+ (for Anchor tests and Firestore rules tests)
 - **Android Device or Emulator** with [Phantom](https://phantom.app/) or [Solflare](https://solflare.com/) installed.
 
 ### 1. Build and Test the Anchor Program
@@ -138,20 +196,21 @@ cd program
 # Build SBF executable
 cargo build-sbf --arch v1 --sbf-out-dir target/deploy
 
-# Regenerate the IDL (cargo build-sbf does not emit one) then run the
-# TypeScript integration test suite against a local validator.
-# Note: `anchor test` exits 0 even when cases fail — read the mocha summary.
+# Regenerate the IDL and run the 39-case TypeScript integration test suite
 anchor idl build -o target/idl/reputation.json -t target/types/reputation.ts
 anchor test --skip-build --validator legacy
 ```
 
-### 2. Run or Install the Flutter Mobile App
+### 2. Run the Flutter Mobile App
 ```bash
 cd app
 fvm flutter pub get
 
-# Run test suite (162 tests including Drift SQLite in-memory, key attestation, $SKR stake, dispute, and chat tests)
+# Run the automated test suite (167 passing tests)
 fvm flutter test
+
+# Verify static analysis (0 issues)
+fvm flutter analyze lib/ test/
 
 # Run app on connected Android device
 fvm flutter run -d <device_id>
@@ -160,8 +219,15 @@ fvm flutter run -d <device_id>
 fvm flutter build apk --release --target-platform android-arm64
 ```
 
-### 3. Wallet Configuration (Crucial for Devnet Testing)
-ClockIn is currently deployed on **Solana Devnet**. Ensure your mobile wallet is set to Devnet prior to connecting:
+### 3. Test Firestore Security Rules
+```bash
+cd firestore-tests
+npm install
+npm test
+```
+
+### 4. Wallet Configuration (Crucial for Devnet Testing)
+ClockIn is deployed on **Solana Devnet**. Ensure your mobile wallet is set to Devnet prior to connecting:
 - **Phantom**: Settings (gear icon) → Developer Settings → Toggle "Testnet Mode" **ON** → Select **Solana Devnet**.
 - **Solflare**: Settings (gear icon) → General → Change Network → Select **Devnet**.
 
@@ -169,12 +235,13 @@ ClockIn is currently deployed on **Solana Devnet**. Ensure your mobile wallet is
 
 ## Known Scope & Non-Goals (MVP Honesty)
 
-- **Dual-Currency Support (SOL & $SKR)**: Contracts support both native SOL and the Solana Seeker ecosystem SPL token ($SKR) with parallel, gas-optimized Anchor instructions. Additional SPL tokens (USDC/USDT) are roadmapped for Phase 2.
-- **Seeker Attested Workers**: The "Seeker Attested" badge requires 250+ $SKR actively staked with a Solana Mobile Guardian, read straight from Solana Mobile's mainnet staking program — so it costs real, locked stake to earn and is visible to every counterparty, adding economic Sybil resistance without biometric surveillance. Unstaking removes the badge on the next read.
-- **Dual-Layer Provenance**: Lightweight on-chain Review PDAs store numerical scores and cryptographic seeds, while subjective feedback notes and deliverable proofs are stored on Arweave via Irys, preventing high Solana rent costs while guaranteeing permaweb permanence.
-- **Single-Milestone Delivery**: Escrows represent atomic full-delivery agreements. Multi-stage milestone payouts are roadmapped.
-- **Two-Party Dispute Settlement**: Either party can raise a dispute on-chain to freeze the escrow. It settles only by a concession (employer releases, or worker refunds) or by a 50/50 split both parties agree to — one proposes, the other accepts. Juror arbitration is built but disabled until jurors can be drawn from real $SKR Guardian stakers instead of named by a party.
-- **Pseudonymous Public Keys**: ClockIn intentionally associates reputation strictly with cryptographic public keys, avoiding private personally identifiable information (PII) or centralized profile servers.
+- **Multi-Currency Escrow (SOL, USDC, $SKR)**: The protocol natively supports SOL, USDC, and $SKR with exact integer scaling. Unverified mints are safely classified as `UNKNOWN` to prevent spoofing. Additional tokens can be configured post-hackathon.
+- **Seeker Attested Workers**: The "Seeker Attested" badge requires 250+ $SKR actively staked with a Solana Mobile Guardian, read directly from Solana Mobile's official mainnet staking program (`SKRskrmt…94BZ`). It costs real, locked stake to earn, providing Sybil resistance without biometrics or KYC. Unstaking revokes the badge on the next read.
+- **Dual-Layer Provenance**: Lightweight on-chain Review PDAs store numerical ratings (1–5) and verifiable seeds, while rich subjective feedback notes and deliverable proofs are stored on Arweave via Irys, eliminating prohibitive Solana rent while guaranteeing permanent permaweb immutability.
+- **Single-Milestone Agreements**: The MVP is optimized for atomic full-delivery milestone agreements. Phased multi-milestone payouts are roadmapped.
+- **Bilateral Dispute Settlement**: Disputes freeze the escrow on-chain. Settling requires either a concession (`ReleaseToWorker` by employer, or `RefundToEmployer` by worker) or an agreed 50/50 split via `SplitProposal` PDAs (one proposes, the counterparty accepts). Juror arbitration is built on-chain but disabled until jurors can be selected at random by the protocol from active $SKR Guardian stakers.
+- **End-to-End Encrypted Communications**: In-app chat and work deliverables are encrypted end-to-end between the parties. Neither ClockIn, Solana, nor Firestore can inspect the contents.
+- **Pseudonymous Public Keys**: Reputation attaches strictly to cryptographic public keys; ClockIn never collects or stores personally identifiable information (PII).
 
 ---
 
