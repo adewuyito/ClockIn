@@ -4,7 +4,7 @@
 
 ClockIn is a mobile-first **P2P Work Contract & Escrow Protocol** built natively for the Solana Mobile Stack. It enables freelancers, gig workers, and clients to negotiate agreements, lock milestone deposits safely inside Program Derived Address (PDA) escrow vaults in **SOL, USDC, or $SKR**, communicate via **end-to-end encrypted contract chat**, and execute guaranteed payment releases that mint permanent on-chain reputation and inscribe immutable review proofs to the **Arweave permaweb via Irys** at the exact moment of settlement.
 
-
+**Demo video:** https://youtu.be/23zOQ4CJjik · **Install (Android, Devnet):** [latest release](https://github.com/adewuyito/ClockIn/releases/latest) · **Verify the claims:** [`docs/VERIFICATION.md`](docs/VERIFICATION.md)
 
 ---
 

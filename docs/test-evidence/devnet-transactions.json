@@ -1,0 +1,207 @@
+{
+  "generated": "2026-10-12",
+  "cluster": "devnet",
+  "program": "FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9",
+  "paths": [
+    {
+      "path": "Create and fund, accept, release and review",
+      "currency": "SOL",
+      "contractId": "ctr-869393",
+      "source": "app (the contract in the demo video)",
+      "steps": [
+        {
+          "step": "create_and_fund",
+          "signature": "MnMeojpftEbvMT8iZU43Snqh1ciGWEsPCwd8g623NYzvNXuPiT8sPWsQ7wcxHZ9hVKrTfQ4PqAqFjxEV1tYakTZ",
+          "time": "2026-10-11"
+        },
+        {
+          "step": "accept_contract",
+          "signature": "2HLMZcKqBJ1T64vdJ1PYRiB8GLkjGft38BGZSVkvnxxbUefdYkxCyghtdXfFZyBTLcY66sn1HMhbTw7dY7mvA2fP",
+          "time": "2026-10-11"
+        },
+        {
+          "step": "release_and_review",
+          "signature": "5w7hMKp2dWsLaTeyZUd6xZcvHn2jq5ZfcBNRxYTVXiWiiKYQRWvRGXuvAKzM3cYAZWWzztwNvUUQaExA4o1xgGG5",
+          "time": "2026-10-11"
+        }
+      ]
+    },
+    {
+      "path": "Create and fund, accept, release and review",
+      "currency": "USDC",
+      "contractId": "ctr-321723",
+      "source": "app",
+      "steps": [
+        {
+          "step": "create_and_fund_token",
+          "signature": "4uDEoQv7nWSnbzJmTfsVKzPxyaooAsWSmerF6hbNsS6hQfuxizg1SGXjXsswq1TFsYYqTigr9FaMSyWUGU5xZYsj",
+          "time": "2026-10-06"
+        },
+        {
+          "step": "accept_contract",
+          "signature": "4kKLjKCjgcBejWCdsF5Yb6Mm1pST6Xv6qMkPig9AVwYqPUREkyW7fsRQD6rYMwedgKqRD9HEiiLF6DhqCNWpcDAD",
+          "time": "2026-10-06"
+        },
+        {
+          "step": "release_and_review_token",
+          "signature": "epHAbyEbwWh4iJ2tsgC5XkA8So1sdaRSp58J9oBEMg2eRRq5doatU8a55kLbHY2DFXpDCY9GgjhrHNHpNuZm7h1",
+          "time": "2026-10-06"
+        }
+      ]
+    },
+    {
+      "path": "Create and fund, accept, release and review",
+      "currency": "test $SKR",
+      "contractId": "ctr-985669",
+      "source": "app",
+      "steps": [
+        {
+          "step": "create_and_fund_token",
+          "signature": "4jW4G9zKGGNkXBnuGmsSWcsYMrdFEiDCFSA6z8xuFv67pY7oprUXif143SXxoLSZK5BmmZttzssmvxYvX3vHXHeV",
+          "time": "2026-09-30"
+        },
+        {
+          "step": "accept_contract",
+          "signature": "2NRvQjtXhvvvdFWPgbqj6aArtSC8WPzbKFEZikDrQyN7Na7ZEDhJv2EYcCx7aQPxcy28qeyE4xrYCqykgU4ayDwe",
+          "time": "2026-09-30"
+        },
+        {
+          "step": "release_and_review_token",
+          "signature": "3jUqcqY5Wh8p1Ko9ZEbpN9Y2mU6Rtv7EG2cEcCXZAs8zwZWhTmT97QyLYGDFpuEPPvDnX1qhgKuCBf8BS75tG4sy",
+          "time": "2026-09-30"
+        }
+      ]
+    },
+    {
+      "path": "Dispute settled by an agreed 50/50 split",
+      "currency": "SOL",
+      "contractId": "ctr-369987",
+      "source": "app",
+      "steps": [
+        {
+          "step": "create_and_fund",
+          "signature": "3XoqeDbwD7L3ukCTb9JRKeTTDPk9xa4Ujp7yLcVNiJ4w3h4VESJj1K7sXj5VLQ1TFYLzPwpNgbFXbFmPXqom9Cfa",
+          "time": "2026-10-08"
+        },
+        {
+          "step": "accept_contract",
+          "signature": "3gMhwzaYMP17soZNqZYVnLFyJyfc6BZk1gCgU5EJgGQvrLKti7VKjengTpLVwaymMnmcAcqFpVE3LtF6nUNVwKXj",
+          "time": "2026-10-08"
+        },
+        {
+          "step": "raise_dispute",
+          "signature": "4JvjVUABaP7SsqYdRjrjPmRSnTkdMiRRZRVzZcYFAU4T7MQTKeWfAL3LBxfyjNT4hikBxnbtKpQF2mXyjMVsnxMR",
+          "time": "2026-10-08"
+        },
+        {
+          "step": "propose_split",
+          "signature": "4tafwBsL9ryqm8PPnn9eZoc6sJ5rQv8jxtsyTt3RyoBHxnEbZvpHJzAUWbPAvdtr3f3CF4BnH9b3BWoJRDn5Wn8y",
+          "time": "2026-10-08"
+        },
+        {
+          "step": "resolve_dispute (50/50 split)",
+          "signature": "2ceojGrJYMA7LotXXgkECUiUkKo41FKiBv63g1LnuKsHw9Xw7yVKsk7v77HdevEnK1wbK5gTPZv4usXW93cow3v9",
+          "time": "2026-10-08"
+        }
+      ]
+    },
+    {
+      "path": "Dispute settled by releasing to the worker",
+      "currency": "SOL",
+      "contractId": "ctr-295356",
+      "source": "app",
+      "steps": [
+        {
+          "step": "create_and_fund",
+          "signature": "47s42qpCz8R7kiCQsQE7aXt9q13JcRg5yCc8c2X4vB74FGfX2y6FoTgx9H21bH8umv1HsUAi1odBJ7s3JpPFAVbP",
+          "time": "2026-09-30"
+        },
+        {
+          "step": "accept_contract",
+          "signature": "U3k3SgwUSNyD1bSozesNpUSMYN2agcCadX9mbw9GHmV9JuzSAtDJo7KX1WFmm8VqNqZq11RJNG4GYoLGiFGQNgr",
+          "time": "2026-09-30"
+        },
+        {
+          "step": "raise_dispute",
+          "signature": "24V9C3Wwy5Yr8ijQFDLXBoDn6ErqE1hP5RyyhWo4oNo1SGuzYuG4SMrkgn7gdQpsR5pTQVzyYm56ZPmKw9QpHsF8",
+          "time": "2026-09-30"
+        },
+        {
+          "step": "resolve_dispute (release to worker)",
+          "signature": "4XxaTey9V7SRmuzMKUjW4RjiqpZKEUzN6mCXHjujX37qGfBW9hNn3zuayGjxiesEHd7jjosRPM97D88haKaVRBj1",
+          "time": "2026-10-02"
+        }
+      ]
+    },
+    {
+      "path": "Create and fund, then cancel and refund",
+      "currency": "SOL",
+      "contractId": "ev-sol-cx-5siami",
+      "source": "script (program/scripts/devnet_path_evidence.ts)",
+      "steps": [
+        {
+          "step": "create_and_fund",
+          "signature": "2HpkcZ5TBDNMt4hkx8iCF5tGcSCSZUo3MkZkU4dEu9wG84K4qfQKzae93ZL2H85qYSQfssDMAyU7a2p2iEoVeNJt",
+          "time": "2026-10-12"
+        },
+        {
+          "step": "cancel_contract",
+          "signature": "KHdReuQJPYZAaUcJe4GEQiXg3sH7anL8TxifLjgJZSmZT3e7V3h71eai65ToGNoet1ejhjXQBnF4dhHv51kaDzQ",
+          "time": "2026-10-12"
+        }
+      ]
+    },
+    {
+      "path": "Create and fund, then cancel and refund",
+      "currency": "test $SKR",
+      "contractId": "ev-skr-cx-5siami",
+      "source": "script (program/scripts/devnet_path_evidence.ts)",
+      "steps": [
+        {
+          "step": "create_and_fund_token",
+          "signature": "35FBMrKPhZhy8m4R6Yt1MLRgsTcPCq9VEWQoQET8iwcrVP92kkLdWa79fGUg3rGJf31R3GajWziYRA6bdwJFMnoe",
+          "time": "2026-10-12"
+        },
+        {
+          "step": "cancel_token_contract",
+          "signature": "5DNDaAcoMRrkAF4EPVENRkwiRCiQRbrBZkKNfw8VhrV736cwKzFdM3ZQ1zYMDuJPtszfYbShWYtxexwyWtej1nHE",
+          "time": "2026-10-12"
+        }
+      ]
+    },
+    {
+      "path": "Dispute settled by an agreed 50/50 split",
+      "currency": "test $SKR",
+      "contractId": "ev-skr-sp-5siami",
+      "source": "script (program/scripts/devnet_path_evidence.ts)",
+      "steps": [
+        {
+          "step": "create_and_fund_token",
+          "signature": "462maHdFiAWRAVSNw6wYTaKsFcDydrp9KSFHBj32D6NnZjMAvTVWEu6iqHyxojSLti9qZNcuVgoHvW61pXAuSSN2",
+          "time": "2026-10-12"
+        },
+        {
+          "step": "accept_contract",
+          "signature": "2Vviz68YyNyqp3XzxRJ1b33AJqcwfN1QZAdTSpnat3vPXhCuJu7gqnTUu1S1a5HewhgbRM91UwT4Gz1CdCRevnLF",
+          "time": "2026-10-12"
+        },
+        {
+          "step": "raise_dispute",
+          "signature": "5NNoyEDgUMbG11Jgm1SJdJa6iKi9FbRCvvrYKQmykmLayEXaHCz8baackY1U2dxT7aL59xHheZ6jkuoCZ7HYoW6x",
+          "time": "2026-10-12"
+        },
+        {
+          "step": "propose_split",
+          "signature": "5eK8oJgaNj3GyTK7EC4qJ47v5e7AaqctZXonHoD5LALLPV2Nj1rKGkRrWSgUKUJB4Nwij9sRSNFURzhgQbJauvpc",
+          "time": "2026-10-12"
+        },
+        {
+          "step": "resolve_token_dispute (50/50 split)",
+          "signature": "5zKuzB9j4UuQ15fU7GBRm5wP1PpkP7VBJud3hz4zmdJb1AzzxpTg9eSihcmzp8qzpLvqE12XTFSaszP1Jp8nNsKo",
+          "time": "2026-10-12"
+        }
+      ]
+    }
+  ],
+  "registerWorkerExample": "fs5NeaMUwi4CdmwzskffKFH7TzPNX7TkUjCknjccY8SCNdGjXq8JdjonG8vuZ6YJTfAJzhGiq6JtxHrqq8g4hAS"
+}

@@ -28,7 +28,7 @@ Cover and closing slides: deep-teal background, white text. All other slides: li
 - **At most ~30 words of body copy per slide.** No paragraphs. No code identifiers (`SplitProposal`, `PDA`, `X25519`) on main slides; they belong in the appendix.
 - **Show the product.** Slides 1, 3, 4 and 5 use real screenshots from the app, not illustrations.
 - **Every number must be true today.** Use only the figures in "Numbers we can stand behind" below. Anything in "Do not claim" stays out.
-- **No demo slide.** The demo video is submitted separately, so the deck does not repeat it. If the deck is ever shared on its own, add a "Watch the demo" link to the closing slide.
+- **No demo slide.** The demo video is submitted separately, so the deck does not repeat it. The closing slide links to it: https://youtu.be/23zOQ4CJjik
 - **Lead with what is live, be plain about what is not.** Slide 8 states the limits. Judges trust a team that names its own gaps.
 
 
@@ -179,7 +179,7 @@ Footer (mono): Program `FKicZK…dEt9` · deployed bytecode matches the tested b
 2. **Pilot it.** Run one real bounty or grant through ClockIn escrow — Superteam, RadiantsDAO, hackathon organisers.
 3. **List it.** Guidance on the Solana dApp Store submission for Seeker.
 
-**Visual:** One QR code, for the APK download, because the deck is read on a laptop and the app installs on a phone. Next to it: "Scan to install", the download link and the GitHub link as clickable text. Wordmark and tagline. This is the only QR code in the deck.
+**Visual:** One QR code, for the APK download, because the deck is read on a laptop and the app installs on a phone. Next to it: "Scan to install", the download link, the demo video link (`youtu.be/23zOQ4CJjik`) and the GitHub link as clickable text. Wordmark and tagline. This is the only QR code in the deck.
 **Footer (mono):** `github.com/adewuyito/ClockIn` · Program `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` · Timothy Adewuyi
 
 **Say:** "Lock funds. Do the work. Get paid and reviewed in one transaction. Thank you."
