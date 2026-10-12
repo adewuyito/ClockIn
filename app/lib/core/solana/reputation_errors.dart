@@ -1,3 +1,4 @@
+import '../services/network_status.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -87,6 +88,14 @@ class ReputationException implements Exception {
   factory ReputationException.from(Object error) {
     if (error is ReputationException) return error;
 
+    if (error is NetworkUnavailableException) {
+      return ReputationException(
+        kind: ReputationErrorKind.network,
+        message: error.message,
+        cause: error,
+      );
+    }
+
     final programCode = _extractCustomErrorCode(error);
     if (programCode != null) {
       final known = ProgramErrorCode.fromCode(programCode);
@@ -141,5 +150,6 @@ class ReputationException implements Exception {
   }
 
   @override
-  String toString() => 'ReputationException($kind): $message';
+  // The user-facing message: screens display `e.toString()` directly.
+  String toString() => message;
 }

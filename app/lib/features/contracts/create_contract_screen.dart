@@ -8,6 +8,7 @@ import 'package:solana/solana.dart';
 import '../../core/database/app_database.dart' hide WorkerProfile, Review, EscrowContract;
 import '../../core/models/escrow_contract.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/solana/reputation_errors.dart';
 import '../../core/services/sol_price_service.dart';
 import '../../core/solana/contract_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -40,6 +41,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
   EscrowCurrency _currency = EscrowCurrency.sol;
   bool get _isToken => _currency != EscrowCurrency.sol;
   String? _errorMessage;
+  bool _errorIsNetwork = false;
   int? _activeDraftId;
 
   static String _generateContractId() {
@@ -653,14 +655,41 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                       color: AppColors.errorContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      _errorMessage!,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        color: AppColors.error,
-                      ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _errorIsNetwork ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
+                          size: 18,
+                          color: AppColors.error,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  // Nothing was signed or sent, so the details can be kept
+                  // and signed once the connection is back.
+                  if (_errorIsNetwork)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        key: const Key('save-draft-after-network-error'),
+                        onPressed: () async {
+                          await _handleSaveDraft();
+                          if (modalContext.mounted) Navigator.of(modalContext).pop();
+                        },
+                        icon: const Icon(Icons.save_outlined, size: 18),
+                        label: const Text('Save as offline draft'),
+                      ),
+                    ),
                   const SizedBox(height: 12),
                 ],
 
@@ -671,7 +700,11 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                     onPressed: _isSubmitting
                         ? null
                         : () async {
-                            setModalState(() => _isSubmitting = true);
+                            setModalState(() {
+                              _isSubmitting = true;
+                              _errorMessage = null;
+                              _errorIsNetwork = false;
+                            });
                             setState(() => _isSubmitting = true);
 
                             try {
@@ -726,13 +759,17 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                                 );
                               }
                             } catch (e) {
+                              final offline = e is ReputationException &&
+                                  e.kind == ReputationErrorKind.network;
                               setModalState(() {
                                 _isSubmitting = false;
                                 _errorMessage = e.toString();
+                                _errorIsNetwork = offline;
                               });
                               setState(() {
                                 _isSubmitting = false;
                                 _errorMessage = e.toString();
+                                _errorIsNetwork = offline;
                               });
                             }
                           },

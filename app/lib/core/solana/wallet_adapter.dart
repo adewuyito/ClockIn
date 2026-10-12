@@ -45,8 +45,16 @@ class WalletAdapter {
   bool get isConnected => _status == WalletStatus.connected && _session != null;
 
   /// Identity metadata sent to wallet apps during authorization.
-  final Uri identityUri = Uri.parse('https://clockin.app');
-  final Uri iconUri = Uri.parse('favicon.ico');
+  ///
+  /// The wallet shows this host name in its approval prompt and fetches the
+  /// icon itself, so this must be a site this project controls. It is the
+  /// repo's GitHub Pages site (`gh-pages` branch).
+  ///
+  /// Solflare does not use [iconUri]; it loads the page at [identityUri] and
+  /// takes that page's favicon. So the URI must be the page itself (with its
+  /// trailing slash), not just the origin, which serves nothing.
+  final Uri identityUri = Uri.parse('https://adewuyito.github.io/ClockIn/');
+  final Uri iconUri = Uri.parse('https://adewuyito.github.io/ClockIn/icon.png');
   final String identityName = 'ClockIn';
 
   /// Checks if any MWA-compatible wallet app is installed on the Android device.

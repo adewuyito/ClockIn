@@ -9,6 +9,7 @@ import '../models/dispute_case.dart';
 import '../models/split_proposal.dart';
 import 'account_decoders.dart';
 import 'network_config.dart';
+import '../services/network_status.dart';
 import 'program_instructions.dart';
 import 'reputation_errors.dart';
 import 'wallet_adapter.dart';
@@ -17,7 +18,10 @@ import 'wallet_adapter.dart';
 class ContractService {
   final SolanaClient solanaClient;
 
-  ContractService({SolanaClient? client})
+  /// Pre-flight connectivity check for transactions. Null skips it (tests).
+  final NetworkStatusService? network;
+
+  ContractService({SolanaClient? client, this.network})
       : solanaClient = client ??
             SolanaClient(
               rpcUrl: Uri.parse(NetworkConfig.devnetRpcUrl),
@@ -511,6 +515,9 @@ class ContractService {
     required Future<List<Instruction>> Function() buildInstructions,
     int maxAttempts = 2,
   }) async {
+    // Fail fast with a plain message before building anything or opening the
+    // wallet app. Outside the retry loop: being offline is not retryable.
+    await network?.ensureOnline();
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         final instructions = await buildInstructions();

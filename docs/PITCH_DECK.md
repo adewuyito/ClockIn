@@ -1,255 +1,260 @@
-# ClockIn — Pitch Deck
+# ClockIn — Pitch Deck Prompt
 
-> **Tagline:** Lock funds. Do the work. Get paid and reviewed — atomically.
-> **Category:** Solana Mobile · Web3 Gig Economy · DePIN Reputation
-> **Brand:** `#0B1518` Dark Space · `#14F195` Mint · `#9945FF` Solana Purple · `#FFFFFF` White
-> **Typography:** Display: Space Grotesk · Body: Inter
+Use this document as the full brief for generating the ClockIn deck. It is written for the **CLOCK IN hackathon (Solana Mobile, RadiantsDAO)**: the audience is judges and ecosystem partners, not investors. There is **no fundraising ask and no use-of-funds slide**. The closing ask is for distribution, pilots and feedback.
 
 ---
+
+## Brand (match the app, not a generic crypto look)
+
+| Token | Value |
+|---|---|
+| Primary teal | `#00556D` (deep), `#0F6F8C` (container) |
+| Accent mint | `#5FE3A1` (the "In" in the wordmark) |
+| Success emerald | `#1F9D5B` |
+| Canvas / card | `#F8F9FB` / `#FFFFFF`, hairline borders `#E1E2E4` |
+| Text | `#191C1E` primary, `#3F484D` secondary |
+| Type | Plus Jakarta Sans (headlines, body) · JetBrains Mono (addresses, amounts, metrics) |
+| Wordmark | "Clock" white + "In" mint on teal, as in the app icon |
+
+Cover and closing slides: deep-teal background, white text. All other slides: light canvas with white cards, teal headlines, mint or emerald only for emphasis. No purple, no neon gradients.
+
+---
+
+
+## Deck rules (apply to every slide)
+
+- **9 slides plus an appendix.** A 3-minute pitch cannot carry more. Detail lives in the appendix and the speaker notes, not on the slides.
+- **One idea per slide.** The headline states the point as a full sentence; a judge who reads only the headlines should get the whole story.
+- **At most ~30 words of body copy per slide.** No paragraphs. No code identifiers (`SplitProposal`, `PDA`, `X25519`) on main slides; they belong in the appendix.
+- **Show the product.** Slides 1, 3, 4 and 5 use real screenshots from the app, not illustrations.
+- **Every number must be true today.** Use only the figures in "Numbers we can stand behind" below. Anything in "Do not claim" stays out.
+- **No demo slide.** The demo video is submitted separately, so the deck does not repeat it. If the deck is ever shared on its own, add a "Watch the demo" link to the closing slide.
+- **Lead with what is live, be plain about what is not.** Slide 8 states the limits. Judges trust a team that names its own gaps.
+
 
 ## Slide 1 — Cover
 
-### ClockIn
+**Headline:** ClockIn
+**Subhead:** Escrow, encrypted collaboration and portable reputation for freelance work — on your phone, on Solana.
+**Tagline:** Lock funds. Do the work. Get paid and reviewed in one transaction.
 
-**The Mobile-First P2P Work Contract & Escrow Protocol on Solana**
+**Visual:** One phone, straight on, showing the Contract Detail screen with funds locked. Wordmark top left.
+**Footer (mono, small):** Timothy Adewuyi · CLOCK IN Hackathon, October 2026 · Live on Solana Devnet
 
-> *"Lock funds. Do the work. Get paid and reviewed — atomically."*
+**Say:** "ClockIn is a mobile app where a client locks payment before work starts, and the worker's review is created by the same transaction that pays them."
 
-**Visual Direction:** Full-bleed dark space background. Angled 3D Solana Seeker phone displaying ClockIn's contract dashboard. Four mint-green status badges:
+---
 
-| Badge | |
+## Slide 2 — Problem
+
+**Headline:** Freelancers do the work first, pay 10–20% to a platform, and still don't own their reputation.
+
+**On slide (three short blocks):**
+- **Payment risk.** Someone always goes first. Either the worker delivers unpaid, or the client pays unseen.
+- **The platform cut.** Upwork takes 10% from freelancers; Fiverr takes 20%.
+- **Locked reputation.** Hundreds of reviews, and none of them leave the platform that holds them.
+
+**Visual:** One persona card: "Ada, designer, Lagos. 214 five-star reviews on one platform. 0 anywhere else."
+
+**Say:** "A new client outside the platform has no way to check Ada's history, and Ada has no way to know she'll be paid. That is the gap."
+
+---
+
+## Slide 3 — Solution
+
+**Headline:** ClockIn replaces the middleman with a contract both sides can verify.
+
+**On slide (three pillars, one line each):**
+1. **Escrow you can see.** The client locks SOL, USDC or $SKR in an on-chain vault before work starts. Nobody holds the money.
+2. **Private collaboration.** Chat and deliverables are end-to-end encrypted between the two parties.
+3. **Reputation that travels.** Each settled contract writes a review to the worker's wallet, readable by any app.
+
+**Visual:** Three app screenshots side by side: funded contract, chat thread, worker profile with rating.
+
+**Say:** "Three things a platform normally does — hold the money, carry the conversation, keep the reviews — each moved to something the users control."
+
+---
+
+## Slide 4 — The core idea
+
+**Headline:** Payment and review happen in the same transaction, so every review is backed by a settled payment.
+
+**On slide (horizontal flow, five steps):**
+Lock funds → Accept → Deliver (encrypted) → **Release & review** → Reputation updated
+
+Callout on step 4: "One signature. Funds move to the worker and the review is recorded together, or neither happens."
+
+**Visual:** The flow as five connected nodes, step 4 highlighted in mint. Below it, the Release & Review sheet screenshot.
+
+**Say:** "On most platforms a review is a form anyone can fill in. Here a review cannot exist without a funded contract that actually paid out, and anyone can check the amount on-chain."
+
+---
+
+## Slide 5 — Why Solana Mobile
+
+**Headline:** Built for the phone in a freelancer's hand, not ported from a browser extension.
+
+**On slide (four tiles):**
+- **Mobile Wallet Adapter.** Every action is signed in the user's own wallet app. ClockIn never holds a key.
+- **Seeker-aware.** Detects Seeker hardware and reads a wallet's real $SKR Guardian stake to show a proof-of-stake badge.
+- **Works on a bad connection.** Local cache, offline drafts, queued chat messages.
+- **QR everywhere.** Scan a wallet, a Solana Pay code or a contract link; share your reputation pass in person.
+
+**Visual:** Seeker verification card and the wallet-signing handoff screenshot.
+
+**Say:** "Solana Seeker has more than 150,000 pre-orders across 57 countries, and its dApp Store charges no platform fee. Freelancers in those markets work from their phones. This is the audience."
+
+---
+
+## Slide 6 — What's built
+
+**Headline:** A deployed program and a tested app, not a prototype.
+
+**On slide (metric grid, mono numerals):**
+
+| | |
 |---|---|
-| `LIVE ON SOLANA DEVNET` | `SOLANA MOBILE STACK NATIVE` |
-| `ARWEAVE / IRYS PERMAWEB PROVENANCE` | `ZERO KEY CUSTODY · MWA v2.0` |
+| **20** on-chain instructions, live on Devnet | **3** currencies: SOL · USDC · $SKR |
+| **239** automated tests passing (39 program · 167 app · 33 security rules) | **11** app screens, built from one design system |
+| **0** private keys held by the app | **2** Android phones tested, down to a 5-inch screen |
 
-**Footer:** Timothy Adewuyi · CLOCK IN Hackathon 2026 · `github.com/adewuyi/ClockIn`
+Footer (mono): Program `FKicZK…dEt9` · deployed bytecode matches the tested build, byte for byte
 
----
+**Visual:** The grid, with a small Solana Explorer screenshot of the program page.
 
-## Slide 2 — The Problem
-
-### Freelancers are paying a 20% tax to companies that own their reputation.
-
-The global gig economy processes **$516 billion** in annual contracts. Centralized platforms capture most of that value — and keep all of the leverage.
-
-**Three structural failures, unsolved for 20 years:**
-
-**① The Middleman Tax**
-Upwork and Fiverr charge **10–20% of every payment**. A $10,000 contract costs the worker $2,000 in fees — paid to a platform that owns none of the risk.
-
-**② Counterparty Risk**
-Workers deliver work before payment clears. Clients pay before delivery is confirmed. Both parties rely entirely on a corporate intermediary holding the money — who can freeze accounts without recourse.
-
-**③ Trapped Reputation**
-A freelancer with 200 five-star reviews on Upwork has **zero proof of those reviews** outside Upwork's database. Every time they move — to a new platform, a DAO, or a direct client — their reputation resets to zero.
+**Say:** "Everything on this slide can be checked from the repo or the explorer link."
 
 ---
 
-## Slide 3 — The Solution
+## Slide 7 — Who it's for and how it sustains itself
 
-### Trustless escrow. Permanent reputation. Zero platform tax.
+**Headline:** Start where crypto-native work already happens, then widen.
 
-ClockIn replaces the middleman with a Solana smart contract and the reputation silo with the Arweave permaweb.
+**On slide (left: who; right: model):**
+- **First users:** Solana builders, bounty hunters and DAO contributors already paid in SOL and USDC.
+- **Next:** cross-border freelancers for whom stablecoin settlement beats a 3–5 day wire.
+- **Context:** online gig work is a ~$500B-a-year market with 150–435 million workers (World Bank).
 
-| | Upwork / Fiverr | **ClockIn** |
+- **Planned.** A 1–3% protocol fee on each settled contract. Compare 10–20%.
+- **How it's collected.** The program takes it in the same transaction that pays the worker. No payment processor, no invoicing.
+- **Later:** paid reputation lookups for hiring platforms and DAOs.
+
+**Visual:** Two columns. A single bar comparing "10–20% platform" with "1–3% protocol".
+
+**Say:** "We are not asking for funding. This slide is here to show the protocol can pay for itself: a fee a fraction of the incumbents', taken by the program itself with no payment processor in the middle."
+
+---
+
+## Slide 8 — Honest scope and what's next
+
+**Headline:** What's live, what isn't yet, and the order we'll fix it.
+
+**On slide (two columns):**
+
+**Not yet**
+- Devnet only; no real funds.
+- Disputes settle between the two parties. Community jurors are built but switched off until juror selection is fair.
+- Reviews are payment-backed, not yet weighted against a user paying themselves.
+- Review notes are stored on Irys's test network; permanent storage comes with mainnet.
+
+**Next**
+1. Solana dApp Store submission (signed release build).
+2. Security audit and multisig upgrade authority.
+3. Juror selection from $SKR Guardian stakers.
+4. Milestone contracts and the protocol fee.
+5. Mainnet.
+
+**Visual:** Plain two-column list. No timeline graphic; the order matters more than dates.
+
+**Say:** "The escrow is the part that has to be right, and it is tested and deployed. These are the edges we know about."
+
+---
+
+## Slide 9 — Close and ask
+
+**Headline:** Help us put ClockIn in front of the people it's for.
+
+**On slide (three asks, no money):**
+1. **Try it.** Scan to install the APK and settle a contract on Devnet.
+2. **Pilot it.** Run one real bounty or grant through ClockIn escrow — Superteam, RadiantsDAO, hackathon organisers.
+3. **List it.** Guidance on the Solana dApp Store submission for Seeker.
+
+**Visual:** One QR code, for the APK download, because the deck is read on a laptop and the app installs on a phone. Next to it: "Scan to install", the download link and the GitHub link as clickable text. Wordmark and tagline. This is the only QR code in the deck.
+**Footer (mono):** `github.com/adewuyito/ClockIn` · Program `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` · Timothy Adewuyi
+
+**Say:** "Lock funds. Do the work. Get paid and reviewed in one transaction. Thank you."
+
+---
+
+## Appendix (backup slides, shown only if asked)
+
+### A1 — ClockIn vs. platforms
+
+| | Upwork / Fiverr | ClockIn |
 |---|---|---|
-| **Platform Fee** | 10–20% per job | **0%** (0.5–1% at scale) |
-| **Payment Speed** | 5–14 business days | **< 2 seconds** |
-| **Reputation Owner** | The platform | **The worker's wallet** |
-| **Escrow Custody** | Corporate account | **Solana PDA vault** |
-| **Review Permanence** | Deletable database row | **Arweave permaweb** |
+| Fee | 10–20% | 0% today; 1–3% planned |
+| Settlement | Days, after a holding period | Seconds, on release |
+| Currencies | Fiat | SOL · USDC · $SKR |
+| Who holds the money | The platform | An on-chain vault controlled by the program |
+| Messages and files | Readable by the platform | End-to-end encrypted |
+| Disputes | Platform decides | Both parties must agree to a split |
+| Reviews | A row in a private database | A public on-chain record tied to the worker's wallet |
 
-**Three pillars, one atomic transaction:**
+### A2 — How the encryption works
+- Each wallet signs a one-time message that binds it to a device encryption key (X25519). Counterparties verify that signature before trusting the key.
+- Chat: both phones derive the same per-contract key; messages are AES-256-GCM with the contract, sender and time authenticated. The server stores ciphertext only.
+- Deliverables: encrypted on the worker's phone; the key is wrapped for the client alone. A SHA-256 hash proves the file wasn't changed.
+- Limit: chat messages are not individually signed yet, so chat is not dispute evidence.
 
-1. **Programmatic Escrow** — Funds lock into a `EscrowVault` PDA the moment a contract is created. No human holds the money.
-2. **Atomic Settlement** — One Solana instruction simultaneously releases payment, mints a reputation record, and updates the worker's aggregate score. Neither happens without the other.
-3. **Permaweb Provenance** — Every review note and deliverable hash is inscribed to Arweave via Irys before the on-chain instruction fires. The feedback is permanent, timestamped, and cryptographically linked to the settled escrow.
+### A3 — How disputes work
+- Either party can raise a dispute; funds stay locked.
+- Outcomes: release to worker, refund to client, or a 50/50 split. A split executes only if the other party accepts the proposal; the proposer can withdraw it.
+- Juror arbitration (3-juror quorum) exists on-chain behind a flag, disabled until jurors are selected by the protocol rather than by the parties.
 
----
+### A4 — Reputation and fake reviews
+- An escrow-linked review requires a funded contract that settled. The amount and both wallets are public.
+- Known gap: with no fee, someone can pay their own second wallet cheaply. Planned defences: the protocol fee (makes it cost money), weighting by amount and counterparty diversity, and the Seeker stake badge as a proof-of-person signal.
 
-## Slide 4 — The Innovation
+### A5 — Architecture at a glance
+- Anchor program (Rust) on Solana Devnet: profiles, reviews, SOL and SPL-token escrow, disputes.
+- Flutter app for Android: Mobile Wallet Adapter signing, Riverpod state, Drift SQLite cache (schema v13).
+- Firestore as untrusted transport for encrypted chat, deliverable envelopes and the key directory; 33 rule tests.
+- Irys for review notes and deliverable ciphertext; live SOL price from Jupiter with CoinGecko fallback.
+- One mainnet read only: the wallet's $SKR Guardian stake, for the Seeker badge. No mainnet writes, no keys.
 
-### Reputation without skin in the game is just noise.
-
-Every review platform on the internet has the same problem: **anyone can write a review without consequence.** ClockIn makes fake reviews economically impossible.
-
-**How atomic settlement works:**
-
-```
-STEP 1  Employer approves deliverable and taps "Release & Review"
-        ↓
-STEP 2  ClockIn inscribes the review note + deliverable hash to Arweave via Irys
-        → Permanent receipt: gateway.irys.xyz/<arweave_tx_id>
-        ↓
-STEP 3  Single Solana instruction fires: release_and_review
-        → SOL / USDC / $SKR transfers from EscrowVault PDA to worker's wallet
-        → Immutable ReviewRecord PDA minted on Solana
-        → Worker's aggregate reputation score incremented
-        ↓
-STEP 4  Contract status: COMPLETED — fully settled in one block
-```
-
-**Why this is a moat, not a feature:**
-
-- A review requires a real, settled escrow — no money on the line, no review possible.
-- The Solana PDA enforces economic finality. The Arweave layer preserves the human context forever, off-chain, without paying Solana rent.
-- The two layers are cryptographically linked — the Arweave Tx ID is stored in the on-chain `ReviewRecord`. Either layer proves the other.
-
----
-
-## Slide 5 — Why Now
-
-### Three inflection points are converging in 2026.
-
-**① The Solana Mobile Hardware Wave**
-Solana Seeker has **140,000+ pre-orders across 57 countries**. For the first time, a crypto-native smartphone with a built-in dApp store is reaching mainstream distribution. ClockIn is purpose-built for this hardware.
-
-**② Mobile Wallet Adapter v2.0**
-Users sign Solana transactions using their phone's native biometrics — Face ID, fingerprint. No seed phrases in-app. No private key custody. No browser extensions. This is the UX unlock that makes non-custodial crypto feel like Apple Pay.
-
-**③ The Borderless Talent Explosion**
-**1.57 billion gig workers** operate globally. Tech, AI, and Web3 freelancing has gone fully cross-border. International bank transfers take days and cost 3–5%. Stablecoins and SOL settle in 2 seconds with sub-cent fees. The infrastructure gap is closing — ClockIn captures the moment it does.
-
----
-
-## Slide 6 — Product: Live on Devnet
-
-### Production-grade, hardware-tested, fully automated.
-
-**Built and shipped — not prototyped:**
-
-- **Dual-Role Contract Dashboard** — Toggle instantly between Employer and Worker view, with live escrow value tracking per contract.
-- **Multi-Currency Escrow (SOL, USDC, $SKR)** — Native SOL, dollar-denominated Devnet USDC, and Seeker's $SKR token, with precision decimal scaling (6 decimals for USDC and $SKR, 9 decimals for SOL) and automatic ATA (Associated Token Account) lifecycle management — zero manual account setup required.
-- **End-to-End Encrypted Deliverables** — Client-side deliverable encryption with Ed25519 counterparty key exchange and SHA-256 integrity pinning, ensuring private project deliverables remain strictly confidential while proving work authenticity.
-- **Seeker Guardian Attestation** — Non-custodial verification of active 250 $SKR stake delegated to official Solana Mobile Guardians with native Seeker hardware detection, eliminating fake bots with zero custody risk.
-- **Arweave Provenance Badges** — Every completed review displays a tappable permaweb badge. Tap to copy the permanent Arweave receipt URL.
-- **Pretty QR Contract Sharing** — Rounded, high-contrast QR codes for instant counterparty discovery. Built-in scanner (`mobile_scanner`) supports base58 keys and Solana Pay URIs.
-- **Offline-First Caching** — Drift SQLite (Schema v10) stores drafts and contract state locally with auto-recovery. Works on spotty mobile connections.
-
----
-
-### Live Metrics
+### A6 — Full metrics
 
 | Metric | Value |
 |---|---|
-| **Program ID (Devnet)** | `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` |
-| **Anchor Instructions** | 7 deployed and tested |
-| **Supported Currencies** | **SOL** (native) · **USDC** (6 decimals) · **$SKR** (6 decimals) |
-| **Test Coverage** | **28/28** Anchor · **85/85** Flutter — **100% Green** |
-| **APK Distribution** | **26.7 MB** armeabi-v7a · **30.7 MB** arm64-v8a Release |
-| **Tested Hardware** | Samsung Galaxy J7 Prime · Galaxy A51 · Solana Seeker preview |
+| Program ID (Devnet) | `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` |
+| Last deployed | Slot `508848800`, 565,296 bytes, byte-identical to the tested build |
+| Instructions | 20 |
+| Tests | 39 Anchor · 167 Flutter · 33 Firestore rules |
+| APK | 30.7 MB (arm64) · 26.7 MB (32-bit ARM) · 83.7 MB universal |
+| Devices tested | Samsung Galaxy A51 · Samsung Galaxy J-series (SM-G570F, 5-inch) |
+| Demo contract | `ctr-mu4o1bhi` on Solana Explorer (Devnet) |
 
 ---
 
-## Slide 7 — Market Size
+## Numbers we can stand behind
 
-### Capturing the $516B shift to borderless, peer-to-peer labor.
-
-| Market | Size | Definition |
-|---|---|---|
-| **TAM** | **$516B** | Global gig & freelance economy GMV (2026 projected) |
-| **SAM** | **$28B** | Cross-border tech, design, crypto, and DAO freelance contracts |
-| **SOM** | **$350M** | Solana ecosystem gigs, hackathon bounties, and Seeker device owners |
-
-**SOM bottom-up:**
-140,000 Seeker holders + 50,000 active Web3 builders × 4 milestones/year at avg. 2 SOL each = **$228M–$350M addressable GMV in Year 1–2.**
-
-At a 0.5% protocol fee, that is **$1.1M–$1.75M in Year 1 protocol revenue** with zero marginal cost of settlement.
-
----
-
-## Slide 8 — Business Model
-
-### Free to use today. Self-sustaining at scale.
-
-**Revenue architecture:**
-
-**① Micro-Settlement Fee (Core)**
-0.5–1% protocol fee on every settled contract. $1M GMV = $5,000–$10,000 net protocol revenue. Zero overhead — the Solana program collects the fee in the same instruction that settles the escrow.
-
-**② Dispute Resolution Staking**
-Decentralised juror pools stake $SKR to arbitrate disputes. Protocol earns fee share on resolved cases.
-
-**③ Reputation Query API**
-B2B API access for DAOs, credit scoring protocols, and on-chain hiring platforms to query verified `WorkerProfile` PDAs and Arweave review metadata. Priced per query or by subscription.
-
-**The unit economics are on-chain by default** — there is no server bill for payments processing, no fraud team, no chargebacks.
-
----
-
-## Slide 9 — The Moat
-
-### Once a worker builds on-chain reputation, they never leave — and they bring every new client with them.
-
-**The reputation flywheel:**
-
-```
-Worker earns 5★ review + Arweave receipt on ClockIn
-          ↓
-Profile gains unforgeable on-chain credit history
-          ↓
-Worker insists direct clients pay via ClockIn to keep building score
-          ↓
-Employers onboard with zero acquisition cost
-          ↓
-New employers bring their next hires → self-reinforcing viral loop
-```
-
-**Three structural defensibility layers:**
-
-1. **High Switching Cost** — In Web2, leaving Upwork means abandoning proof of your livelihood. In ClockIn, workers build equity in their own wallet address. No one can delete or migrate it.
-
-2. **Composability** — Any Solana dApp can permissionlessly read a worker's `WorkerProfile` PDA and Arweave metadata to offer undercollateralized loans, DAO governance access, or instant job offers. ClockIn becomes the trust primitive for all of Web3 freelancing.
-
-3. **Protocol Neutrality** — ClockIn is a Solana program, not a company. Workers trust it for the same reason they trust Serum or Orca — the code is public, deterministic, and non-custodial.
-
----
-
-## Slide 10 — Roadmap & The Ask
-
-### Built in weeks. Production-ready today. Scaling tomorrow.
-
-**Execution milestones:**
-
-**✅ Q3 2026 — Completed**
-- 7 Anchor escrow instructions deployed on Solana Devnet
-- Dual-currency escrow (SOL + $SKR) with full ATA lifecycle management
-- Atomic settlement with Arweave / Irys permaweb provenance (Drift Schema v10)
-- Non-custodial Seeker Guardian attestation (Solana Mobile staking verification)
-- Flutter MWA v2.0 mobile client tested on physical hardware
-- 100% automated test coverage: 28 Anchor tests + 44 Flutter tests
-
-**🔜 Q4 2026 — Post-Hackathon**
-- Solana Seeker dApp Store release (0% distribution fee)
-- USDC / USDT stablecoin escrow vaults
-- Community dispute arbitration layer (juror staking)
-
-**🗓 Q1 2027**
-- Solana Mainnet deployment
-- On-chain Reputation Query API for DAOs and hiring platforms
-- DAO governance and protocol treasury launch
-
----
-
-### The Ask
-
-**Seeking $250K – $500K** — Pre-Seed / Ecosystem Grant
-
-| Allocation | Use |
+| Claim | Basis |
 |---|---|
-| **50%** | Formal Anchor security audit + protocol hardening |
-| **30%** | Mobile engineering + Seeker dApp Store growth |
-| **20%** | Ecosystem liquidity + freelancer seed grant program |
+| Upwork 10% freelancer fee; Fiverr 20% | Published platform fee schedules. Re-check Upwork's pricing page before presenting; it has changed before. |
+| Online gig work ~$500B a year | Market reports for 2025 range from $455B to $646B. Say "about half a trillion", not a precise figure. |
+| 154–435 million online gig workers | World Bank estimate. |
+| Seeker: 150,000+ pre-orders, 57 countries | Solana Mobile's announcement when shipping began in August 2025. Pre-orders, not devices in use. |
+| 20 instructions, slot 508848800, 239 tests | Repo and `solana program show`, checked 10 Oct 2026. |
 
----
+## Do not claim
 
-### Contact & Links
-
-**GitHub:** `github.com/adewuyi/ClockIn`
-**Program ID (Devnet):** `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9`
-**Direct APK:** `app-arm64-v8a-release.apk` (~28 MB — download and test now)
-
----
-
-> *Lock funds. Do the work. Get paid and reviewed — atomically.*
-> **ClockIn — the trust layer for the borderless gig economy.**
+- **"Fake reviews are impossible."** They are payment-backed, not self-dealing-proof (see A4).
+- **"Permanent Arweave storage."** Uploads go to Irys's devnet node, which is not permanent.
+- **"The on-chain review stores the Arweave hash."** It does not; notes are found by contract-ID tags.
+- **"Tested on Seeker."** Tested on two Samsung phones. Seeker hardware detection is implemented but unverified on a device.
+- **"Production build ready for the dApp Store."** The release APK is debug-signed until a release keystore exists.
+- **"1.57 billion gig workers."** That figure is all self-employed people worldwide, not online freelancers.
+- **"Biometric / Face ID signing."** Signing happens in the user's wallet app; how it authenticates is the wallet's business.
+- **"DePIN."** ClockIn is not a physical-infrastructure network.
+- **"Verified program."** The explorer's "Verified Build" badge is a separate reproducible-build registry, and the program is not registered there. Say the deployed bytecode *matches* the tested build.
+- **A revenue forecast.** There is no fee switch in the program yet; show the model, not a number.

@@ -20,6 +20,7 @@ import '../services/encryption_key_registry.dart';
 import '../services/firebase_sync_service.dart';
 import '../services/sol_price_service.dart';
 import '../services/irys_storage_service.dart';
+import '../services/network_status.dart';
 import '../solana/network_config.dart';
 import '../solana/reputation_service.dart';
 import '../solana/skr_staking.dart';
@@ -43,16 +44,20 @@ final solanaClientProvider = Provider<SolanaClient>((ref) {
   );
 });
 
+/// Connectivity pre-check run before every on-chain transaction.
+final networkStatusServiceProvider =
+    Provider<NetworkStatusService>((ref) => NetworkStatusService());
+
 /// Anchor ReputationService provider.
 final reputationServiceProvider = Provider<ReputationService>((ref) {
   final client = ref.watch(solanaClientProvider);
-  return ReputationService(client: client);
+  return ReputationService(client: client, network: ref.watch(networkStatusServiceProvider));
 });
 
 /// Anchor ContractService provider for P2P Escrow protocol.
 final contractServiceProvider = Provider<ContractService>((ref) {
   final client = ref.watch(solanaClientProvider);
-  return ContractService(client: client);
+  return ContractService(client: client, network: ref.watch(networkStatusServiceProvider));
 });
 
 /// Mobile Wallet Adapter provider.
