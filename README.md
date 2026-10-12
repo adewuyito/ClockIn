@@ -4,7 +4,7 @@
 
 ClockIn is a mobile-first **P2P Work Contract & Escrow Protocol** built natively for the Solana Mobile Stack. It enables freelancers, gig workers, and clients to negotiate agreements, lock milestone deposits safely inside Program Derived Address (PDA) escrow vaults in **SOL, USDC, or $SKR**, communicate via **end-to-end encrypted contract chat**, and execute guaranteed payment releases that mint permanent on-chain reputation and inscribe immutable review proofs to the **Arweave permaweb via Irys** at the exact moment of settlement.
 
-Built for the **[CLOCK IN](https://solanamobile.radiant.nexus/)** Solana Mobile Hackathon.
+
 
 ---
 
@@ -37,26 +37,26 @@ sequenceDiagram
     participant Arweave as Arweave / Irys Permaweb
 
     Note over Employer,Worker: 1. Agreement & Multi-Currency Funding
-    Employer->>Program: create_and_fund (SOL) / create_and_fund_token (USDC / $SKR)
-    Program->>Escrow: Initialize state (status = Funded)
-    Program->>Vault: Lock SOL, USDC, or $SKR into programmatic vault
+    Employer->Program: create_and_fund (SOL) / create_and_fund_token (USDC / $SKR)
+    Program->Escrow: Initialize state (status = Funded)
+    Program->Vault: Lock SOL, USDC, or $SKR into programmatic vault
 
     Note over Employer,Worker: 2. Acceptance, E2EE Chat & Encrypted Delivery
-    Worker->>Program: accept_contract(contract_id)
-    Program->>Escrow: Transition status -> InProgress
+    Worker->Program: accept_contract(contract_id)
+    Program->Escrow: Transition status -> InProgress
     Employer<<->>Worker: 1-on-1 encrypted chat with live contract milestone markers
-    Worker->>Arweave: Inscribe AES-256-GCM encrypted work with wrapped key & SHA-256 hash
-    Worker->>Employer: Deliverable submitted for verification
+    Worker->Arweave: Inscribe AES-256-GCM encrypted work with wrapped key & SHA-256 hash
+    Worker->Employer: Deliverable submitted for verification
 
     Note over Employer,Worker: 3. Dual-Layer Atomic Settlement & Reputation
-    Employer->>Employer: Decrypt deliverable with attested X25519 key & verify hash
-    Employer->>Arweave: Inscribe qualitative review note & rating breakdown via Irys
+    Employer->Employer: Decrypt deliverable with attested X25519 key & verify hash
+    Employer->Arweave: Inscribe qualitative review note & rating breakdown via Irys
     Arweave-->>Employer: Return permanent Arweave Tx ID receipt
-    Employer->>Program: release_and_review (SOL) / release_and_review_token (USDC / $SKR)
-    Program->>Vault: Transfer locked funds directly to Worker (closes token ATA & refunds rent)
-    Program->>Review: Create immutable Review PDA on Solana
-    Program->>Profile: Increment total_jobs & rating_sum
-    Program->>Escrow: Transition status -> Completed (terminal state; chat & actions locked)
+    Employer->Program: release_and_review (SOL) / release_and_review_token (USDC / $SKR)
+    Program->Vault: Transfer locked funds directly to Worker (closes token ATA & refunds rent)
+    Program->Review: Create immutable Review PDA on Solana
+    Program->Profile: Increment total_jobs & rating_sum
+    Program->Escrow: Transition status -> Completed (terminal state&#59; chat & actions locked)
 ```
 
 ### Protocol Instructions (20 Anchor Instructions)
@@ -231,19 +231,6 @@ ClockIn is deployed on **Solana Devnet**. Ensure your mobile wallet is set to De
 - **Phantom**: Settings (gear icon) → Developer Settings → Toggle "Testnet Mode" **ON** → Select **Solana Devnet**.
 - **Solflare**: Settings (gear icon) → General → Change Network → Select **Devnet**.
 
----
-
-## Known Scope & Non-Goals (MVP Honesty)
-
-- **Multi-Currency Escrow (SOL, USDC, $SKR)**: The protocol natively supports SOL, USDC, and $SKR with exact integer scaling. Unverified mints are safely classified as `UNKNOWN` to prevent spoofing. Additional tokens can be configured post-hackathon.
-- **Seeker Attested Workers**: The "Seeker Attested" badge requires 250+ $SKR actively staked with a Solana Mobile Guardian, read directly from Solana Mobile's official mainnet staking program (`SKRskrmt…94BZ`). It costs real, locked stake to earn, providing Sybil resistance without biometrics or KYC. Unstaking revokes the badge on the next read.
-- **Dual-Layer Provenance**: Lightweight on-chain Review PDAs store numerical ratings (1–5) and verifiable seeds, while rich subjective feedback notes and deliverable proofs are stored on Arweave via Irys, eliminating prohibitive Solana rent while guaranteeing permanent permaweb immutability.
-- **Single-Milestone Agreements**: The MVP is optimized for atomic full-delivery milestone agreements. Phased multi-milestone payouts are roadmapped.
-- **Bilateral Dispute Settlement**: Disputes freeze the escrow on-chain. Settling requires either a concession (`ReleaseToWorker` by employer, or `RefundToEmployer` by worker) or an agreed 50/50 split via `SplitProposal` PDAs (one proposes, the counterparty accepts). Juror arbitration is built on-chain but disabled until jurors can be selected at random by the protocol from active $SKR Guardian stakers.
-- **End-to-End Encrypted Communications**: In-app chat and work deliverables are encrypted end-to-end between the parties. Neither ClockIn, Solana, nor Firestore can inspect the contents.
-- **Pseudonymous Public Keys**: Reputation attaches strictly to cryptographic public keys; ClockIn never collects or stores personally identifiable information (PII).
-
----
 
 ## License
 MIT
