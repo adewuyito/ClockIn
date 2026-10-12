@@ -1,0 +1,70 @@
+
+Found a 'test' script in the Anchor.toml. Running it as a test suite!
+
+Running test suite: "<repo>/program/Anchor.toml"
+
+(node:7532) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file://<repo>/program/tests/escrow.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to <repo>/program/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+  escrow protocol
+    Lifecycle 1: Two-Step Creation & Funding (create_contract -> fund_contract)
+      ✔ creates an escrow contract in 'Created' status without funding yet (1070ms)
+      ✔ funds the created contract, locking SOL in the Vault PDA (1386ms)
+    Lifecycle 2: Atomic Settlement (create_and_fund -> accept -> release_and_review)
+      ✔ creates and funds in a single transaction via create_and_fund (1051ms)
+      ✔ rejects unauthorized user from accepting the contract (93ms)
+      ✔ assigned worker successfully accepts the contract (transitions to InProgress) (2721ms)
+      ✔ atomically releases payment to worker and writes verified review in one block (2457ms)
+    Lifecycle 3: Cancellation & Full Refund (cancel_contract)
+      ✔ employer cancels funded contract before acceptance and reclaims 100% of funds (4816ms)
+      ✔ worker cannot accept an already cancelled contract (86ms)
+    Lifecycle 4: Disputes (raise_dispute)
+      ✔ either participant can transition an active contract into Disputed status (5398ms)
+      ✔ employer can resolve active dispute by releasing escrow to worker (4833ms)
+      ✔ worker can resolve active dispute by refunding escrow to employer (18477ms)
+      ✔ rejects a one-sided 50/50 split with no proposal from the other party (9602ms)
+      ✔ a party cannot accept their own split proposal (19788ms)
+      ✔ a stranger cannot propose a split (28367ms)
+      ✔ worker proposes, employer accepts: funds split 50/50 and the proposal is closed (26932ms)
+      ✔ the proposer can withdraw an unaccepted proposal; the other party cannot (12984ms)
+      ✔ settling another way closes an open proposal and refunds its rent to the proposer (8201ms)
+      ✔ opening a juror case is refused while the jury is disabled (4098ms)
+    Security & Guardrails
+      ✔ rejects self-contract (employer == worker) (118ms)
+      ✔ rejects zero deposit amount (177ms)
+      ✔ rejects contract_id exceeding 32 bytes (154ms)
+
+  reputation
+    Phase 1: Worker Registration
+      ✔ successfully registers a new worker profile (865ms)
+      ✔ rejects re-registration of an already registered worker (68ms)
+    Phase 2: Review Submissions & Reputation Read Path
+      ✔ submits a valid review from a reviewer (863ms)
+      ✔ submits a second review from a different reviewer (1183ms)
+      ✔ rejects self-review (worker reviewing themself) (87ms)
+      ✔ rejects rating out of bounds (0) (88ms)
+      ✔ rejects rating out of bounds (6) (91ms)
+      ✔ rejects duplicate review for the same (worker, job_id) (105ms)
+      ✔ rejects job_id exceeding 32 characters (102ms)
+      ✔ reads back reviews using getProgramAccounts and memcmp filter (125ms)
+
+  SPL token ($SKR) escrow protocol
+    Lifecycle: Full $SKR Token Settlement (create_and_fund_token -> accept -> release_and_review_token)
+      ✔ creates and funds an SPL token ($SKR) escrow contract in one transaction (1045ms)
+      ✔ worker accepts the $SKR token contract terms (transitions to InProgress) (1034ms)
+      ✔ atomically releases $SKR payment to worker and writes verified review (1932ms)
+    Lifecycle: $SKR Token Cancellation & Refund (create_and_fund_token -> cancel_token_contract)
+      ✔ employer cancels funded token contract and reclaims 100% of $SKR tokens (4279ms)
+    Security & Cross-Protocol Guardrails
+      ✔ rejects calling native SOL release_and_review on an SPL token contract (5229ms)
+      ✔ rejects token release with a mismatched mint (1644ms)
+    Disputes: $SKR 50/50 split needs both parties
+      ✔ rejects a one-sided $SKR split (2285ms)
+      ✔ employer proposes, worker accepts: $SKR splits 50/50 (4647ms)
+
+
+  39 passing (3m)
+

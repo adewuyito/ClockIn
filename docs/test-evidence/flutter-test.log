@@ -1,0 +1,246 @@
+Resolving dependencies...
+Downloading packages...
+  _fe_analyzer_shared 100.0.0 (109.0.0 available)
+  analyzer 13.0.0 (14.5.0 available)
+  build 4.0.7 (4.0.11 available)
+  build_runner 2.15.1 (2.16.2 available)
+  built_collection 5.1.1 (5.1.2 available)
+  cli_util 0.5.2 (0.6.0 available)
+  clock 1.1.2 (1.1.3 available)
+  code_assets 1.2.1 (2.1.0 available)
+  cupertino_icons 1.0.9 (2.0.0 available)
+  dart_style 3.1.9 (3.1.13 available)
+  drift 2.34.4 (2.35.2 available)
+  drift_dev 2.34.6 (2.35.1 available)
+  flutter_riverpod 2.6.1 (3.4.3 available)
+  freezed_annotation 2.4.4 (3.1.0 available)
+  google_fonts 6.3.3 (9.0.0 available)
+  hooks 2.0.2 (2.2.0 available)
+  jni 1.0.3 (1.1.0 available)
+  jni_flutter 1.0.3 (1.0.4+1 available)
+  matcher 0.12.19 (0.12.20 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.0 (1.19.0 available)
+  native_toolchain_c 0.19.2 (0.19.5 available)
+  objective_c 9.5.0 (9.6.2 available)
+  package_config 2.2.0 (3.0.0 available)
+  pointycastle 3.9.1 (4.0.0 available)
+  qr 3.0.2 (4.0.0 available)
+  record_use 0.6.0 (1.1.1 available)
+  riverpod 2.6.1 (3.4.3 available)
+  solana 0.31.2+1 (0.32.0+1 available)
+  source_gen 4.2.4 (4.3.0 available)
+  sqlite3 3.5.2 (3.7.0 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.11 (0.7.15 available)
+  vector_math 2.2.0 (2.4.3 available)
+Got dependencies!
+34 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading <repo>/app/test/deliverable_encryption_test.dart
+00:00 +0: <repo>/app/test/deliverable_encryption_test.dart: DeliverableEncryptionService Tests generateKey produces a valid 32-byte (256-bit) base64url key
+00:00 +1: <repo>/app/test/deliverable_encryption_test.dart: DeliverableEncryptionService Tests generateKey produces unique keys on successive invocations
+00:00 +2: <repo>/app/test/deliverable_encryption_test.dart: DeliverableEncryptionService Tests encrypt and decrypt roundtrip preserves exact plaintext (URLs, notes)
+00:00 +3: <repo>/app/test/deliverable_encryption_test.dart: DeliverableEncryptionService Tests decrypt with incorrect key fails
+00:01 +4: <repo>/app/test/deliverable_encryption_test.dart: DeliverableEncryptionService Tests computeHash produces valid SHA-256 hex digest
+00:01 +5: <repo>/app/test/deliverable_encryption_test.dart: DeliverableEncryptionService Tests verifyHash returns true for identical content, false for tampered content
+00:01 +6: <repo>/app/test/deliverable_encryption_test.dart: DeliverableEncryptionService Tests hashKey deterministically hashes the AES key for safe storage
+00:01 +7: <repo>/app/test/deliverable_encryption_test.dart: DeliverableEncryptionService Tests generateX25519KeyPair produces valid base64 key pair
+00:03 +8: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a wallet that is not a party cannot open the chat
+00:03 +9: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a wallet that is not a party cannot open the chat
+00:03 +10: <repo>/app/test/deliverable_encryption_test.dart: DeliverableEncryptionService Tests unwrapKey fails with invalid private key
+00:04 +11: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a party who has not attested their key is asked to set it up
+00:07 +12: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a party who has not attested their key is asked to set it up
+00:07 +13: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a party who has not attested their key is asked to set it up
+00:07 +14: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a party who has not attested their key is asked to set it up
+00:07 +15: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a party who has not attested their key is asked to set it up
+00:07 +16: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a party who has not attested their key is asked to set it up
+00:08 +17: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a party who has not attested their key is asked to set it up
+00:08 +18: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a party who has not attested their key is asked to set it up
+00:08 +18: <repo>/app/test/network_status_test.dart: default RPC probe a thrown socket error counts as not responding
+[Network] RPC probe failed: Exception: SocketException
+00:08 +19: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a party who has not attested their key is asked to set it up
+00:08 +20: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable a party who has not attested their key is asked to set it up
+00:10 +21: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.buildMessage is deterministic for the same wallet and key
+00:12 +22: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable waits for the counterparty when they have no verified key
+00:12 +23: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable waits for the counterparty when they have no verified key
+00:12 +24: <repo>/app/test/contract_chat_service_test.dart: openSession explains why a chat is unavailable waits for the counterparty when they have no verified key
+00:12 +25: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify accepts a key signed by the wallet that claims it
+00:13 +26: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify accepts a key signed by the wallet that claims it
+00:13 +27: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify accepts a key signed by the wallet that claims it
+00:14 +28: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify accepts a key signed by the wallet that claims it
+00:14 +29: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify accepts a key signed by the wallet that claims it
+00:14 +30: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify accepts a key signed by the wallet that claims it
+00:14 +31: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify accepts a key signed by the wallet that claims it
+00:14 +32: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify accepts a key signed by the wallet that claims it
+00:15 +33: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify accepts a key signed by the wallet that claims it
+00:15 +34: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify accepts a key signed by the wallet that claims it
+00:15 +35: <repo>/app/test/contract_chat_service_test.dart: send refuses what it must over-long messages
+00:15 +36: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify rejects a key substituted by an attacker (the MITM case)
+[KeyAttestation] Rejected key for ZDy2psNfKf8BxcSLLHBNfFEwjzyXZHPK78ET3BU5Fmk: signature does not verify against this wallet.
+00:16 +37: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify rejects a valid signature transplanted onto a different key
+[KeyAttestation] Rejected key for JD1nbxrtCQqy9YgrgE1zgAcJKNBfXYREvT8Vw1qK5UFB: signature does not verify against this wallet.
+00:17 +38: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify rejects a signature bound to a different wallet address
+[KeyAttestation] Rejected key for Bregwt8S2svTR35L9VkSojttNCKsUu62hqPXYupMdvvZ: signature does not verify against this wallet.
+00:17 +39: <repo>/app/test/key_attestation_test.dart: KeyAttestationService.verify rejects malformed input without throwing
+[KeyAttestation] Rejected key for 98pVdVaoGiGfFggUHR5fHpwCNFRTw8H8e3hQgDPA1spN: FormatException: Invalid character (at character 17)
+not-valid-base64!!!
+                ^
+
+[KeyAttestation] Rejected key for 98pVdVaoGiGfFggUHR5fHpwCNFRTw8H8e3hQgDPA1spN: signature is 16 bytes, expected 64.
+[KeyAttestation] Rejected key for not-a-solana-address: FormatException: Invalid base58 character found: 45
+00:20 +40: <repo>/app/test/skr_staking_test.dart: PDA derivation reproduces real on-chain addresses mainnet: StakeConfig, GuardianPool, and a real staker's UserStake
+00:25 +41: <repo>/app/test/skr_staking_test.dart: PDA derivation reproduces real on-chain addresses devnet: same seeds against Solana Mobile's devnet deployment
+00:29 +42: <repo>/app/test/skr_staking_test.dart: StakeConfig decoding mainnet config: mint, 48h cooldown, share price
+00:29 +43: <repo>/app/test/skr_staking_test.dart: StakeConfig decoding devnet config: mint and short test cooldown
+00:29 +44: <repo>/app/test/skr_staking_test.dart: StakeConfig decoding rejects a non-StakeConfig account
+00:29 +45: <repo>/app/test/skr_staking_test.dart: UserStake decoding & active stake mainnet (169-byte layout): fields link back to config, user, pool
+00:30 +46: <repo>/app/test/skr_staking_test.dart: UserStake decoding & active stake mainnet: active stake = shares × share_price / 1e9
+00:30 +47: <repo>/app/test/skr_staking_test.dart: UserStake decoding & active stake devnet (146-byte layout) decodes with the same prefix
+00:30 +48: <repo>/app/test/skr_staking_test.dart: UserStake decoding & active stake rejects a truncated account rather than misreading it
+00:30 +49: <repo>/app/test/skr_staking_test.dart: UserStake decoding & active stake rejects a wrong discriminator
+00:30 +50: <repo>/app/test/skr_staking_test.dart: UserStake decoding & active stake active stake rounds down, like the program
+00:30 +51: <repo>/app/test/skr_staking_test.dart: SkrStakeSnapshot a wallet that never staked has zero active stake
+00:31 +52: <repo>/app/test/skr_staking_test.dart: SkrStakeSnapshot sums positions and reports whole SKR
+00:31 +53: <repo>/app/test/skr_staking_test.dart: SkrStakeSnapshot a fully-unstaked position (0 shares) does not list its guardian
+00:43 +54: <repo>/app/test/contract_chat_screen_test.dart: (setUpAll)
+00:48 +54: <repo>/app/test/contract_chat_screen_test.dart: buildChatTimeline merges contract events and messages in time order with day dividers
+00:51 +55: <repo>/app/test/contract_chat_screen_test.dart: buildChatTimeline a cancelled contract reads as refunded, not released
+00:51 +56: <repo>/app/test/contract_chat_screen_test.dart: ready: shows the thread, my pending message, and a composer
+01:23 +57: <repo>/app/test/contract_chat_screen_test.dart: ready: shows the thread, my pending message, and a composer
+01:24 +58: <repo>/app/test/contract_chat_screen_test.dart: ready: shows the thread, my pending message, and a composer
+01:24 +59: <repo>/app/test/contract_chat_screen_test.dart: ready: shows the thread, my pending message, and a composer
+01:25 +60: <repo>/app/test/contract_chat_screen_test.dart: ready: shows the thread, my pending message, and a composer
+01:25 +61: <repo>/app/test/contract_chat_screen_test.dart: ready: shows the thread, my pending message, and a composer
+01:25 +62: <repo>/app/test/contract_chat_screen_test.dart: ready: shows the thread, my pending message, and a composer
+01:26 +63: <repo>/app/test/contract_chat_screen_test.dart: ready: shows the thread, my pending message, and a composer
+01:31 +64: <repo>/app/test/contract_chat_screen_test.dart: ready: shows the thread, my pending message, and a composer
+01:51 +65: <repo>/app/test/wallet_account_sheet_test.dart: Tapping profile avatar in AppHeader opens WalletAccountSheet without disconnecting
+01:53 +66: <repo>/app/test/wallet_account_sheet_test.dart: Tapping profile avatar in AppHeader opens WalletAccountSheet without disconnecting
+01:54 +67: <repo>/app/test/wallet_account_sheet_test.dart: Tapping profile avatar in AppHeader opens WalletAccountSheet without disconnecting
+01:55 +68: <repo>/app/test/wallet_account_sheet_test.dart: Tapping profile avatar in AppHeader opens WalletAccountSheet without disconnecting
+01:57 +69: <repo>/app/test/wallet_account_sheet_test.dart: Tapping profile avatar in AppHeader opens WalletAccountSheet without disconnecting
+01:57 +70: <repo>/app/test/create_contract_widget_test.dart: CreateContractScreen Multi-Currency Widget Tests Renders 3-way currency selector [SOL | USDC | $SKR] on a 360dp screen
+01:58 +71: <repo>/app/test/create_contract_widget_test.dart: CreateContractScreen Multi-Currency Widget Tests Renders 3-way currency selector [SOL | USDC | $SKR] on a 360dp screen
+01:58 +72: <repo>/app/test/create_contract_widget_test.dart: CreateContractScreen Multi-Currency Widget Tests Renders 3-way currency selector [SOL | USDC | $SKR] on a 360dp screen
+01:59 +73: <repo>/app/test/create_contract_widget_test.dart: CreateContractScreen Multi-Currency Widget Tests Renders 3-way currency selector [SOL | USDC | $SKR] on a 360dp screen
+02:00 +74: <repo>/app/test/create_contract_widget_test.dart: CreateContractScreen Multi-Currency Widget Tests Renders 3-way currency selector [SOL | USDC | $SKR] on a 360dp screen
+02:00 +75: <repo>/app/test/create_contract_widget_test.dart: CreateContractScreen Multi-Currency Widget Tests Renders 3-way currency selector [SOL | USDC | $SKR] on a 360dp screen
+02:01 +76: <repo>/app/test/create_contract_widget_test.dart: CreateContractScreen Multi-Currency Widget Tests Renders 3-way currency selector [SOL | USDC | $SKR] on a 360dp screen
+02:10 +77: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:11 +78: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:11 +79: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:12 +80: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:12 +81: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:12 +82: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:12 +83: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:13 +84: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:13 +85: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:13 +86: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:14 +87: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:14 +88: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:14 +89: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:16 +90: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:17 +91: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:18 +92: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:18 +93: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:20 +94: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:20 +95: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:20 +96: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:26 +97: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:26 +98: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:26 +99: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:26 +100: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:27 +101: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:27 +102: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:27 +103: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:28 +103: <repo>/app/test/irys_metadata_test.dart: IrysStorageService uploads with devnet fallback when offline/devnet node fails
+[Irys] Node response code: 400, falling back to signed digest
+02:28 +104: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:30 +105: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:31 +106: <repo>/app/test/widget_test.dart: ClockInApp initializes and renders shell smoke test
+02:33 +107: <repo>/app/test/release_and_review_modal_test.dart: on a 360×640 screen the sheet does not overflow and Release is tappable
+02:37 +108: <repo>/app/test/release_and_review_modal_test.dart: on a 360×640 screen the sheet does not overflow and Release is tappable
+02:39 +109: <repo>/app/test/release_and_review_modal_test.dart: on a 360×640 screen the sheet does not overflow and Release is tappable
+02:39 +110: <repo>/app/test/release_and_review_modal_test.dart: on a 360×640 screen the sheet does not overflow and Release is tappable
+02:39 +111: <repo>/app/test/release_and_review_modal_test.dart: on a 360×640 screen the sheet does not overflow and Release is tappable
+02:39 +112: <repo>/app/test/release_and_review_modal_test.dart: on a 360×640 screen the sheet does not overflow and Release is tappable
+02:39 +113: <repo>/app/test/release_and_review_modal_test.dart: on a 360×640 screen the sheet does not overflow and Release is tappable
+02:40 +114: <repo>/app/test/seeker_device_test.dart: SeekerLogo Widget Tests renders SeekerLogo inactive and active without error
+02:41 +115: <repo>/app/test/seeker_device_test.dart: SeekerLogo Widget Tests renders SeekerLogo inactive and active without error
+02:42 +116: <repo>/app/test/seeker_device_test.dart: SeekerLogo Widget Tests renders SeekerLogo inactive and active without error
+02:43 +117: <repo>/app/test/seeker_device_test.dart: DeviceService & SeekerDeviceNotifier Tests SeekerDeviceNotifier updates hardware state and simulation toggle
+02:43 +118: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner displays SeekerLogo, shows SEEKER HARDWARE badge when active, and has NO cooldown text
+02:44 +119: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner displays SeekerLogo, shows SEEKER HARDWARE badge when active, and has NO cooldown text
+02:44 +120: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner displays SeekerLogo, shows SEEKER HARDWARE badge when active, and has NO cooldown text
+02:44 +121: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner displays SeekerLogo, shows SEEKER HARDWARE badge when active, and has NO cooldown text
+02:44 +121: <repo>/app/test/sol_price_service_test.dart: rejects malformed, zero, or negative prices
+[SolPrice] https://lite-api.jup.ag/price/v3?ids=So11111111111111111111111111111111111111112 failed: FormatException: Unexpected character (at character 1)
+not json
+^
+
+02:44 +122: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner displays SeekerLogo, shows SEEKER HARDWARE badge when active, and has NO cooldown text
+02:44 +123: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner displays SeekerLogo, shows SEEKER HARDWARE badge when active, and has NO cooldown text
+02:46 +123: <repo>/app/test/deliverable_submission_test.dart: DeliverableRepository & Drift Database Tests submitDeliverable encrypts plaintext, hashes, and stores in Drift
+[Irys] Uploaded encrypted deliverable for ctr_test_deliverable_01 -> Arweave ID: mock-arweave-tx-1
+02:47 +124: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner displays SeekerLogo, shows SEEKER HARDWARE badge when active, and has NO cooldown text
+02:47 +124: <repo>/app/test/deliverable_submission_test.dart: DeliverableRepository & Drift Database Tests decryptAndVerify successfully retrieves plaintext and verifies integrity
+[Irys] Uploaded encrypted deliverable for ctr_test_deliverable_02 -> Arweave ID: mock-arweave-tx-1
+02:47 +125: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner displays SeekerLogo, shows SEEKER HARDWARE badge when active, and has NO cooldown text
+02:47 +125: <repo>/app/test/deliverable_submission_test.dart: DeliverableRepository & Drift Database Tests decryptAndVerify throws Exception when integrity hash fails
+[Irys] Uploaded encrypted deliverable for ctr_test_deliverable_03 -> Arweave ID: mock-arweave-tx-1
+02:47 +126: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner displays SeekerLogo, shows SEEKER HARDWARE badge when active, and has NO cooldown text
+02:47 +126: <repo>/app/test/deliverable_submission_test.dart: DeliverableRepository & Drift Database Tests updateStatus updates deliverable submission to reviewed and revisionRequested
+[Irys] Uploaded encrypted deliverable for ctr_status_test -> Arweave ID: mock-arweave-tx-1
+02:47 +127: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner displays SeekerLogo, shows SEEKER HARDWARE badge when active, and has NO cooldown text
+02:47 +128: <repo>/app/test/deliverable_submission_test.dart: DeliverableRepository & Drift Database Tests watchLatestSubmission emits updates when new deliverable is submitted
+[Irys] Uploaded encrypted deliverable for ctr_stream_test -> Arweave ID: mock-arweave-tx-1
+[Irys] Uploaded encrypted deliverable for ctr_stream_test -> Arweave ID: mock-arweave-tx-2
+02:48 +129: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner renders cleanly on narrow screen (320dp) with NO flex overflow
+02:48 +130: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner renders cleanly on narrow screen (320dp) with NO flex overflow
+02:48 +131: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner renders cleanly on narrow screen (320dp) with NO flex overflow
+02:48 +132: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Profile banner renders cleanly on narrow screen (320dp) with NO flex overflow
+02:48 +133: <repo>/app/test/contract_chat_crypto_test.dart: a message round-trips between the two parties
+02:49 +134: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Unverified profile banner renders cleanly on 360dp screen with normal word wrapping and compact Stake button
+02:49 +135: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Unverified profile banner renders cleanly on 360dp screen with normal word wrapping and compact Stake button
+02:49 +136: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Unverified profile banner renders cleanly on 360dp screen with normal word wrapping and compact Stake button
+02:49 +137: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Unverified profile banner renders cleanly on 360dp screen with normal word wrapping and compact Stake button
+02:49 +138: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Unverified profile banner renders cleanly on 360dp screen with normal word wrapping and compact Stake button
+02:49 +139: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Unverified profile banner renders cleanly on 360dp screen with normal word wrapping and compact Stake button
+02:49 +140: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Unverified profile banner renders cleanly on 360dp screen with normal word wrapping and compact Stake button
+02:49 +141: <repo>/app/test/seeker_device_test.dart: Seeker Attestation Banner Tests Unverified profile banner renders cleanly on 360dp screen with normal word wrapping and compact Stake button
+02:50 +142: <repo>/app/test/escrow_test.dart: Escrow NetworkConfig & PDAs Escrow and Vault PDAs derive correctly and deterministically
+02:51 +143: <repo>/app/test/escrow_test.dart: EscrowCurrency classification & exact amount formatting classifies SOL, USDC and $SKR by mint
+02:51 +144: <repo>/app/test/escrow_test.dart: EscrowCurrency classification & exact amount formatting an unrecognised mint is UNKNOWN, never mislabelled as $SKR
+02:51 +145: <repo>/app/test/escrow_test.dart: EscrowCurrency classification & exact amount formatting a legacy token row with no recorded mint is treated as $SKR
+02:51 +146: <repo>/app/test/escrow_test.dart: EscrowCurrency classification & exact amount formatting formats each currency by its own decimals
+02:52 +147: <repo>/app/test/escrow_test.dart: EscrowCurrency classification & exact amount formatting formatting is exact — no float rounding of sub-cent amounts
+02:52 +148: <repo>/app/test/escrow_test.dart: EscrowCurrency classification & exact amount formatting 50/50 split mirrors the program: worker floors, employer gets the remainder
+02:52 +149: <repo>/app/test/escrow_test.dart: EscrowCurrency classification & exact amount formatting amountUi scales by the contract currency, not a fixed SOL divisor
+02:52 +150: <repo>/app/test/escrow_test.dart: ContractStatus.isTerminal — notification suppression gate settled states are terminal
+02:52 +151: <repo>/app/test/escrow_test.dart: ContractStatus.isTerminal — notification suppression gate in-flight states are not terminal
+02:52 +152: <repo>/app/test/escrow_test.dart: ContractStatus.isTerminal — notification suppression gate disputed is NOT terminal — a dispute is still live work
+02:52 +153: <repo>/app/test/escrow_test.dart: ContractStatus.isTerminal — notification suppression gate every status is classified
+02:52 +154: <repo>/app/test/escrow_test.dart: Escrow AccountDecoders Decodes valid EscrowContract binary account data
+02:52 +155: <repo>/app/test/escrow_test.dart: Escrow ProgramInstructions Builds valid createAndFund instruction with correct accounts and data
+02:53 +156: <repo>/app/test/escrow_test.dart: Escrow ProgramInstructions Builds valid acceptContract instruction
+02:53 +157: <repo>/app/test/escrow_test.dart: Escrow ProgramInstructions Builds valid releaseAndReview instruction
+02:54 +158: <repo>/app/test/profile_qr_test.dart: QrScanResult.parse tests parses raw Solana base58 address correctly
+02:54 +159: <repo>/app/test/escrow_test.dart: ContractRepository Drift Local Database Saves and watches escrow contracts reactively from Drift
+02:54 +160: <repo>/app/test/escrow_test.dart: ContractRepository Drift Local Database Saves and watches escrow contracts reactively from Drift
+02:54 +161: <repo>/app/test/escrow_test.dart: ContractRepository Drift Local Database Saves and watches escrow contracts reactively from Drift
+02:54 +162: <repo>/app/test/escrow_test.dart: ContractRepository Drift Local Database Saves and watches escrow contracts reactively from Drift
+02:54 +163: <repo>/app/test/escrow_test.dart: ContractRepository Drift Local Database Saves and watches escrow contracts reactively from Drift
+02:54 +164: <repo>/app/test/escrow_test.dart: ContractRepository Drift Local Database Saves and watches escrow contracts reactively from Drift
+02:55 +165: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+02:55 +166: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+02:55 +167: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+02:55 +168: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+02:55 +169: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+02:55 +170: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+02:56 +171: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+02:56 +172: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+02:56 +173: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+02:57 +174: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+02:57 +175: <repo>/app/test/profile_qr_test.dart: ProfileQrCard & ProfileQrSheet Widget tests ProfileQrCard builds and displays QR code and address
+03:03 +176: All tests passed!

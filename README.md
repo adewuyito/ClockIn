@@ -93,17 +93,19 @@ sequenceDiagram
 | **Cluster** | Solana Devnet (`https://api.devnet.solana.com` / Helius Devnet RPC) |
 | **ProgramData Account** | [`GmfYDR7SLX8ZRhErkKnD5gt8pTzzbuaH21WUi1ueCnRH`](https://explorer.solana.com/address/GmfYDR7SLX8ZRhErkKnD5gt8pTzzbuaH21WUi1ueCnRH?cluster=devnet) |
 | **Upgrade Authority** | `GBZqhLZXAjBtfeVkVWMYWFN8DGmxskwKna3UEXGvfh8P` |
-| **Last Deployed Slot** | `508848800` (Size: `565,296` bytes, verified 100% bytecode match) |
+| **Last Deployed Slot** | `508848800` (Size: `565,296` bytes; deployed bytes match the tested build, SHA-256 `e35e388a…0ade`) |
 | **Upgrade Tx** | [`YNtUAmHZBs7B4YvQMiM4i93ajTWb2JsCjYYHWGYrpH13SD4eHKuRjjsEntSvHnDrur5n34hBDpdcocrF5xz5XKe`](https://explorer.solana.com/tx/YNtUAmHZBs7B4YvQMiM4i93ajTWb2JsCjYYHWGYrpH13SD4eHKuRjjsEntSvHnDrur5n34hBDpdcocrF5xz5XKe?cluster=devnet) |
 | **Devnet $SKR Token Mint** | [`Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9`](https://explorer.solana.com/address/Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9?cluster=devnet) |
 | **Devnet USDC Token Mint** | [`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`](https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet) |
 | **Permaweb Gateway** | Irys Provenance Gateway (`https://gateway.irys.xyz/<arweave_tx_id>`) |
 | **Anchor Integration Tests** | **39 test cases passing** (SOL + SPL tokens, bilateral splits, juror gate) |
-| **Flutter Test Suite** | **167 automated unit, widget, Drift SQLite v13, key attestation, and chat tests passing** |
+| **Flutter Test Suite** | **176 automated unit, widget, Drift SQLite v13, key attestation, chat, and network-check tests passing** |
 | **Firestore Security Tests** | **33 security rule emulator tests passing** (E2EE channel access restriction) |
 | **Sample Escrow Contract** | [`ctr-mu4o1bhi`](https://explorer.solana.com/tx/2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT?cluster=devnet) (Status: `Completed`, 5★ review) |
 
 See [`program/DEPLOYED.md`](program/DEPLOYED.md) for complete deployment records, verification commands, and live transaction logs.
+
+**Verifying these numbers.** [`docs/VERIFICATION.md`](docs/VERIFICATION.md) pins the commit, lists the commands to reproduce all 248 tests (39 program, 176 app, 33 rules) and the bytecode comparison, and links the saved test output in [`docs/test-evidence/`](docs/test-evidence/).
 
 ---
 
@@ -165,7 +167,7 @@ ClockIn/
 │   │   │   ├── solana/           # MWA v2.0 client, Anchor account decoders, instructions
 │   │   │   └── theme/            # Material 3 design tokens & styling
 │   │   └── features/             # Contracts, chat, disputes, deliverables, profile, lookup
-│   ├── test/                     # Unit, widget, Drift SQLite, crypto, and chat tests (167 tests)
+│   ├── test/                     # Unit, widget, Drift SQLite, crypto, and chat tests (176 tests)
 │   └── android/                  # Native Android configuration & adaptive mipmap icons
 ├── firestore.rules               # Strict Firestore security rules for chat & notifications
 ├── firestore-tests/              # Firestore rules test suite (33 Mocha test cases)
@@ -206,7 +208,7 @@ anchor test --skip-build --validator legacy
 cd app
 fvm flutter pub get
 
-# Run the automated test suite (167 passing tests)
+# Run the automated test suite (176 passing tests)
 fvm flutter test
 
 # Verify static analysis (0 issues)

@@ -1,0 +1,120 @@
+i  emulators: Starting emulators: firestore
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node firestore-tests/node_modules/mocha/bin/mocha.js --timeout 20000 firestore-tests/rules.test.js
+
+
+  /users/{walletAddress} — published encryption keys
+    ✔ is world-readable so counterparties can fetch a key (1848ms)
+    ✔ accepts a well-formed attested key (121ms)
+[2026-10-12T21:30:43.823Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772d7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L55, false for 'create' @ L184, false for 'update' @ L55, false for 'update' @ L184
+    ✔ rejects a key whose walletAddress does not match the document id (91ms)
+[2026-10-12T21:30:43.900Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772d8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L55, false for 'create' @ L184, false for 'update' @ L55, false for 'update' @ L184
+    ✔ rejects unknown fields (53ms)
+[2026-10-12T21:30:43.970Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772d9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L55, false for 'create' @ L184, false for 'update' @ L55, false for 'update' @ L184
+    ✔ rejects an fcmToken smuggled into the public key document (50ms)
+[2026-10-12T21:30:44.040Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772da error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L55, false for 'create' @ L184, false for 'update' @ L55, false for 'update' @ L184
+[2026-10-12T21:30:44.086Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772db error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L55, false for 'create' @ L184, false for 'update' @ L55, false for 'update' @ L184
+    ✔ rejects an oversized key or signature (97ms)
+[2026-10-12T21:30:44.146Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772dc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L55, false for 'create' @ L184, false for 'update' @ L55, false for 'update' @ L184
+    ✔ rejects a document id that is not a base58 address (43ms)
+[2026-10-12T21:30:44.269Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772de error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L66, false for 'delete' @ L184
+    ✔ never allows deletion of a key record (105ms)
+
+  /deviceTokens/{walletAddress} — FCM push tokens
+    ✔ accepts a well-formed token write (44ms)
+    ✔ is NOT readable — a readable token lets anyone push to that device (96ms)
+[2026-10-12T21:30:44.502Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772df error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L106, false for 'create' @ L184, false for 'update' @ L106, false for 'update' @ L184
+    ✔ rejects unknown fields
+[2026-10-12T21:30:44.608Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772e2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L112, false for 'delete' @ L184
+    ✔ never allows deletion (90ms)
+
+  /users/{walletAddress}/notifications — append-only inbox
+    ✔ accepts a well-formed unread notification (278ms)
+[2026-10-12T21:30:45.006Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772e3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L75, false for 'create' @ L184, evaluation error at L90:26 for 'update' @ L90, false for 'update' @ L184, false for 'create' @ L75, false for 'create' @ L184
+    ✔ rejects a notification created already-read (72ms)
+[2026-10-12T21:30:45.275Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772e5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L90:26 for 'update' @ L90, false for 'update' @ L184, false for 'update' @ L90, false for 'update' @ L184
+    ✔ allows marking read, and nothing else (245ms)
+[2026-10-12T21:30:45.368Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772e6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L75, false for 'create' @ L184, evaluation error at L90:26 for 'update' @ L90, false for 'update' @ L184, false for 'create' @ L75, false for 'create' @ L184
+    ✔ rejects an oversized body (73ms)
+[2026-10-12T21:30:45.494Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772e8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L94, false for 'delete' @ L184
+    ✔ never allows deletion (105ms)
+
+  /contracts/{contractId}/deliverables — encrypted envelopes
+    ✔ accepts a well-formed encrypted submission (42ms)
+[2026-10-12T21:30:45.609Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772e9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L124, false for 'create' @ L184, evaluation error at L143:24 for 'update' @ L143, false for 'update' @ L184, false for 'create' @ L124, false for 'create' @ L184
+    ✔ rejects a submission whose contractId contradicts its path
+[2026-10-12T21:30:45.666Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772ea error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L124, false for 'create' @ L184, evaluation error at L143:24 for 'update' @ L143, false for 'update' @ L184, false for 'create' @ L124, false for 'create' @ L184
+    ✔ rejects a non-base58 submitter address (39ms)
+[2026-10-12T21:30:45.807Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772ec error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L143:24 for 'update' @ L143, false for 'update' @ L184, false for 'update' @ L143, false for 'update' @ L184
+[2026-10-12T21:30:45.838Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772ed error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L143:24 for 'update' @ L143, false for 'update' @ L184, false for 'update' @ L143, false for 'update' @ L184
+    ✔ allows the employer to flip status, but not to rewrite the ciphertext (155ms)
+[2026-10-12T21:30:45.940Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772ef error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L149, false for 'delete' @ L184
+    ✔ never allows deletion — proof of delivery must not be erasable (88ms)
+
+  /contracts/{contractId}/messages — encrypted chat
+    ✔ accepts a well-formed encrypted message (48ms)
+    ✔ is readable — it is ciphertext only (90ms)
+[2026-10-12T21:30:46.161Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772f0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L162, false for 'create' @ L184, false for 'update' @ L179, false for 'update' @ L184
+    ✔ rejects a plaintext field smuggled alongside the ciphertext
+[2026-10-12T21:30:46.204Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772f2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L162, false for 'create' @ L184, false for 'update' @ L179, false for 'update' @ L184
+[2026-10-12T21:30:46.236Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772f3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L162, false for 'create' @ L184, false for 'update' @ L179, false for 'update' @ L184
+[2026-10-12T21:30:46.263Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772f4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L162, false for 'create' @ L184, false for 'update' @ L179, false for 'update' @ L184
+    ✔ rejects a missing field, a wrong version, or a non-base58 sender (87ms)
+[2026-10-12T21:30:46.307Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772f5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L162, false for 'create' @ L184, false for 'update' @ L179, false for 'update' @ L184
+[2026-10-12T21:30:46.340Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772f6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L162, false for 'create' @ L184, false for 'update' @ L179, false for 'update' @ L184
+    ✔ rejects a non-integer or future-dated timestamp (62ms)
+    ✔ accepts a late-committed offline send with an older timestamp (44ms)
+[2026-10-12T21:30:46.446Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772f7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L162, false for 'create' @ L184, false for 'update' @ L179, false for 'update' @ L184
+    ✔ rejects oversized ciphertext
+[2026-10-12T21:30:46.560Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772f9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L179, false for 'update' @ L184
+[2026-10-12T21:30:46.580Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772fa error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L179, false for 'delete' @ L184
+    ✔ is append-only — messages cannot be edited or deleted (119ms)
+
+  unmatched paths
+[2026-10-12T21:30:46.624Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772fb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L184, false for 'update' @ L184
+    ✔ are denied by the catch-all (39ms)
+[2026-10-12T21:30:46.672Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x310772fc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L184, false for 'update' @ L184
+    ✔ do not expose the contract document itself for writing
+
+  suite integrity
+    ✔ ran against the real rules file
+
+
+  33 passing (10s)
+
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

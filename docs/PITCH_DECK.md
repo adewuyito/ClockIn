@@ -115,7 +115,7 @@ Callout on step 4: "One signature. Funds move to the worker and the review is re
 | | |
 |---|---|
 | **20** on-chain instructions, live on Devnet | **3** currencies: SOL · USDC · $SKR |
-| **239** automated tests passing (39 program · 167 app · 33 security rules) | **11** app screens, built from one design system |
+| **248** automated tests passing (39 program · 176 app · 33 security rules) | **11** app screens, built from one design system |
 | **0** private keys held by the app | **2** Android phones tested, down to a 5-inch screen |
 
 Footer (mono): Program `FKicZK…dEt9` · deployed bytecode matches the tested build, byte for byte
@@ -229,7 +229,7 @@ Footer (mono): Program `FKicZK…dEt9` · deployed bytecode matches the tested b
 | Program ID (Devnet) | `FKicZKbepmiwj2rTnPrHNRBPAja3G5gSvi7KFkjHdEt9` |
 | Last deployed | Slot `508848800`, 565,296 bytes, byte-identical to the tested build |
 | Instructions | 20 |
-| Tests | 39 Anchor · 167 Flutter · 33 Firestore rules |
+| Tests | 39 Anchor · 176 Flutter · 33 Firestore rules |
 | APK | 30.7 MB (arm64) · 26.7 MB (32-bit ARM) · 83.7 MB universal |
 | Devices tested | Samsung Galaxy A51 · Samsung Galaxy J-series (SM-G570F, 5-inch) |
 | Demo contract | `ctr-mu4o1bhi` on Solana Explorer (Devnet) |
@@ -244,7 +244,7 @@ Footer (mono): Program `FKicZK…dEt9` · deployed bytecode matches the tested b
 | Online gig work ~$500B a year | Market reports for 2025 range from $455B to $646B. Say "about half a trillion", not a precise figure. |
 | 154–435 million online gig workers | World Bank estimate. |
 | Seeker: 150,000+ pre-orders, 57 countries | Solana Mobile's announcement when shipping began in August 2025. Pre-orders, not devices in use. |
-| 20 instructions, slot 508848800, 239 tests | Repo and `solana program show`, checked 10 Oct 2026. |
+| 20 instructions, slot 508848800, 248 tests | Repo, `solana program show` and `docs/VERIFICATION.md`, checked 12 Oct 2026. |
 
 ## Do not claim
 
