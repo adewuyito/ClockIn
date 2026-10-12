@@ -408,7 +408,12 @@ class NetworkDiagnostics {
     required this.finalizedSlot,
   });
 
-  double get epochProgress => slotsInEpoch == 0 ? 0 : slotIndex / slotsInEpoch;
+  double get epochProgress {
+    if (slotsInEpoch <= 0) return 0;
+    final progress = slotIndex / slotsInEpoch;
+    if (!progress.isFinite || progress.isNaN) return 0;
+    return progress.clamp(0.0, 1.0).toDouble();
+  }
 }
 
 /// Fetches real, current network diagnostics: a round-trip latency
