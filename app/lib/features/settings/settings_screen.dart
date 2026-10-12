@@ -604,39 +604,41 @@ class SettingsScreen extends ConsumerWidget {
             child: Text('Could not reach RPC: $err',
                 style: AppTypography.bodySm.copyWith(color: AppColors.error)),
           ),
-          data: (d) => Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.surfaceContainerHigh),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('CURRENT EPOCH', style: AppTypography.labelSm.copyWith(color: AppColors.outline)),
-                      Text('${d.epoch}',
-                          style: AppTypography.headlineSm.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: LinearProgressIndicator(
-                          value: d.epochProgress.clamp(0, 1),
-                          minHeight: 6,
-                          backgroundColor: AppColors.surfaceContainerHigh,
-                          valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+          data: (d) {
+            final epochProgress = d.epochProgress;
+            return Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.surfaceContainerHigh),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('CURRENT EPOCH', style: AppTypography.labelSm.copyWith(color: AppColors.outline)),
+                        Text('${d.epoch}',
+                            style: AppTypography.headlineSm.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 4),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: epochProgress,
+                            minHeight: 6,
+                            backgroundColor: AppColors.surfaceContainerHigh,
+                            valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text('${(d.epochProgress * 100).toStringAsFixed(0)}% completed',
-                          style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
-                    ],
+                        const SizedBox(height: 4),
+                        Text('${(epochProgress * 100).toStringAsFixed(0)}% completed',
+                            style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+                      ],
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Container(
@@ -668,8 +670,9 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-            ],
-          ),
+              ],
+            );
+          },
         ),
       ],
     );
