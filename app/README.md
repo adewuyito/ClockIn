@@ -2,15 +2,22 @@
 
 The Android app for ClockIn: escrow, encrypted collaboration and portable reputation for freelance work, on Solana Mobile.
 
-A client locks payment in an on-chain vault before work starts. The worker delivers, and a single wallet signature both releases the payment and records the worker's review on-chain. This folder holds the Flutter app. The on-chain program is in [`../program`](../program), and the project overview is in the [root README](../README.md).
+A client locks payment in an on-chain vault before work starts. The worker delivers, and a single wallet signature both releases the payment and records the worker's review on-chain. This folder holds the Flutter app. The on-chain program is in [`../program`](../program/README.md), and the project overview is in the [root README](../README.md).
 
 The app runs on **Solana Devnet only**. No real funds are involved.
+
+| | |
+|---|---|
+| Install | [Latest release](https://github.com/adewuyito/ClockIn/releases/latest) (`ClockIn.apk`, Android, 64-bit ARM) |
+| Demo video | https://youtu.be/23zOQ4CJjik |
+| What works today and what is planned | [`../docs/STATUS.md`](../docs/STATUS.md) |
+| Verify the claims | [`../docs/VERIFICATION.md`](../docs/VERIFICATION.md) |
 
 ## What the app does
 
 - **Wallet sign-in with no key custody.** Every action is signed in the user's own wallet app (Solflare, Phantom) through Mobile Wallet Adapter. The app never holds a private key.
-- **Escrow contracts** in SOL, USDC or $SKR: create and fund, accept, cancel, release and review.
-- **Encrypted chat and deliverables** inside each contract. Messages and files are encrypted on the device, and only the two wallets on the contract can read them.
+- **Escrow contracts** in SOL, USDC or $SKR: create and fund, accept, cancel, release and review. On Devnet the $SKR is the project's own test token, because there is no official Devnet $SKR. A contract has one amount and one release; there are no staged milestone payments.
+- **Encrypted chat and deliverables** inside each contract. Messages and files are encrypted on the device, and only the two wallets on the contract can read them. Deliverables and review notes are uploaded through Irys's Devnet node, which does not keep data permanently.
 - **Disputes** settled between the two parties, including a 50/50 split that both must agree to.
 - **Reputation profiles** read from chain, with a QR pass for sharing and a lookup screen for checking someone else.
 - **Seeker verification.** Reads a wallet's real $SKR Guardian stake from Solana Mobile's staking program (read-only) and detects Seeker hardware.
@@ -128,12 +135,15 @@ dart run build_runner build --delete-conflicting-outputs
 - Devnet only. There is no mainnet deployment.
 - Release builds here are debug-signed unless you add a keystore.
 - Tested on two Samsung phones (Galaxy A51 and a 5-inch J-series). Seeker hardware detection is implemented but has not been tested on a Seeker.
-- Juror arbitration is built but switched off, in the app and on-chain.
+- Juror arbitration is built but switched off, in the app and on-chain. There is no protocol fee and no milestone payment schedule.
 - Chat has no push notifications yet, and messages are not individually signed, so chat is not dispute evidence.
 - Wallet apps show the app's icon by looking up the favicon of its identity site (`adewuyito.github.io`). Until search services have indexed that site, a wallet may show a placeholder icon.
 
 ## More documentation
 
+- [`../docs/STATUS.md`](../docs/STATUS.md): what works today, what is switched off and what is planned.
+- [`../docs/VERIFICATION.md`](../docs/VERIFICATION.md): pinned commit, test evidence and Devnet transaction links.
+- [`../program/README.md`](../program/README.md): the on-chain program, how to build and test it.
 - [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md): how the app, program, encryption and storage fit together.
 - [`../docs/APP_SPEC.md`](../docs/APP_SPEC.md): screen-by-screen app spec.
 - [`../docs/PROGRAM_SPEC.md`](../docs/PROGRAM_SPEC.md): the on-chain program.

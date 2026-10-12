@@ -41,8 +41,8 @@ Built via `cargo build-sbf --arch v1 --sbf-out-dir target/deploy` followed by `s
 
 Prior to mainnet-beta deployment and protocol hardening:
 
-1. **Protocol Fee Switch & Treasury Architecture (2% – 3% Take-Rate)**:
-   - Introduce `ProtocolConfig` PDA (`seeds = [b"protocol_config"]`) storing `admin`, `treasury`, `fee_basis_points` (default 200–300 bps for 2–3%, capped at 500 bps), and `is_paused`.
+1. **Protocol Fee Switch & Treasury Architecture (1% – 3% Take-Rate, not built)**:
+   - Introduce `ProtocolConfig` PDA (`seeds = [b"protocol_config"]`) storing `admin`, `treasury`, `fee_basis_points` (for example 100–300 bps for 2–3%, capped at 500 bps), and `is_paused`.
    - Implement `initialize_protocol_config`, `update_protocol_fee`, and `update_treasury` instructions.
    - Update `release_and_review` (SOL) and `release_and_review_token` ($SKR/SPL) to route protocol fee to `treasury` and remainder to `worker`.
    - Update Flutter `ContractService` instruction builders and UI fee breakdowns (`CreateContractScreen`, `ReleaseAndReviewModal`).

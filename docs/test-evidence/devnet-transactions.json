@@ -137,7 +137,7 @@
       "path": "Create and fund, then cancel and refund",
       "currency": "SOL",
       "contractId": "ev-sol-cx-5siami",
-      "source": "script (program/scripts/devnet_path_evidence.ts)",
+      "source": "script (Devnet deployer wallet as client, throwaway wallet as worker)",
       "steps": [
         {
           "step": "create_and_fund",
@@ -155,7 +155,7 @@
       "path": "Create and fund, then cancel and refund",
       "currency": "test $SKR",
       "contractId": "ev-skr-cx-5siami",
-      "source": "script (program/scripts/devnet_path_evidence.ts)",
+      "source": "script (Devnet deployer wallet as client, throwaway wallet as worker)",
       "steps": [
         {
           "step": "create_and_fund_token",
@@ -173,7 +173,7 @@
       "path": "Dispute settled by an agreed 50/50 split",
       "currency": "test $SKR",
       "contractId": "ev-skr-sp-5siami",
-      "source": "script (program/scripts/devnet_path_evidence.ts)",
+      "source": "script (Devnet deployer wallet as client, throwaway wallet as worker)",
       "steps": [
         {
           "step": "create_and_fund_token",

@@ -150,7 +150,7 @@ Everything from the original Phases 0–6 that still applies after the pivot. No
 
 Tasks prioritized for post-hackathon mainnet readiness:
 
-### 1. Protocol Fee Switch & Treasury Architecture (2% – 3% Take-Rate)
+### 1. Protocol Fee Switch & Treasury Architecture (1% – 3% Take-Rate, not built)
 - [ ] **`ProtocolConfig` PDA (`seeds = [b"protocol_config"]`)**:
   - Store `admin: Pubkey` (Squads multisig / governance authority)
   - Store `treasury: Pubkey` (protocol fee accumulator wallet or SPL ATA)

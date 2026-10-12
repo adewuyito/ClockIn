@@ -2,9 +2,24 @@
 
 > **Lock funds. Do the work. Get paid and reviewed — atomically.**
 
-ClockIn is a mobile-first **P2P Work Contract & Escrow Protocol** built natively for the Solana Mobile Stack. It enables freelancers, gig workers, and clients to negotiate agreements, lock milestone deposits safely inside Program Derived Address (PDA) escrow vaults in **SOL, USDC, or $SKR**, communicate via **end-to-end encrypted contract chat**, and execute guaranteed payment releases that mint permanent on-chain reputation and inscribe immutable review proofs to the **Arweave permaweb via Irys** at the exact moment of settlement.
+ClockIn is a mobile-first **P2P Work Contract & Escrow Protocol** built natively for the Solana Mobile Stack. It enables freelancers, gig workers, and clients to negotiate agreements, lock payment safely inside Program Derived Address (PDA) escrow vaults in **SOL, USDC, or $SKR**, communicate via **end-to-end encrypted contract chat**, and release payment in the same transaction that records the worker's rating on-chain. It runs on **Solana Devnet**; review notes and deliverables are stored through Irys's Devnet node.
 
 **Demo video:** https://youtu.be/23zOQ4CJjik · **Install (Android, Devnet):** [latest release](https://github.com/adewuyito/ClockIn/releases/latest) · **Verify the claims:** [`docs/VERIFICATION.md`](docs/VERIFICATION.md)
+
+---
+
+## What works today, and what does not
+
+Everything in this README runs on **Solana Devnet**. The full list, with where to check each item, is in [`docs/STATUS.md`](docs/STATUS.md).
+
+| Works today | Built but switched off | Planned, not built |
+|---|---|---|
+| Escrow in SOL, USDC and Devnet test $SKR: create and fund, accept, release and review, cancel | Juror arbitration (new cases refused on-chain with `JURY_ENABLED = false`; hidden in the app) | Juror selection from $SKR Guardian stakers |
+| Disputes settled by the two parties, including a 50/50 split both must agree to | | Protocol fee (none exists; settlements move the full amount) |
+| On-chain worker profiles, ratings and lookup | | Milestone payments (a contract has one amount and one release) |
+| End-to-end encrypted chat and deliverables | | Mainnet deployment |
+| Seeker badge from real $SKR Guardian stake (read-only) | | Security audit and multisig upgrade authority |
+| Wallet signing through Mobile Wallet Adapter, offline cache, QR scanning | | dApp Store listing, permanent storage, verified build |
 
 ---
 
@@ -14,7 +29,7 @@ ClockIn is a mobile-first **P2P Work Contract & Escrow Protocol** built natively
 |---|---|
 | **High Middleman Fees**: Platforms take 10%–20% cuts on every invoice. | **Zero Platform Cut**: Direct peer-to-peer on Solana. Only standard network transaction fees apply. |
 | **Payment Risk**: Freelancers risk non-payment; employers risk paying for incomplete work. | **Atomic Escrow PDAs**: Client locks SOL, USDC, or $SKR in a programmatic vault; funds can only be released upon completion or refunded on cancellation. |
-| **Walled-Garden Reputation**: Upwork or Fiverr ratings are locked inside closed corporate silos and reset to zero on new platforms. | **Portable, Public Reputation**: Ratings and reviews are inscribed into Solana Anchor PDAs and permanently archived to the **Arweave permaweb via Irys**. |
+| **Walled-Garden Reputation**: Upwork or Fiverr ratings are locked inside closed corporate silos and reset to zero on new platforms. | **Portable, Public Reputation**: Ratings are recorded in Solana Anchor PDAs tied to the worker's wallet. Written review notes are stored through **Irys** (its Devnet node today, which is not permanent). |
 | **Unencrypted / Monitored Chat**: Private messages and deliverable drafts are stored in plain text on centralized servers. | **End-to-End Encrypted Chat & Deliverables**: Messages and work files are encrypted using **X25519 DH key agreement + AES-256-GCM**; only contract parties hold the keys. |
 | **Unilateral Dispute Arbitrariness**: Platforms resolve disputes arbitrarily or one side can drain escrowed funds unilaterally. | **Bilateral Dispute Settlement**: 50/50 splits require mutual agreement via `SplitProposal` PDAs (one proposes, the counterparty accepts). Neither party can force a split alone. |
 | **Custodial Key Exposure**: Apps require custody of API keys, seed phrases, or private keys. | **Zero Key Custody**: 100% Mobile Wallet Adapter (MWA) v2.0 authorization. Private keys never touch ClockIn. |
@@ -34,7 +49,7 @@ sequenceDiagram
     actor Worker as Worker (Freelancer)
     participant Profile as WorkerProfile PDA
     participant Review as Review PDA
-    participant Arweave as Arweave / Irys Permaweb
+    participant Arweave as Irys storage (Devnet node)
 
     Note over Employer,Worker: 1. Agreement & Multi-Currency Funding
     Employer->Program: create_and_fund (SOL) / create_and_fund_token (USDC / $SKR)
@@ -51,7 +66,7 @@ sequenceDiagram
     Note over Employer,Worker: 3. Dual-Layer Atomic Settlement & Reputation
     Employer->Employer: Decrypt deliverable with attested X25519 key & verify hash
     Employer->Arweave: Inscribe qualitative review note & rating breakdown via Irys
-    Arweave-->>Employer: Return permanent Arweave Tx ID receipt
+    Arweave-->>Employer: Return storage receipt (Irys Devnet node)
     Employer->Program: release_and_review (SOL) / release_and_review_token (USDC / $SKR)
     Program->Vault: Transfer locked funds directly to Worker (closes token ATA & refunds rent)
     Program->Review: Create immutable Review PDA on Solana
@@ -97,13 +112,13 @@ sequenceDiagram
 | **Upgrade Tx** | [`YNtUAmHZBs7B4YvQMiM4i93ajTWb2JsCjYYHWGYrpH13SD4eHKuRjjsEntSvHnDrur5n34hBDpdcocrF5xz5XKe`](https://explorer.solana.com/tx/YNtUAmHZBs7B4YvQMiM4i93ajTWb2JsCjYYHWGYrpH13SD4eHKuRjjsEntSvHnDrur5n34hBDpdcocrF5xz5XKe?cluster=devnet) |
 | **Devnet $SKR Token Mint** | [`Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9`](https://explorer.solana.com/address/Gd1eTEXDt1D9uyTqCrVTKtaumz7XmZKvfThVEX9856N9?cluster=devnet) |
 | **Devnet USDC Token Mint** | [`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`](https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet) |
-| **Permaweb Gateway** | Irys Provenance Gateway (`https://gateway.irys.xyz/<arweave_tx_id>`) |
+| **Storage Gateway** | Irys Gateway (`https://gateway.irys.xyz/<arweave_tx_id>`) |
 | **Anchor Integration Tests** | **39 test cases passing** (SOL + SPL tokens, bilateral splits, juror gate) |
 | **Flutter Test Suite** | **176 automated unit, widget, Drift SQLite v13, key attestation, chat, and network-check tests passing** |
 | **Firestore Security Tests** | **33 security rule emulator tests passing** (E2EE channel access restriction) |
 | **Sample Escrow Contract** | [`ctr-mu4o1bhi`](https://explorer.solana.com/tx/2tvjD8XQezFBbzQXyD2VtR5vzae2ynLdCs6XLb4hAkyEqRbFGr5PexYtNPoi8xSojktbbLA9rSmdib7DUNSyZ2TT?cluster=devnet) (Status: `Completed`, 5★ review) |
 
-See [`program/DEPLOYED.md`](program/DEPLOYED.md) for complete deployment records, verification commands, and live transaction logs.
+See [`program/README.md`](program/README.md) for how to build and test the program, and [`program/DEPLOYED.md`](program/DEPLOYED.md) for complete deployment records, verification commands, and live transaction logs.
 
 **Verifying these numbers.** [`docs/VERIFICATION.md`](docs/VERIFICATION.md) pins the commit, lists the commands to reproduce all 248 tests (39 program, 176 app, 33 rules) and the bytecode comparison, and links the saved test output in [`docs/test-evidence/`](docs/test-evidence/).
 
@@ -126,7 +141,7 @@ See [`program/DEPLOYED.md`](program/DEPLOYED.md) for complete deployment records
 - **Encrypted Deliverables & Arweave / Irys Pipeline**:
   - Freelancers upload deliverables encrypted with AES-256-GCM.
   - Symmetric key is wrapped with the employer's attested X25519 public key.
-  - Ciphertext and SHA-256 hash are archived to the Arweave permaweb via Irys.
+  - Ciphertext and SHA-256 hash are uploaded through Irys (Devnet node today; permanent storage is planned for mainnet).
   - Employer automatically unwraps the key with their private key, verifying cryptographic integrity before releasing funds.
   - Gated deliverable actions (`acceptsDeliverableActions`) automatically close revision requests and uploads on terminal or disputed contracts.
 - **Drift SQLite Cache (Schema v13)**:
