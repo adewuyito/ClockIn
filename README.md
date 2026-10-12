@@ -52,26 +52,26 @@ sequenceDiagram
     participant Arweave as Irys storage (Devnet node)
 
     Note over Employer,Worker: 1. Agreement & Multi-Currency Funding
-    Employer->Program: create_and_fund (SOL) / create_and_fund_token (USDC / $SKR)
-    Program->Escrow: Initialize state (status = Funded)
-    Program->Vault: Lock SOL, USDC, or $SKR into programmatic vault
+    Employer->>Program: create_and_fund (SOL) / create_and_fund_token (USDC / $SKR)
+    Program->>Escrow: Initialize state (status = Funded)
+    Program->>Vault: Lock SOL, USDC, or $SKR into programmatic vault
 
     Note over Employer,Worker: 2. Acceptance, E2EE Chat & Encrypted Delivery
-    Worker->Program: accept_contract(contract_id)
-    Program->Escrow: Transition status -> InProgress
+    Worker->>Program: accept_contract(contract_id)
+    Program->>Escrow: Status becomes InProgress
     Employer<<->>Worker: 1-on-1 encrypted chat with live contract milestone markers
-    Worker->Arweave: Inscribe AES-256-GCM encrypted work with wrapped key & SHA-256 hash
-    Worker->Employer: Deliverable submitted for verification
+    Worker->>Arweave: Inscribe AES-256-GCM encrypted work with wrapped key & SHA-256 hash
+    Worker->>Employer: Deliverable submitted for verification
 
     Note over Employer,Worker: 3. Dual-Layer Atomic Settlement & Reputation
-    Employer->Employer: Decrypt deliverable with attested X25519 key & verify hash
-    Employer->Arweave: Inscribe qualitative review note & rating breakdown via Irys
+    Employer->>Employer: Decrypt deliverable with attested X25519 key & verify hash
+    Employer->>Arweave: Inscribe qualitative review note & rating breakdown via Irys
     Arweave-->>Employer: Return storage receipt (Irys Devnet node)
-    Employer->Program: release_and_review (SOL) / release_and_review_token (USDC / $SKR)
-    Program->Vault: Transfer locked funds directly to Worker (closes token ATA & refunds rent)
-    Program->Review: Create immutable Review PDA on Solana
-    Program->Profile: Increment total_jobs & rating_sum
-    Program->Escrow: Transition status -> Completed (terminal state&#59; chat & actions locked)
+    Employer->>Program: release_and_review (SOL) / release_and_review_token (USDC / $SKR)
+    Program->>Vault: Transfer locked funds directly to Worker (closes token ATA & refunds rent)
+    Program->>Review: Create immutable Review PDA on Solana
+    Program->>Profile: Increment total_jobs & rating_sum
+    Program->>Escrow: Status becomes Completed (terminal state, chat and actions locked)
 ```
 
 ### Protocol Instructions (20 Anchor Instructions)
